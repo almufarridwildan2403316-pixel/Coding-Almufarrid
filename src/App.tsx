@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult } from './types/chemistry';
+import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission } from './types/chemistry';
 import { 
   getStoredProgress, 
   saveWorksheetRecord, 
   markSolutionTested, 
   saveQuizResult, 
+  updateQuizSubmission,
   resetAllProgress 
 } from './utils/storage';
 import { Navbar } from './components/Navbar';
@@ -14,6 +15,7 @@ import { Materi } from './components/Materi';
 import { LabVirtual } from './components/LabVirtual';
 import { LembarKerja } from './components/LembarKerja';
 import { Evaluasi } from './components/Evaluasi';
+import { TeacherDashboard } from './components/TeacherDashboard';
 import { HasilBelajar } from './components/HasilBelajar';
 
 export function App() {
@@ -36,6 +38,11 @@ export function App() {
 
   const handleSaveQuizResult = (result: QuizResult) => {
     const updated = saveQuizResult(result);
+    setProgress(updated);
+  };
+
+  const handleSaveTeacherReview = (submissionId: string, updates: Partial<QuizSubmission>) => {
+    const updated = updateQuizSubmission(submissionId, updates);
     setProgress(updated);
   };
 
@@ -105,6 +112,13 @@ export function App() {
           <Evaluasi 
             onSaveQuizResult={handleSaveQuizResult} 
             savedResult={progress.quizResult} 
+          />
+        )}
+
+        {activePage === 'guru' && (
+          <TeacherDashboard
+            progress={progress}
+            onSaveReview={handleSaveTeacherReview}
           />
         )}
 

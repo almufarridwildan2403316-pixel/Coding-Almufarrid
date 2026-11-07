@@ -62,7 +62,8 @@ export const Footer: React.FC<FooterProps> = ({ setActivePage, onResetProgress }
                 { label: 'Materi & Konsep Ion', page: 'materi' as ActivePage },
                 { label: 'Laboratorium Virtual', page: 'lab' as ActivePage },
                 { label: 'Lembar Kerja Praktikum', page: 'lembar-kerja' as ActivePage },
-                { label: 'Evaluasi & Kuis (10 Soal)', page: 'evaluasi' as ActivePage },
+                { label: 'Evaluasi & Kuis (10 Pilihan Ganda + 2 Esai)', page: 'evaluasi' as ActivePage },
+                { label: 'Akses Guru / Teacher Dashboard', page: 'guru' as ActivePage },
                 { label: 'Ringkasan Hasil Belajar', page: 'hasil' as ActivePage },
               ].map((link) => (
                 <li key={link.page}>

@@ -1,4 +1,4 @@
-import type { LearningProgress, ExperimentRecord, QuizResult } from '../types/chemistry';
+import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission } from '../types/chemistry';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v1';
 
@@ -6,6 +6,7 @@ export const DEFAULT_PROGRESS: LearningProgress = {
   testedSolutions: [],
   worksheetRecords: {},
   quizResult: null,
+  quizSubmissions: [],
   readMaterials: [],
 };
 
@@ -18,6 +19,7 @@ export const getStoredProgress = (): LearningProgress => {
       testedSolutions: Array.isArray(parsed.testedSolutions) ? parsed.testedSolutions : [],
       worksheetRecords: parsed.worksheetRecords || {},
       quizResult: parsed.quizResult || null,
+      quizSubmissions: Array.isArray(parsed.quizSubmissions) ? parsed.quizSubmissions : [],
       readMaterials: Array.isArray(parsed.readMaterials) ? parsed.readMaterials : [],
     };
   } catch (e) {
@@ -62,10 +64,43 @@ export const saveWorksheetRecord = (record: ExperimentRecord): LearningProgress 
 
 export const saveQuizResult = (quizResult: QuizResult): LearningProgress => {
   const current = getStoredProgress();
+  const submission: QuizSubmission = {
+    id: quizResult.id ?? `submission-${Date.now()}`,
+    studentName: quizResult.studentName ?? 'Siswa',
+    submittedAt: quizResult.completedAt,
+    answers: quizResult.submissionData ?? [],
+    score: quizResult.score,
+    totalQuestions: quizResult.totalQuestions,
+    correctAnswers: quizResult.correctAnswers,
+    manualEssayScore: quizResult.manualEssayScore ?? 0,
+    teacherNotes: quizResult.teacherNotes ?? '',
+  };
+
   const updated: LearningProgress = {
     ...current,
     quizResult,
+    quizSubmissions: [submission, ...current.quizSubmissions.filter((item) => item.id !== submission.id)],
   };
+
+  saveStoredProgress(updated);
+  return updated;
+};
+
+export const updateQuizSubmission = (submissionId: string, updates: Partial<QuizSubmission>): LearningProgress => {
+  const current = getStoredProgress();
+  const updatedSubmissions = current.quizSubmissions.map((submission) => {
+    if (submission.id !== submissionId) return submission;
+    return {
+      ...submission,
+      ...updates,
+    };
+  });
+
+  const updated: LearningProgress = {
+    ...current,
+    quizSubmissions: updatedSubmissions,
+  };
+
   saveStoredProgress(updated);
   return updated;
 };

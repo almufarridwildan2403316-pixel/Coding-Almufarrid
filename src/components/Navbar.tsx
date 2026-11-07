@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Menu, 
   X,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -30,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
     { id: 'lab', label: 'Laboratorium Virtual', icon: <Atom size={18} /> },
     { id: 'lembar-kerja', label: 'Lembar Kerja', icon: <ClipboardList size={18} /> },
     { id: 'evaluasi', label: 'Evaluasi & Kuis', icon: <Award size={18} /> },
+    { id: 'guru', label: 'Akses Guru', icon: <ShieldCheck size={18} /> },
     { id: 'hasil', label: 'Hasil Belajar', icon: <BarChart3 size={18} /> },
   ];
 
