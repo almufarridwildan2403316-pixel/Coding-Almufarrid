@@ -99,7 +99,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
                       </div>
                       <div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--navy-900)' }}>{submission.studentName}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>{formatDate(submission.submittedAt)}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>Kelas {submission.studentClass} · {formatDate(submission.submittedAt)}</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>

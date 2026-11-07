@@ -81,6 +81,8 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
 
     const record: ExperimentRecord = {
       solutionId: currentSolution.id,
+      studentName: progress.student?.name ?? '',
+      studentClass: progress.student?.className ?? '',
       prediction: prediction,
       lampObservation: currentSolution.expectedLamp,
       bubbleObservation: currentSolution.expectedBubbles,

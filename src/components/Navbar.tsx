@@ -10,16 +10,20 @@ import {
   Menu, 
   X,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
+import type { StudentIdentity } from '../types/chemistry';
 
 interface NavbarProps {
   activePage: ActivePage;
   setActivePage: (page: ActivePage) => void;
   progress: LearningProgress;
+  student: StudentIdentity;
+  onLogout: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progress }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progress, student, onLogout }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const testedCount = progress.testedSolutions.length;
@@ -140,6 +144,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
 
         {/* Right CTA / Progress Pill */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ textAlign: 'right', lineHeight: 1.25 }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-900)' }}>{student.name}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>Kelas {student.className}</div>
+          </div>
+          <button
+            onClick={onLogout}
+            title="Keluar dari identitas siswa"
+            aria-label="Keluar dari identitas siswa"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '8px', border: '1px solid var(--slate-200)', background: '#ffffff', color: 'var(--slate-600)', cursor: 'pointer' }}
+          >
+            <LogOut size={17} />
+          </button>
           <button
             onClick={() => handleNavClick('hasil')}
             title="Lihat progres belajar Anda"

@@ -7,15 +7,17 @@ interface LembarKerjaProps {
   progress: LearningProgress;
   setActivePage: (page: ActivePage) => void;
   onOpenLabSample: (sampleId: string) => void;
+  onSaveConclusion: (text: string) => void;
 }
 
 export const LembarKerja: React.FC<LembarKerjaProps> = ({
   progress,
   setActivePage,
   onOpenLabSample,
+  onSaveConclusion,
 }) => {
-  const [generalConclusion, setGeneralConclusion] = useState<string>('');
-  const [submittedConclusion, setSubmittedConclusion] = useState<boolean>(false);
+  const [generalConclusion, setGeneralConclusion] = useState<string>(progress.worksheetConclusion?.text ?? '');
+  const [submittedConclusion, setSubmittedConclusion] = useState<boolean>(Boolean(progress.worksheetConclusion));
 
   const formatCategory = (cat?: string) => {
     if (cat === 'strong_electrolyte') return 'Elektrolit Kuat';
@@ -169,7 +171,10 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
             <textarea
               rows={4}
               value={generalConclusion}
-              onChange={(e) => setGeneralConclusion(e.target.value)}
+              onChange={(e) => {
+                setGeneralConclusion(e.target.value);
+                setSubmittedConclusion(false);
+              }}
               placeholder="Tuliskan analisis Anda mengenai hubungan antara ion yang bebas bergerak dengan nyala lampu..."
               style={{
                 width: '100%',
@@ -185,7 +190,10 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
           </div>
 
           <button
-            onClick={() => setSubmittedConclusion(true)}
+            onClick={() => {
+              onSaveConclusion(generalConclusion.trim());
+              setSubmittedConclusion(true);
+            }}
             className="btn btn-primary"
             style={{ padding: '0.7rem 1.4rem', fontSize: '0.9rem' }}
           >
