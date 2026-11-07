@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { QuizAnswer, QuizQuestion, QuizResult } from '../types/chemistry';
+import type { QuizAnswer, QuizQuestion, QuizResult, StudentIdentity } from '../types/chemistry';
 import { Award, RotateCcw, ArrowRight, FileText } from 'lucide-react';
 
 const QUIZ_QUESTIONS: QuizQuestion[] = [
@@ -183,9 +183,10 @@ const buildSubmissionMap = (savedResult: QuizResult | null): Record<number, Quiz
 interface EvaluasiProps {
   onSaveQuizResult: (result: QuizResult) => void;
   savedResult: QuizResult | null;
+  student: StudentIdentity;
 }
 
-export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResult }) => {
+export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResult, student }) => {
   const [submissionData, setSubmissionData] = useState<Record<number, QuizAnswer>>(() => buildSubmissionMap(savedResult));
   const [submitted, setSubmitted] = useState<boolean>(savedResult !== null);
   const [currentScore, setCurrentScore] = useState<number>(savedResult ? savedResult.score : 0);
@@ -257,7 +258,8 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
 
     const result: QuizResult = {
       id: savedResult?.id ?? `submission-${Date.now()}`,
-      studentName: 'Siswa',
+      studentName: student.name,
+      studentClass: student.className,
       score,
       totalQuestions: QUIZ_QUESTIONS.length,
       correctAnswers: correctCount,

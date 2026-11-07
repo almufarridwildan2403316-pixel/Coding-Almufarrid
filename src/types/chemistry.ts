@@ -30,6 +30,8 @@ export interface Solution {
 
 export interface ExperimentRecord {
   solutionId: string;
+  studentName: string;
+  studentClass: string;
   prediction: SolutionCategory | '';
   lampObservation: LampStatus | '';
   bubbleObservation: BubbleStatus | '';
@@ -61,6 +63,7 @@ export interface QuizQuestion {
 export interface QuizResult {
   id?: string;
   studentName?: string;
+  studentClass?: string;
   score: number;
   totalQuestions: number;
   correctAnswers: number;
@@ -74,6 +77,7 @@ export interface QuizResult {
 export interface QuizSubmission {
   id: string;
   studentName: string;
+  studentClass: string;
   submittedAt: string;
   answers: QuizAnswer[];
   score: number;
@@ -84,11 +88,25 @@ export interface QuizSubmission {
 }
 
 export interface LearningProgress {
+  student: StudentIdentity | null;
   testedSolutions: string[]; // List of solution IDs tested in simulation
   worksheetRecords: Record<string, ExperimentRecord>;
+  worksheetConclusion: WorksheetConclusion | null;
   quizResult: QuizResult | null;
   quizSubmissions: QuizSubmission[];
   readMaterials: string[]; // IDs of materials read
+}
+
+export interface StudentIdentity {
+  name: string;
+  className: string;
+}
+
+export interface WorksheetConclusion {
+  text: string;
+  studentName: string;
+  studentClass: string;
+  submittedAt: string;
 }
 
 export type ActivePage =

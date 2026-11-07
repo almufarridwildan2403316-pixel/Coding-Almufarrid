@@ -1,56 +1,100 @@
-import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission } from '../types/chemistry';
+import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
 
-const STORAGE_KEY = 'kimialab_learning_progress_v1';
+const STORAGE_KEY = 'kimialab_learning_progress_v2';
+const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
 
 export const DEFAULT_PROGRESS: LearningProgress = {
+  student: null,
   testedSolutions: [],
   worksheetRecords: {},
+  worksheetConclusion: null,
   quizResult: null,
   quizSubmissions: [],
   readMaterials: [],
 };
 
-export const getStoredProgress = (): LearningProgress => {
+const getProgressKey = (student: StudentIdentity): string => {
+  const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+  return `${STORAGE_KEY}:${encodeURIComponent(`${normalize(student.name)}|${normalize(student.className)}`)}`;
+};
+
+const createDefaultProgress = (student: StudentIdentity): LearningProgress => ({
+  ...DEFAULT_PROGRESS,
+  student,
+});
+
+export const getActiveStudent = (): StudentIdentity | null => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PROGRESS;
+    const raw = localStorage.getItem(ACTIVE_STUDENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.name !== 'string' || typeof parsed?.className !== 'string') return null;
+    return { name: parsed.name, className: parsed.className };
+  } catch (e) {
+    console.error('Error loading active student from localStorage:', e);
+    return null;
+  }
+};
+
+export const saveActiveStudent = (student: StudentIdentity): void => {
+  try {
+    localStorage.setItem(ACTIVE_STUDENT_KEY, JSON.stringify(student));
+  } catch (e) {
+    console.error('Error saving active student to localStorage:', e);
+  }
+};
+
+export const clearActiveStudent = (): void => {
+  try {
+    localStorage.removeItem(ACTIVE_STUDENT_KEY);
+  } catch (e) {
+    console.error('Error clearing active student from localStorage:', e);
+  }
+};
+
+export const getStoredProgress = (student: StudentIdentity): LearningProgress => {
+  try {
+    const raw = localStorage.getItem(getProgressKey(student));
+    if (!raw) return createDefaultProgress(student);
     const parsed = JSON.parse(raw);
     return {
+      student,
       testedSolutions: Array.isArray(parsed.testedSolutions) ? parsed.testedSolutions : [],
       worksheetRecords: parsed.worksheetRecords || {},
+      worksheetConclusion: parsed.worksheetConclusion || null,
       quizResult: parsed.quizResult || null,
       quizSubmissions: Array.isArray(parsed.quizSubmissions) ? parsed.quizSubmissions : [],
       readMaterials: Array.isArray(parsed.readMaterials) ? parsed.readMaterials : [],
     };
   } catch (e) {
     console.error('Error loading progress from localStorage:', e);
-    return DEFAULT_PROGRESS;
+    return createDefaultProgress(student);
   }
 };
 
-export const saveStoredProgress = (progress: LearningProgress): void => {
+export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(getProgressKey(student), JSON.stringify({ ...progress, student }));
   } catch (e) {
     console.error('Error saving progress to localStorage:', e);
   }
 };
 
-export const markSolutionTested = (solutionId: string): LearningProgress => {
-  const current = getStoredProgress();
+export const markSolutionTested = (solutionId: string, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
   if (!current.testedSolutions.includes(solutionId)) {
     const updated: LearningProgress = {
       ...current,
       testedSolutions: [...current.testedSolutions, solutionId],
     };
-    saveStoredProgress(updated);
+    saveStoredProgress(updated, student);
     return updated;
   }
   return current;
 };
 
-export const saveWorksheetRecord = (record: ExperimentRecord): LearningProgress => {
-  const current = getStoredProgress();
+export const saveWorksheetRecord = (record: ExperimentRecord, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
   const updated: LearningProgress = {
     ...current,
     worksheetRecords: {
@@ -58,15 +102,23 @@ export const saveWorksheetRecord = (record: ExperimentRecord): LearningProgress 
       [record.solutionId]: record,
     },
   };
-  saveStoredProgress(updated);
+  saveStoredProgress(updated, student);
   return updated;
 };
 
-export const saveQuizResult = (quizResult: QuizResult): LearningProgress => {
-  const current = getStoredProgress();
+export const saveWorksheetConclusion = (conclusion: WorksheetConclusion, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
+  const updated: LearningProgress = { ...current, worksheetConclusion: conclusion };
+  saveStoredProgress(updated, student);
+  return updated;
+};
+
+export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
   const submission: QuizSubmission = {
     id: quizResult.id ?? `submission-${Date.now()}`,
-    studentName: quizResult.studentName ?? 'Siswa',
+    studentName: student.name,
+    studentClass: student.className,
     submittedAt: quizResult.completedAt,
     answers: quizResult.submissionData ?? [],
     score: quizResult.score,
@@ -82,12 +134,12 @@ export const saveQuizResult = (quizResult: QuizResult): LearningProgress => {
     quizSubmissions: [submission, ...current.quizSubmissions.filter((item) => item.id !== submission.id)],
   };
 
-  saveStoredProgress(updated);
+  saveStoredProgress(updated, student);
   return updated;
 };
 
-export const updateQuizSubmission = (submissionId: string, updates: Partial<QuizSubmission>): LearningProgress => {
-  const current = getStoredProgress();
+export const updateQuizSubmission = (submissionId: string, updates: Partial<QuizSubmission>, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
   const updatedSubmissions = current.quizSubmissions.map((submission) => {
     if (submission.id !== submissionId) return submission;
     return {
@@ -101,15 +153,15 @@ export const updateQuizSubmission = (submissionId: string, updates: Partial<Quiz
     quizSubmissions: updatedSubmissions,
   };
 
-  saveStoredProgress(updated);
+  saveStoredProgress(updated, student);
   return updated;
 };
 
-export const resetAllProgress = (): LearningProgress => {
+export const resetAllProgress = (student: StudentIdentity): LearningProgress => {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(getProgressKey(student));
   } catch (e) {
     console.error('Error clearing storage:', e);
   }
-  return DEFAULT_PROGRESS;
+  return createDefaultProgress(student);
 };
