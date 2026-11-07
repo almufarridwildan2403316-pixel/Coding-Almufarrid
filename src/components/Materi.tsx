@@ -1,1121 +1,1220 @@
-import { useState } from "react";
-import type { FC, ReactNode } from "react";
-import {
-  Atom,
-  BookOpen,
-  FlaskConical,
-  Zap,
-  Lightbulb,
-  ChevronRight,
-  CheckCircle2,
-  Info,
-  Droplets,
-  Sparkles,
-  ArrowRight,
-  Microscope,
-} from "lucide-react";
-
-// ================================
-// TYPESCRIPT INTERFACES
-// ================================
+import React, { useState } from 'react';
+import { BookOpen, Zap, ArrowRight, FlaskConical, Lightbulb } from 'lucide-react';
 
 interface MateriProps {
-  onStartLab?: () => void;
+  onStartLab: () => void;
 }
 
-type TabId =
-  | "dasar"
-  | "kuat"
-  | "lemah"
-  | "non"
-  | "perbandingan";
+type TabType =
+  | 'dasar'
+  | 'kuat'
+  | 'lemah'
+  | 'non'
+  | 'perbandingan'
+  | 'arrhenius';
 
-interface TabItem {
-  id: TabId;
-  label: string;
-}
+export const Materi: React.FC<MateriProps> = ({ onStartLab }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('dasar');
 
-// ================================
-// DATA NAVIGASI
-// ================================
+  const tabs: { id: TabType; label: string }[] = [
+    { id: 'dasar', label: '1. Konsep Dasar' },
+    { id: 'kuat', label: '2. Elektrolit Kuat' },
+    { id: 'lemah', label: '3. Elektrolit Lemah' },
+    { id: 'non', label: '4. Non-Elektrolit' },
+    { id: 'perbandingan', label: '5. Perbandingan' },
+    { id: 'arrhenius', label: '6. Teori Arrhenius' },
+  ];
 
-const tabs: TabItem[] = [
-  { id: "dasar", label: "Konsep Dasar" },
-  { id: "kuat", label: "Elektrolit Kuat" },
-  { id: "lemah", label: "Elektrolit Lemah" },
-  { id: "non", label: "Non-Elektrolit" },
-  { id: "perbandingan", label: "Perbandingan" },
-];
+  const sectionTitle: React.CSSProperties = {
+    fontSize: '1.35rem',
+    fontWeight: 800,
+    color: 'var(--navy-900)',
+    marginBottom: '1rem',
+  };
 
-// ================================
-// KOMPONEN PENDUKUNG
-// ================================
+  const paragraph: React.CSSProperties = {
+    fontSize: '0.96rem',
+    color: 'var(--slate-700)',
+    lineHeight: 1.85,
+    marginBottom: '1rem',
+    textAlign: 'justify',
+  };
 
-const SectionHeading = ({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) => (
-  <div className="mb-7">
-    <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-600">
-      {eyebrow}
-    </p>
+  const subTitle: React.CSSProperties = {
+    fontSize: '1.08rem',
+    fontWeight: 750,
+    color: 'var(--navy-900)',
+    marginTop: '1.5rem',
+    marginBottom: '0.75rem',
+  };
 
-    <h2 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-      {title}
-    </h2>
+  const cardStyle: React.CSSProperties = {
+    padding: '1.35rem',
+    borderRadius: '12px',
+    margin: '1.2rem 0',
+    border: '1px solid var(--slate-200)',
+  };
 
-    <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
-      {description}
-    </p>
-  </div>
-);
+  const listStyle: React.CSSProperties = {
+    paddingLeft: '1.35rem',
+    color: 'var(--slate-700)',
+    fontSize: '0.94rem',
+    lineHeight: 2,
+  };
 
-const InfoCard = ({
-  icon,
-  title,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  children: ReactNode;
-}) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-    <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-      {icon}
+  const equationStyle: React.CSSProperties = {
+    backgroundColor: 'var(--slate-900)',
+    color: '#ffffff',
+    padding: '1.25rem',
+    borderRadius: '10px',
+    textAlign: 'center',
+    fontSize: '1.05rem',
+    fontWeight: 700,
+    fontFamily: 'monospace',
+    margin: '1rem 0',
+    overflowX: 'auto',
+  };
+
+  const tableStyle: React.CSSProperties = {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.88rem',
+    minWidth: '450px',
+  };
+
+  const cellStyle: React.CSSProperties = {
+    padding: '12px',
+    borderBottom: '1px solid var(--slate-200)',
+    textAlign: 'left',
+    color: 'var(--slate-700)',
+    verticalAlign: 'top',
+  };
+
+  const InfoBox = ({
+    title,
+    children,
+    color = 'teal',
+  }: {
+    title: string;
+    children: React.ReactNode;
+    color?: 'teal' | 'green' | 'orange' | 'gray';
+  }) => {
+    const backgrounds = {
+      teal: 'var(--teal-50)',
+      green: 'var(--strong-bg)',
+      orange: 'var(--weak-bg)',
+      gray: 'var(--slate-50)',
+    };
+
+    const borders = {
+      teal: 'var(--teal-600)',
+      green: 'var(--strong-border)',
+      orange: 'var(--weak-border)',
+      gray: 'var(--slate-300)',
+    };
+
+    return (
+      <div style={{
+        ...cardStyle,
+        backgroundColor: backgrounds[color],
+        borderLeft: `4px solid ${borders[color]}`,
+      }}>
+        <h4 style={{
+          fontSize: '1rem',
+          fontWeight: 750,
+          color: 'var(--navy-900)',
+          marginBottom: '0.6rem',
+        }}>
+          {title}
+        </h4>
+        <div style={{
+          fontSize: '0.93rem',
+          lineHeight: 1.8,
+          color: 'var(--slate-700)',
+        }}>
+          {children}
+        </div>
+      </div>
+    );
+  };
+
+  const DataTable = ({
+    headers,
+    rows,
+  }: {
+    headers: string[];
+    rows: string[][];
+  }) => (
+    <div style={{ overflowX: 'auto', margin: '1rem 0' }}>
+      <table style={tableStyle}>
+        <thead>
+          <tr style={{
+            backgroundColor: 'var(--slate-900)',
+            color: '#ffffff',
+          }}>
+            {headers.map((header, i) => (
+              <th key={i} style={{
+                padding: '13px',
+                textAlign: 'left',
+                fontWeight: 700,
+                color: '#ffffff',
+              }}>
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {row.map((value, j) => (
+                <td key={j} style={{
+                  ...cellStyle,
+                  backgroundColor: i % 2 === 0
+                    ? '#ffffff'
+                    : 'var(--slate-50)',
+                }}>
+                  {value}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-
-    <h3 className="mb-2 font-bold text-slate-900">{title}</h3>
-
-    <div className="text-sm leading-7 text-slate-600">
-      {children}
-    </div>
-  </div>
-);
-
-const EquationCard = ({
-  label,
-  equation,
-  explanation,
-}: {
-  label: string;
-  equation: ReactNode;
-  explanation: string;
-}) => (
-  <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5">
-    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-sky-700">
-      {label}
-    </p>
-
-    <div className="mb-3 overflow-x-auto text-center text-xl font-semibold text-slate-900 md:text-2xl">
-      {equation}
-    </div>
-
-    <p className="text-sm leading-6 text-slate-600">
-      {explanation}
-    </p>
-  </div>
-);
-
-// ================================
-// KOMPONEN UTAMA MATERI
-// ================================
-
-export const Materi: FC<MateriProps> = ({ onStartLab }) => {
-  const [activeTab, setActiveTab] = useState<TabId>("dasar");
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="lab-grid-pattern" style={{
+      minHeight: '100vh',
+      padding: '2.5rem 0 4rem 0',
+    }}>
+      <div className="container">
 
-      {/* HEADER MATERI */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-sky-50 via-white to-blue-50 px-5 py-12 md:px-10 md:py-16">
-
-        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl" />
-
-        <div className="relative mx-auto max-w-7xl">
-
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-xs font-semibold text-sky-700 shadow-sm">
+        {/* HEADER */}
+        <div style={{ marginBottom: '2.5rem' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.3rem 0.75rem',
+            borderRadius: '999px',
+            backgroundColor: 'var(--teal-50)',
+            border: '1px solid var(--teal-200)',
+            color: 'var(--teal-800)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            marginBottom: '0.75rem',
+          }}>
             <BookOpen size={15} />
-            MODUL PEMBELAJARAN KIMIA KELAS X
+            Materi Pembelajaran Kimia SMA Kelas X
           </div>
 
-          <div className="grid items-center gap-10 md:grid-cols-2">
+          <h1 style={{
+            fontSize: '2.3rem',
+            fontWeight: 800,
+            color: 'var(--navy-950)',
+            letterSpacing: '-0.02em',
+            marginBottom: '0.75rem',
+          }}>
+            Larutan Elektrolit & Non-Elektrolit
+          </h1>
 
-            <div>
-              <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-slate-900 md:text-5xl">
-                Larutan Elektrolit
-                <span className="block text-sky-600">
-                  dan Non-Elektrolit
-                </span>
-              </h1>
-
-              <p className="mt-5 max-w-xl text-sm leading-8 text-slate-600 md:text-base">
-                Mengapa air garam dapat menghantarkan listrik,
-                sedangkan air gula tidak? Mari jelajahi dunia ion
-                dan temukan rahasia di balik kemampuan larutan
-                menghantarkan arus listrik!
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-
-                <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm">
-                  <FlaskConical size={17} className="text-sky-600" />
-                  Materi Interaktif
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow-sm">
-                  <Atom size={17} className="text-sky-600" />
-                  Konsep Ion
-                </div>
-
-              </div>
-            </div>
-
-            {/* ILUSTRASI HERO */}
-            <div className="flex justify-center">
-              <div className="relative flex h-64 w-64 items-center justify-center rounded-full bg-sky-100/70 md:h-80 md:w-80">
-
-                <div className="absolute inset-5 rounded-full border border-sky-200" />
-
-                <div className="absolute left-8 top-12 flex h-12 w-12 items-center justify-center rounded-full bg-white font-bold text-sky-600 shadow-md">
-                  Na⁺
-                </div>
-
-                <div className="absolute bottom-12 right-8 flex h-12 w-12 items-center justify-center rounded-full bg-white font-bold text-blue-600 shadow-md">
-                  Cl⁻
-                </div>
-
-                <div className="absolute right-10 top-8 flex h-10 w-10 items-center justify-center rounded-full bg-white font-bold text-sky-600 shadow-sm">
-                  H⁺
-                </div>
-
-                <div className="flex h-32 w-32 items-center justify-center rounded-3xl border-4 border-sky-400 bg-white shadow-xl md:h-40 md:w-40">
-                  <FlaskConical
-                    size={85}
-                    strokeWidth={1.3}
-                    className="text-sky-500"
-                  />
-                </div>
-
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-bold text-sky-700 shadow-md">
-                  Let's Explore Chemistry!
-                </div>
-
-              </div>
-            </div>
-
-          </div>
+          <p style={{
+            color: 'var(--slate-600)',
+            fontSize: '1rem',
+            maxWidth: '780px',
+            lineHeight: 1.8,
+          }}>
+            Pelajari pengertian, karakteristik, proses pembentukan ion,
+            dan perbedaan larutan elektrolit kuat, elektrolit lemah,
+            serta non-elektrolit melalui materi berikut.
+          </p>
         </div>
-      </section>
-
-      {/* KONTEN UTAMA */}
-      <main className="mx-auto max-w-7xl px-5 py-10 md:px-10">
 
         {/* NAVIGASI TAB */}
-        <div className="mb-9 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-
-          <div className="flex min-w-max gap-2">
-
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${activeTab === tab.id
-                    ? "bg-sky-600 text-white shadow-md shadow-sky-200"
-                    : "text-slate-600 hover:bg-sky-50 hover:text-sky-700"
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-
-          </div>
+        <div style={{
+          display: 'flex',
+          gap: '0.4rem',
+          borderBottom: '1px solid var(--slate-200)',
+          marginBottom: '2rem',
+          overflowX: 'auto',
+          paddingBottom: '0.25rem',
+        }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '0.8rem 1.1rem',
+                borderRadius: '8px 8px 0 0',
+                border: 'none',
+                background: activeTab === tab.id
+                  ? '#ffffff'
+                  : 'transparent',
+                borderBottom: activeTab === tab.id
+                  ? '3px solid var(--teal-600)'
+                  : '3px solid transparent',
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id
+                  ? 'var(--teal-800)'
+                  : 'var(--slate-600)',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* ======================== */}
-        {/* TAB 1: KONSEP DASAR */}
-        {/* ======================== */}
-
-        {activeTab === "dasar" && (
-
-          <section className="space-y-8">
-
-            <SectionHeading
-              eyebrow="01 — Fundamental Chemistry"
-              title="Mengenal Larutan Elektrolit"
-              description="Sebelum memahami bagaimana listrik dapat mengalir melalui larutan, kita perlu mengenal konsep larutan, ion, dan teori ionisasi Arrhenius."
-            />
-
-            <div className="grid gap-5 md:grid-cols-2">
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Apa Itu Larutan?"
-              >
-                Larutan merupakan campuran homogen yang terdiri
-                atas zat terlarut (solute) dan pelarut (solvent).
-                Contohnya adalah air garam, air gula, dan air cuka.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Zap size={22} />}
-                title="Larutan Elektrolit"
-              >
-                Larutan yang dapat menghantarkan arus listrik
-                karena mengandung ion-ion yang dapat bergerak
-                bebas di dalam larutan.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Larutan Non-Elektrolit"
-              >
-                Larutan yang tidak menghantarkan arus listrik
-                secara berarti karena tidak menghasilkan ion
-                bergerak dalam jumlah berarti.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Microscope size={22} />}
-                title="Apa Itu Ion?"
-              >
-                Ion adalah atom atau kelompok atom yang
-                memiliki muatan listrik. Ion positif disebut
-                kation, sedangkan ion negatif disebut anion.
-              </InfoCard>
-
-            </div>
-
-            {/* TEORI ARRHENIUS */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
-
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <Atom size={24} />
-                </div>
-
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
-                    Konsep Penting
-                  </p>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Teori Ionisasi Arrhenius
-                  </h3>
-                </div>
-              </div>
-
-              <p className="text-sm leading-8 text-slate-600">
-                Menurut teori Arrhenius, elektrolit menghasilkan
-                ion-ion ketika berada dalam larutan. Asam Arrhenius
-                menghasilkan ion H⁺ dalam air, sedangkan basa
-                Arrhenius menghasilkan ion OH⁻ dalam air.
-              </p>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-
-                <EquationCard
-                  label="Contoh Asam Arrhenius"
-                  equation={
-                    <>
-                      HCl + H<sub>2</sub>O →
-                      H<sub>3</sub>O<sup>+</sup> + Cl<sup>-</sup>
-                    </>
-                  }
-                  explanation="HCl bereaksi dengan air menghasilkan ion hidronium dan ion klorida."
-                />
-
-                <EquationCard
-                  label="Contoh Basa Arrhenius"
-                  equation={
-                    <>
-                      NaOH → Na<sup>+</sup> + OH<sup>-</sup>
-                    </>
-                  }
-                  explanation="NaOH terdisosiasi dalam air menghasilkan ion natrium dan ion hidroksida."
-                />
-
-              </div>
-            </div>
-
-            {/* IONISASI DAN DISOSIASI */}
-            <div className="grid gap-5 md:grid-cols-2">
-
-              <EquationCard
-                label="Proses Ionisasi"
-                equation={
-                  <>
-                    HCl + H<sub>2</sub>O →
-                    H<sub>3</sub>O<sup>+</sup> + Cl<sup>-</sup>
-                  </>
-                }
-                explanation="Ionisasi merupakan proses terbentuknya ion dari molekul suatu zat ketika bereaksi dengan air."
-              />
-
-              <EquationCard
-                label="Proses Disosiasi"
-                equation={
-                  <>
-                    NaCl → Na<sup>+</sup> + Cl<sup>-</sup>
-                  </>
-                }
-                explanation="Disosiasi merupakan proses pemisahan ion-ion penyusun senyawa ionik ketika dilarutkan dalam air."
-              />
-
-            </div>
-
-            {/* DERAJAT IONISASI */}
-            <div className="rounded-3xl bg-slate-900 p-6 text-white md:p-8">
-
-              <div className="flex items-center gap-3">
-                <Lightbulb className="text-yellow-400" size={25} />
-
-                <h3 className="text-xl font-bold">
-                  Mengenal Derajat Ionisasi (α)
-                </h3>
-              </div>
-
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                Derajat ionisasi merupakan perbandingan jumlah
-                molekul yang mengalami ionisasi terhadap jumlah
-                molekul mula-mula.
-              </p>
-
-              <div className="my-6 rounded-2xl bg-white/10 p-5 text-center">
-                <p className="text-sm text-slate-300">
-                  Rumus Derajat Ionisasi
-                </p>
-
-                <p className="mt-3 text-xl font-bold md:text-2xl">
-                  α = Jumlah zat terionisasi / Jumlah zat mula-mula
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-
-                {[
-                  {
-                    title: "Elektrolit Kuat",
-                    value: "α = 1",
-                    color: "text-green-400",
-                  },
-                  {
-                    title: "Elektrolit Lemah",
-                    value: "0 < α < 1",
-                    color: "text-yellow-400",
-                  },
-                  {
-                    title: "Non-Elektrolit",
-                    value: "α = 0",
-                    color: "text-red-400",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-xl bg-white/10 p-4 text-center"
-                  >
-                    <p className="text-xs text-slate-300">
-                      {item.title}
-                    </p>
-
-                    <p className={`mt-2 text-2xl font-bold ${item.color}`}>
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-
-              </div>
-
-            </div>
-
-            <button
-              onClick={() => setActiveTab("kuat" as TabId)}
-              className="flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white transition hover:bg-sky-700"
-            >
-              Pelajari Elektrolit Kuat
-              <ArrowRight size={18} />
-            </button>
-
-          </section>
-        )}
-
-        {/* ======================== */}
-        {/* TAB 2: ELEKTROLIT KUAT */}
-        {/* ======================== */}
-
-        {activeTab === "kuat" && (
-
-          <section className="space-y-8">
-
-            <SectionHeading
-              eyebrow="02 — Strong Electrolyte"
-              title="Larutan Elektrolit Kuat"
-              description="Mengapa beberapa larutan dapat menghantarkan listrik dengan sangat baik? Mari pahami karakteristik elektrolit kuat."
-            />
-
-            <div className="rounded-3xl border border-green-200 bg-green-50 p-6 md:p-8">
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-700">
-                  <Zap size={25} />
-                </div>
-
-                <div>
-                  <p className="text-xs font-bold uppercase text-green-700">
-                    Strong Electrolyte
-                  </p>
-
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Apa Itu Elektrolit Kuat?
-                  </h3>
-                </div>
-              </div>
-
-              <p className="mt-5 text-sm leading-8 text-slate-700">
-                Elektrolit kuat merupakan zat yang mengalami
-                ionisasi atau disosiasi hampir sempurna ketika
-                dilarutkan dalam air. Akibatnya, larutan
-                mengandung banyak ion bergerak yang dapat
-                membawa muatan listrik.
-              </p>
-
-              <div className="mt-5 inline-flex rounded-xl bg-green-600 px-5 py-3 text-lg font-bold text-white">
-                α = 1
-              </div>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Karakteristik Elektrolit Kuat
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-3">
-
-              <InfoCard
-                icon={<Lightbulb size={22} />}
-                title="Lampu Terang"
-              >
-                Lampu umumnya menyala terang karena banyaknya
-                ion bergerak yang membawa muatan listrik.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Banyak Gelembung"
-              >
-                Gelembung gas umumnya mudah diamati pada
-                elektroda akibat reaksi elektrolisis.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Banyak Ion"
-              >
-                Sebagian besar zat terlarut menghasilkan
-                ion melalui ionisasi atau disosiasi
-                yang hampir sempurna.
-              </InfoCard>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Contoh Elektrolit Kuat
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-3">
-
-              <InfoCard
-                icon={<FlaskConical size={22} />}
-                title="Asam Kuat"
-              >
-                <ul className="space-y-2">
-                  <li>• HCl — Asam klorida</li>
-                  <li>• HNO₃ — Asam nitrat</li>
-                  <li>• H₂SO₄ — Asam sulfat</li>
-                </ul>
-              </InfoCard>
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Basa Kuat"
-              >
-                <ul className="space-y-2">
-                  <li>• NaOH — Natrium hidroksida</li>
-                  <li>• KOH — Kalium hidroksida</li>
-                  <li>• Ba(OH)₂ — Barium hidroksida</li>
-                </ul>
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Garam"
-              >
-                <ul className="space-y-2">
-                  <li>• NaCl — Natrium klorida</li>
-                  <li>• KCl — Kalium klorida</li>
-                  <li>• KNO₃ — Kalium nitrat</li>
-                </ul>
-              </InfoCard>
-
-            </div>
-
-            <EquationCard
-              label="Contoh Disosiasi NaCl"
-              equation={
-                <>
-                  NaCl(s) → Na<sup>+</sup>(aq) +
-                  Cl<sup>-</sup>(aq)
-                </>
-              }
-              explanation="Natrium klorida terdisosiasi menjadi ion natrium dan ion klorida ketika dilarutkan dalam air."
-            />
-
-            <div className="rounded-2xl border border-green-200 bg-white p-5">
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle2 size={21} />
-
-                <h3 className="font-bold">
-                  Kesimpulan
-                </h3>
-              </div>
-
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Elektrolit kuat mampu menghantarkan arus listrik
-                dengan baik karena menghasilkan banyak ion
-                bergerak melalui proses ionisasi atau disosiasi
-                yang hampir sempurna.
-              </p>
-            </div>
-
-          </section>
-        )}
-
-        {/* ======================== */}
-        {/* TAB 3: ELEKTROLIT LEMAH */}
-        {/* ======================== */}
-
-        {activeTab === "lemah" && (
-
-          <section className="space-y-8">
-
-            <SectionHeading
-              eyebrow="03 — Weak Electrolyte"
-              title="Larutan Elektrolit Lemah"
-              description="Tidak semua larutan elektrolit menghasilkan ion dalam jumlah besar. Beberapa zat hanya mengalami ionisasi sebagian."
-            />
-
-            <div className="rounded-3xl border border-yellow-200 bg-yellow-50 p-6 md:p-8">
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700">
-                  <Zap size={25} />
-                </div>
-
-                <div>
-                  <p className="text-xs font-bold uppercase text-yellow-700">
-                    Weak Electrolyte
-                  </p>
-
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Apa Itu Elektrolit Lemah?
-                  </h3>
-                </div>
-              </div>
-
-              <p className="mt-5 text-sm leading-8 text-slate-700">
-                Elektrolit lemah merupakan zat yang hanya
-                mengalami ionisasi sebagian ketika dilarutkan
-                dalam air. Sebagian partikel membentuk ion,
-                sedangkan sebagian lainnya tetap sebagai
-                molekul netral.
-              </p>
-
-              <div className="mt-5 inline-flex rounded-xl bg-yellow-500 px-5 py-3 text-lg font-bold text-white">
-                0 &lt; α &lt; 1
-              </div>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Karakteristik Elektrolit Lemah
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-3">
-
-              <InfoCard
-                icon={<Lightbulb size={22} />}
-                title="Lampu Redup"
-              >
-                Lampu umumnya menyala redup karena jumlah
-                ion bergerak lebih sedikit dibandingkan
-                elektrolit kuat pada kondisi sebanding.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Sedikit Gelembung"
-              >
-                Gelembung gas dapat terbentuk dalam jumlah
-                lebih sedikit atau sulit diamati.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Ion dan Molekul"
-              >
-                Larutan mengandung ion hasil ionisasi
-                sebagian dan molekul yang belum terionisasi.
-              </InfoCard>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Contoh Elektrolit Lemah
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-2">
-
-              <InfoCard
-                icon={<FlaskConical size={22} />}
-                title="Asam Lemah"
-              >
-                <ul className="space-y-2">
-                  <li>• CH₃COOH — Asam asetat</li>
-                  <li>• HF — Asam fluorida</li>
-                  <li>• H₂CO₃ — Asam karbonat</li>
-                </ul>
-              </InfoCard>
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Basa Lemah"
-              >
-                <ul className="space-y-2">
-                  <li>• NH₃ — Amonia</li>
-                  <li>• CH₃NH₂ — Metilamina</li>
-                </ul>
-              </InfoCard>
-
-            </div>
-
-            <EquationCard
-              label="Contoh Ionisasi Asam Asetat"
-              equation={
-                <>
-                  CH<sub>3</sub>COOH + H<sub>2</sub>O ⇌
-                  H<sub>3</sub>O<sup>+</sup> +
-                  CH<sub>3</sub>COO<sup>-</sup>
-                </>
-              }
-              explanation="Asam asetat hanya mengalami ionisasi sebagian. Tanda panah bolak-balik menunjukkan bahwa reaksi mencapai kesetimbangan."
-            />
-
-            <EquationCard
-              label="Contoh Ionisasi Amonia"
-              equation={
-                <>
-                  NH<sub>3</sub> + H<sub>2</sub>O ⇌
-                  NH<sub>4</sub><sup>+</sup> +
-                  OH<sup>-</sup>
-                </>
-              }
-              explanation="Amonia bereaksi dengan air menghasilkan ion amonium dan hidroksida melalui proses kesetimbangan."
-            />
-
-            <div className="rounded-2xl border border-yellow-200 bg-white p-5">
-              <div className="flex items-center gap-2 text-yellow-700">
-                <CheckCircle2 size={21} />
-
-                <h3 className="font-bold">
-                  Kesimpulan
-                </h3>
-              </div>
-
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Elektrolit lemah tetap dapat menghantarkan
-                arus listrik karena menghasilkan ion, tetapi
-                jumlah ionnya relatif lebih sedikit akibat
-                proses ionisasi yang hanya berlangsung sebagian.
-              </p>
-            </div>
-
-          </section>
-        )}
-
-        {/* ======================== */}
-        {/* TAB 4: NON ELEKTROLIT */}
-        {/* ======================== */}
-
-        {activeTab === "non" && (
-
-          <section className="space-y-8">
-
-            <SectionHeading
-              eyebrow="04 — Non-Electrolyte"
-              title="Larutan Non-Elektrolit"
-              description="Beberapa zat dapat larut dalam air tanpa menghasilkan ion. Inilah alasan mengapa tidak semua larutan mampu menghantarkan listrik."
-            />
-
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-6 md:p-8">
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
-                  <Info size={25} />
-                </div>
-
-                <div>
-                  <p className="text-xs font-bold uppercase text-red-600">
-                    Non-Electrolyte
-                  </p>
-
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Apa Itu Non-Elektrolit?
-                  </h3>
-                </div>
-              </div>
-
-              <p className="mt-5 text-sm leading-8 text-slate-700">
-                Non-elektrolit merupakan zat yang ketika
-                dilarutkan dalam air tidak menghasilkan
-                ion dalam jumlah berarti. Partikel zat
-                terlarut tetap berupa molekul netral.
-              </p>
-
-              <div className="mt-5 inline-flex rounded-xl bg-red-500 px-5 py-3 text-lg font-bold text-white">
-                α = 0
-              </div>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Karakteristik Non-Elektrolit
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-3">
-
-              <InfoCard
-                icon={<Lightbulb size={22} />}
-                title="Lampu Mati"
-              >
-                Lampu tidak menyala karena tidak terdapat
-                ion bergerak dalam jumlah berarti untuk
-                menghantarkan arus listrik.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Tidak Ada Gelembung"
-              >
-                Tidak terlihat gelembung gas akibat
-                elektrolisis larutan dalam kondisi
-                pengujian biasa.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Molekul Netral"
-              >
-                Zat terlarut tetap dalam bentuk molekul
-                netral meskipun telah larut dalam air.
-              </InfoCard>
-
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">
-              Contoh Non-Elektrolit
-            </h3>
-
-            <div className="grid gap-5 md:grid-cols-3">
-
-              <InfoCard
-                icon={<Droplets size={22} />}
-                title="Larutan Gula"
-              >
-                Gula seperti sukrosa dan glukosa larut
-                dalam air sebagai molekul netral.
-                Gula tidak menghasilkan ion dalam
-                jumlah berarti.
-              </InfoCard>
-
-              <InfoCard
-                icon={<FlaskConical size={22} />}
-                title="Etanol"
-              >
-                Etanol (C₂H₅OH) merupakan senyawa kovalen
-                yang tidak mengalami ionisasi secara
-                berarti ketika bercampur dengan air.
-              </InfoCard>
-
-              <InfoCard
-                icon={<Atom size={22} />}
-                title="Urea"
-              >
-                Urea [CO(NH₂)₂] dapat larut dalam air,
-                tetapi tetap berada dalam bentuk
-                molekul netral.
-              </InfoCard>
-
-            </div>
-
-            <EquationCard
-              label="Contoh Pelarutan Gula"
-              equation={
-                <>
-                  C<sub>12</sub>H<sub>22</sub>O<sub>11</sub>(s)
-                  → C<sub>12</sub>H<sub>22</sub>O<sub>11</sub>(aq)
-                </>
-              }
-              explanation="Gula larut dalam air, tetapi molekulnya tidak terurai menjadi ion. Proses ini merupakan pelarutan, bukan ionisasi."
-            />
-
-            <div className="rounded-2xl border border-red-200 bg-white p-5">
-              <div className="flex items-center gap-2 text-red-600">
-                <CheckCircle2 size={21} />
-
-                <h3 className="font-bold">
-                  Kesimpulan
-                </h3>
-              </div>
-
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Non-elektrolit dapat larut dalam air, tetapi
-                tidak menghasilkan ion bergerak dalam jumlah
-                berarti. Oleh sebab itu, larutannya tidak
-                menghantarkan listrik secara berarti.
-              </p>
-            </div>
-
-          </section>
-        )}
-
-        {/* ======================== */}
-        {/* TAB 5: PERBANDINGAN */}
-        {/* ======================== */}
-
-        {activeTab === "perbandingan" && (
-
-          <section className="space-y-8">
-
-            <SectionHeading
-              eyebrow="05 — Chemistry Comparison"
-              title="Perbandingan Ketiga Jenis Larutan"
-              description="Setelah mempelajari ketiga jenis larutan, sekarang mari bandingkan karakteristiknya untuk memahami perbedaan masing-masing."
-            />
-
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-              <div className="overflow-x-auto">
-
-                <table className="w-full min-w-[700px] border-collapse text-left">
-
-                  <thead>
-                    <tr className="bg-slate-900 text-white">
-
-                      <th className="p-5 text-sm font-bold">
-                        Aspek
-                      </th>
-
-                      <th className="p-5 text-sm font-bold">
-                        Elektrolit Kuat
-                      </th>
-
-                      <th className="p-5 text-sm font-bold">
-                        Elektrolit Lemah
-                      </th>
-
-                      <th className="p-5 text-sm font-bold">
-                        Non-Elektrolit
-                      </th>
-
-                    </tr>
-                  </thead>
-
-                  <tbody className="text-sm text-slate-600">
-
-                    {[
-                      [
-                        "Sifat ionisasi",
-                        "Hampir sempurna",
-                        "Sebagian",
-                        "Tidak menghasilkan ion berarti",
-                      ],
-                      [
-                        "Derajat ionisasi",
-                        "α = 1",
-                        "0 < α < 1",
-                        "α = 0",
-                      ],
-                      [
-                        "Jumlah ion",
-                        "Banyak",
-                        "Relatif sedikit",
-                        "Tidak ada dalam jumlah berarti",
-                      ],
-                      [
-                        "Gejala lampu",
-                        "Terang",
-                        "Redup atau tidak menyala",
-                        "Mati",
-                      ],
-                      [
-                        "Gejala gelembung",
-                        "Umumnya banyak",
-                        "Sedikit atau sulit diamati",
-                        "Tidak terlihat",
-                      ],
-                      [
-                        "Contoh zat",
-                        "NaCl, HCl, NaOH",
-                        "CH₃COOH, NH₃, HF",
-                        "Gula, etanol, urea",
-                      ],
-                    ].map((row, index) => (
-
-                      <tr
-                        key={index}
-                        className="border-b border-slate-100 transition hover:bg-sky-50/50"
-                      >
-                        {row.map((cell, cellIndex) => (
-                          <td
-                            key={cellIndex}
-                            className={`p-5 leading-6 ${cellIndex === 0
-                                ? "font-bold text-slate-900"
-                                : ""
-                              }`}
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-
-                    ))}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-              <div className="border-t border-slate-100 bg-slate-50 p-4 text-xs leading-6 text-slate-500">
-                Catatan: Gejala lampu dan gelembung merupakan
-                indikator kualitatif. Hasil percobaan dipengaruhi
-                konsentrasi, suhu, elektroda, dan sensitivitas alat.
-              </div>
-
-            </div>
-
-            {/* RANGKUMAN */}
-            <div className="rounded-3xl bg-sky-600 p-6 text-white md:p-8">
-
-              <div className="flex items-center gap-3">
-                <Sparkles size={25} />
-
-                <h3 className="text-xl font-bold">
-                  Rangkuman Pembelajaran
-                </h3>
-              </div>
-
-              <div className="mt-6 space-y-4">
-
-                {[
-                  "Elektrolit kuat menghasilkan ion melalui proses ionisasi atau disosiasi yang hampir sempurna.",
-                  "Elektrolit lemah hanya menghasilkan ion melalui proses ionisasi sebagian.",
-                  "Non-elektrolit tidak menghasilkan ion dalam jumlah berarti ketika dilarutkan dalam air.",
-                  "Kemampuan larutan menghantarkan listrik bergantung pada keberadaan dan pergerakan ion.",
-                ].map((item, index) => (
-
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 rounded-xl bg-white/10 p-4"
-                  >
-                    <CheckCircle2
-                      size={20}
-                      className="mt-0.5 shrink-0 text-sky-200"
-                    />
-
-                    <p className="text-sm leading-7 text-white">
-                      {item}
-                    </p>
-                  </div>
-
-                ))}
-
-              </div>
-
-            </div>
-
-          </section>
-        )}
-
-        {/* ======================== */}
-        {/* CTA SIMULASI LAB */}
-        {/* ======================== */}
-
-        <section className="mt-14 overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 to-blue-100 p-6 md:p-9">
-
-          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-
-            <div className="max-w-xl">
-
-              <div className="mb-3 flex items-center gap-2 text-sky-700">
-                <FlaskConical size={22} />
-
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  Virtual Laboratory
-                </span>
-              </div>
-
-              <h2 className="text-2xl font-bold text-slate-900">
-                Siap Menguji Pengetahuanmu?
+        {/* ISI MATERI */}
+        <div className="card" style={{
+          padding: 'clamp(1rem, 4vw, 2.5rem)',
+          marginBottom: '2.5rem',
+        }}>
+
+          {/* TAB 1: KONSEP DASAR */}
+          {activeTab === 'dasar' && (
+            <div>
+              <h2 style={sectionTitle}>
+                1. Konsep Dasar Larutan Elektrolit dan Non-Elektrolit
               </h2>
 
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Sekarang saatnya melihat bagaimana larutan
-                elektrolit kuat, elektrolit lemah, dan
-                non-elektrolit berperilaku dalam eksperimen
-                uji daya hantar listrik.
+              <p style={paragraph}>
+                Larutan merupakan campuran homogen yang terdiri atas
+                zat terlarut dan pelarut. Berdasarkan kemampuan
+                menghantarkan arus listrik, larutan dibedakan menjadi
+                larutan elektrolit dan larutan non-elektrolit.
+                Perbedaan tersebut berkaitan dengan keberadaan
+                partikel bermuatan atau ion di dalam larutan.
               </p>
 
+              <h3 style={subTitle}>A. Pengertian Larutan Elektrolit</h3>
+
+              <p style={paragraph}>
+                Larutan elektrolit adalah larutan yang dapat
+                menghantarkan arus listrik karena mengandung ion-ion
+                yang dapat bergerak bebas. Ion-ion tersebut terbentuk
+                ketika zat terlarut mengalami proses ionisasi atau
+                disosiasi dalam pelarut, terutama air.
+              </p>
+
+              <h3 style={subTitle}>B. Pengertian Larutan Non-Elektrolit</h3>
+
+              <p style={paragraph}>
+                Larutan non-elektrolit adalah larutan yang tidak dapat
+                menghantarkan arus listrik secara berarti karena zat
+                terlarutnya tidak menghasilkan ion-ion bebas ketika
+                dilarutkan dalam air. Zat tersebut tetap berada dalam
+                bentuk molekul netral meskipun dapat larut dalam air.
+              </p>
+
+              <h3 style={subTitle}>C. Mengenal Ion dalam Larutan</h3>
+
+              <p style={paragraph}>
+                Ion merupakan atom atau kelompok atom yang memiliki
+                muatan listrik akibat kehilangan atau menerima
+                elektron. Ion dibedakan menjadi dua jenis, yaitu:
+              </p>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                gap: '1rem',
+              }}>
+                <div style={{
+                  ...cardStyle,
+                  backgroundColor: 'var(--teal-50)',
+                }}>
+                  <h3 style={{ color: 'var(--teal-800)' }}>
+                    Kation (+)
+                  </h3>
+                  <p style={paragraph}>
+                    Kation adalah ion bermuatan positif yang terbentuk
+                    karena atom kehilangan satu atau lebih elektron.
+                  </p>
+                  <strong>Contoh: Na⁺, K⁺, Ca²⁺, NH₄⁺.</strong>
+                </div>
+
+                <div style={{
+                  ...cardStyle,
+                  backgroundColor: 'var(--slate-50)',
+                }}>
+                  <h3 style={{ color: 'var(--navy-900)' }}>
+                    Anion (-)
+                  </h3>
+                  <p style={paragraph}>
+                    Anion adalah ion bermuatan negatif yang terbentuk
+                    karena atom menerima satu atau lebih elektron.
+                  </p>
+                  <strong>Contoh: Cl⁻, OH⁻, SO₄²⁻, NO₃⁻.</strong>
+                </div>
+              </div>
+
+              <h3 style={subTitle}>D. Mengapa Larutan Dapat Menghantarkan Listrik?</h3>
+
+              <p style={paragraph}>
+                Arus listrik merupakan aliran muatan listrik.
+                Pada larutan elektrolit, muatan listrik dibawa oleh
+                ion-ion yang bergerak bebas. Ketika elektroda
+                dihubungkan dengan sumber tegangan dan dicelupkan
+                ke dalam larutan, kation bergerak menuju katode,
+                sedangkan anion bergerak menuju anode.
+                Pergerakan ion tersebut memungkinkan arus listrik
+                mengalir melalui larutan.
+              </p>
+
+              <InfoBox title="Syarat Larutan Dapat Menghantarkan Listrik">
+                <ul style={listStyle}>
+                  <li>Mengandung ion positif dan/atau ion negatif yang bergerak bebas.</li>
+                  <li>Ion-ion dapat bergerak di dalam larutan.</li>
+                  <li>Terdapat sumber tegangan yang menghasilkan beda potensial.</li>
+                </ul>
+              </InfoBox>
+
+              <h3 style={subTitle}>E. Perbedaan Garam Padat dan Larutan Garam</h3>
+
+              <p style={paragraph}>
+                Kristal NaCl dalam keadaan padat tidak dapat
+                menghantarkan listrik karena ion Na⁺ dan Cl⁻
+                terikat pada posisi tertentu dalam kisi kristal.
+                Namun, ketika NaCl dilarutkan dalam air, ion-ion
+                tersebut terpisah dan dapat bergerak bebas.
+                Oleh karena itu, larutan NaCl dapat menghantarkan
+                arus listrik.
+              </p>
+
+              <div style={equationStyle}>
+                NaCl(s) → Na⁺(aq) + Cl⁻(aq)
+              </div>
+
+              <InfoBox title="Hal yang Perlu Diingat" color="green">
+                Tidak semua zat yang larut dalam air dapat
+                menghantarkan listrik. Kemampuan menghantarkan
+                listrik ditentukan oleh ada atau tidaknya ion
+                yang bergerak bebas di dalam larutan.
+              </InfoBox>
             </div>
+          )}
 
-            <button
-              onClick={onStartLab}
-              disabled={!onStartLab}
-              className="flex shrink-0 items-center gap-3 rounded-xl bg-sky-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-1 hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Mulai Simulasi Lab
-              <ChevronRight size={20} />
-            </button>
+          {/* TAB 2: ELEKTROLIT KUAT */}
+          {activeTab === 'kuat' && (
+            <div>
+              <h2 style={sectionTitle}>
+                2. Larutan Elektrolit Kuat
+              </h2>
 
-          </div>
+              <p style={paragraph}>
+                Larutan elektrolit kuat adalah larutan yang zat
+                terlarutnya terionisasi atau terdisosiasi hampir
+                sempurna ketika dilarutkan dalam air. Proses tersebut
+                menghasilkan ion-ion positif dan negatif dalam
+                jumlah relatif besar sehingga larutan memiliki
+                kemampuan menghantarkan arus listrik dengan baik.
+              </p>
 
-        </section>
+              <InfoBox title="Pengertian Penting" color="green">
+                Elektrolit kuat memiliki derajat ionisasi atau
+                disosiasi yang mendekati 1 (100%). Artinya,
+                hampir seluruh zat terlarut yang dapat larut
+                menghasilkan ion-ion dalam larutan.
+              </InfoBox>
 
-        {/* FOOTNOTE */}
-        <div className="mt-10 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 style={subTitle}>A. Ciri-Ciri Elektrolit Kuat</h3>
 
-          <Info
-            size={20}
-            className="mt-0.5 shrink-0 text-sky-600"
-          />
+              <ul style={listStyle}>
+                <li>Menghasilkan ion-ion dalam jumlah relatif banyak.</li>
+                <li>Mengalami ionisasi atau disosiasi hampir sempurna.</li>
+                <li>Memiliki derajat ionisasi mendekati 1.</li>
+                <li>Memiliki daya hantar listrik relatif tinggi.</li>
+                <li>Lampu alat uji elektrolit umumnya menyala terang.</li>
+                <li>Umumnya menghasilkan banyak gelembung gas pada elektroda saat elektrolisis.</li>
+              </ul>
 
-          <p className="text-xs leading-6 text-slate-500">
-            Materi ini disusun sebagai media pembelajaran
-            Kimia Kelas X SMA. Simulasi dan ilustrasi yang
-            digunakan merupakan representasi konseptual
-            untuk membantu memahami fenomena daya hantar
-            listrik larutan.
-          </p>
+              <h3 style={subTitle}>B. Jenis dan Contoh Elektrolit Kuat</h3>
+
+              <p style={paragraph}>
+                Elektrolit kuat umumnya berasal dari asam kuat,
+                basa kuat, dan garam ionik yang larut dalam air.
+              </p>
+
+              <DataTable
+                headers={['Jenis', 'Contoh Senyawa', 'Nama Senyawa']}
+                rows={[
+                  ['Asam kuat', 'HCl', 'Asam klorida'],
+                  ['Asam kuat', 'HNO₃', 'Asam nitrat'],
+                  ['Asam kuat', 'HBr', 'Asam bromida'],
+                  ['Asam kuat', 'HClO₄', 'Asam perklorat'],
+                  ['Asam kuat', 'H₂SO₄', 'Asam sulfat'],
+                  ['Basa kuat', 'NaOH', 'Natrium hidroksida'],
+                  ['Basa kuat', 'KOH', 'Kalium hidroksida'],
+                  ['Basa kuat', 'Ba(OH)₂', 'Barium hidroksida'],
+                  ['Garam larut', 'NaCl', 'Natrium klorida'],
+                  ['Garam larut', 'KCl', 'Kalium klorida'],
+                ]}
+              />
+
+              <h3 style={subTitle}>C. Proses Pembentukan Ion</h3>
+
+              <p style={paragraph}>
+                Pada elektrolit kuat, proses pembentukan ion
+                berlangsung hampir sempurna. Proses ini dapat
+                berupa disosiasi senyawa ionik atau ionisasi
+                senyawa molekuler.
+              </p>
+
+              <InfoBox title="1. Disosiasi Natrium Klorida (NaCl)">
+                Natrium klorida merupakan senyawa ionik.
+                Ketika dilarutkan dalam air, ion Na⁺ dan Cl⁻
+                terpisah dari kisi kristalnya dan terhidrasi
+                oleh molekul air.
+                <div style={equationStyle}>
+                  NaCl(s) → Na⁺(aq) + Cl⁻(aq)
+                </div>
+              </InfoBox>
+
+              <InfoBox title="2. Ionisasi Asam Klorida (HCl)" color="green">
+                HCl merupakan senyawa kovalen polar yang
+                membentuk ion ketika bereaksi dengan air.
+                <div style={equationStyle}>
+                  HCl(aq) + H₂O(l) → H₃O⁺(aq) + Cl⁻(aq)
+                </div>
+              </InfoBox>
+
+              <InfoBox title="3. Disosiasi Natrium Hidroksida (NaOH)">
+                NaOH merupakan basa kuat yang terdisosiasi
+                menghasilkan ion natrium dan hidroksida.
+                <div style={equationStyle}>
+                  NaOH(s) → Na⁺(aq) + OH⁻(aq)
+                </div>
+              </InfoBox>
+
+              <h3 style={subTitle}>D. Contoh dalam Kehidupan Sehari-hari</h3>
+
+              <p style={paragraph}>
+                Garam dapur yang dilarutkan dalam air merupakan
+                contoh elektrolit kuat. Ketika larut, NaCl
+                terdisosiasi menjadi ion Na⁺ dan Cl⁻ sehingga
+                larutan dapat menghantarkan arus listrik.
+                Contoh lainnya adalah larutan elektrolit pada
+                aki kendaraan yang mengandung asam sulfat.
+              </p>
+
+              <InfoBox title="Kesimpulan Elektrolit Kuat" color="green">
+                Semakin banyak ion yang dapat bergerak bebas
+                dalam larutan, semakin besar kemampuan larutan
+                untuk menghantarkan listrik pada kondisi
+                konsentrasi dan suhu yang sebanding.
+              </InfoBox>
+            </div>
+          )}
+
+          {/* TAB 3: ELEKTROLIT LEMAH */}
+          {activeTab === 'lemah' && (
+            <div>
+              <h2 style={sectionTitle}>
+                3. Larutan Elektrolit Lemah
+              </h2>
+
+              <p style={paragraph}>
+                Larutan elektrolit lemah adalah larutan yang
+                hanya mengalami ionisasi sebagian ketika
+                dilarutkan dalam air. Sebagian molekul zat
+                terlarut berubah menjadi ion, sedangkan sebagian
+                lainnya tetap berada dalam bentuk molekul netral.
+                Karena jumlah ion yang terbentuk relatif lebih
+                sedikit, kemampuan menghantarkan listriknya
+                lebih rendah dibandingkan elektrolit kuat
+                pada kondisi yang sebanding.
+              </p>
+
+              <InfoBox title="Pengertian Penting" color="orange">
+                Elektrolit lemah memiliki derajat ionisasi
+                lebih dari 0 tetapi kurang dari 1 (0 < α < 1).
+                Artinya, hanya sebagian molekul zat terlarut
+                yang mengalami ionisasi.
+              </InfoBox>
+
+              <h3 style={subTitle}>A. Ciri-Ciri Elektrolit Lemah</h3>
+
+              <ul style={listStyle}>
+                <li>Hanya sebagian molekul mengalami ionisasi.</li>
+                <li>Menghasilkan ion dalam jumlah relatif sedikit.</li>
+                <li>Sebagian zat terlarut tetap berbentuk molekul netral.</li>
+                <li>Memiliki derajat ionisasi antara 0 dan 1.</li>
+                <li>Daya hantar listrik relatif rendah.</li>
+                <li>Lampu alat uji dapat menyala redup atau tidak terlihat menyala.</li>
+                <li>Gelembung gas pada elektroda umumnya lebih sedikit.</li>
+              </ul>
+
+              <h3 style={subTitle}>B. Jenis dan Contoh Elektrolit Lemah</h3>
+
+              <p style={paragraph}>
+                Elektrolit lemah umumnya berasal dari asam lemah
+                dan basa lemah.
+              </p>
+
+              <DataTable
+                headers={['Jenis', 'Rumus Kimia', 'Nama Senyawa']}
+                rows={[
+                  ['Asam lemah', 'CH₃COOH', 'Asam asetat'],
+                  ['Asam lemah', 'HF', 'Asam fluorida'],
+                  ['Asam lemah', 'H₂CO₃', 'Asam karbonat'],
+                  ['Asam lemah', 'HCN', 'Asam sianida'],
+                  ['Asam lemah', 'H₃PO₄', 'Asam fosfat'],
+                  ['Basa lemah', 'NH₃', 'Amonia'],
+                  ['Basa lemah', 'CH₃NH₂', 'Metilamina'],
+                ]}
+              />
+
+              <h3 style={subTitle}>C. Proses Ionisasi Sebagian</h3>
+
+              <p style={paragraph}>
+                Pada elektrolit lemah, hanya sebagian molekul
+                yang membentuk ion. Proses ionisasi berlangsung
+                secara reversibel sehingga terdapat kesetimbangan
+                antara molekul yang belum terionisasi dan ion
+                yang telah terbentuk. Oleh karena itu, persamaan
+                reaksinya menggunakan tanda panah bolak-balik (⇌).
+              </p>
+
+              <InfoBox title="1. Ionisasi Asam Asetat (CH₃COOH)" color="orange">
+                Asam asetat merupakan asam lemah yang sebagian
+                molekulnya bereaksi dengan air membentuk
+                ion hidronium dan ion asetat.
+                <div style={equationStyle}>
+                  CH₃COOH + H₂O ⇌ H₃O⁺ + CH₃COO⁻
+                </div>
+                Sebagian besar molekul asam asetat tetap
+                berada dalam bentuk molekul netral.
+              </InfoBox>
+
+              <InfoBox title="2. Ionisasi Amonia (NH₃)">
+                Amonia merupakan basa lemah yang bereaksi
+                sebagian dengan air membentuk ion amonium
+                dan ion hidroksida.
+                <div style={equationStyle}>
+                  NH₃ + H₂O ⇌ NH₄⁺ + OH⁻
+                </div>
+              </InfoBox>
+
+              <h3 style={subTitle}>D. Contoh dalam Kehidupan Sehari-hari</h3>
+
+              <p style={paragraph}>
+                Cuka dapur mengandung asam asetat (CH₃COOH).
+                Ketika dilarutkan dalam air, sebagian molekul
+                asam asetat mengalami ionisasi membentuk ion
+                H₃O⁺ dan CH₃COO⁻. Karena ionisasi hanya
+                berlangsung sebagian, larutan cuka termasuk
+                elektrolit lemah.
+              </p>
+
+              <p style={paragraph}>
+                Contoh lainnya adalah larutan amonia dalam air
+                yang digunakan dalam beberapa produk pembersih.
+                Amonia bereaksi sebagian dengan air menghasilkan
+                ion NH₄⁺ dan OH⁻.
+              </p>
+
+              <InfoBox title="Kesimpulan Elektrolit Lemah" color="orange">
+                Elektrolit lemah tetap dapat menghantarkan
+                arus listrik karena menghasilkan ion-ion,
+                tetapi jumlah ion yang terbentuk lebih sedikit
+                dibandingkan elektrolit kuat pada kondisi
+                konsentrasi yang sebanding.
+              </InfoBox>
+            </div>
+          )}
+
+          {/* TAB 4: NON ELEKTROLIT */}
+          {activeTab === 'non' && (
+            <div>
+              <h2 style={sectionTitle}>
+                4. Larutan Non-Elektrolit
+              </h2>
+
+              <p style={paragraph}>
+                Larutan non-elektrolit adalah larutan yang
+                tidak dapat menghantarkan arus listrik secara
+                berarti karena zat terlarutnya tidak membentuk
+                ion ketika dilarutkan dalam air. Zat tersebut
+                tetap berada dalam bentuk molekul netral.
+                Meskipun dapat larut dan tersebar merata,
+                molekulnya tidak menghasilkan partikel
+                bermuatan yang dapat membawa arus listrik.
+              </p>
+
+              <InfoBox title="Pengertian Penting">
+                Zat non-elektrolit dapat larut dalam air tanpa
+                mengalami ionisasi. Oleh karena itu, larutnya
+                suatu zat tidak selalu berarti terbentuknya ion.
+              </InfoBox>
+
+              <h3 style={subTitle}>A. Ciri-Ciri Non-Elektrolit</h3>
+
+              <ul style={listStyle}>
+                <li>Tidak mengalami ionisasi dalam air.</li>
+                <li>Zat terlarut tetap berbentuk molekul netral.</li>
+                <li>Tidak menghasilkan ion bebas dari zat terlarut.</li>
+                <li>Tidak dapat menghantarkan listrik secara berarti.</li>
+                <li>Lampu alat uji elektrolit tidak menyala.</li>
+                <li>Tidak terbentuk gelembung akibat elektrolisis zat terlarut.</li>
+              </ul>
+
+              <h3 style={subTitle}>B. Contoh Zat Non-Elektrolit</h3>
+
+              <DataTable
+                headers={['Rumus Kimia', 'Nama Senyawa', 'Contoh Penggunaan']}
+                rows={[
+                  ['C₁₂H₂₂O₁₁', 'Sukrosa', 'Gula pasir'],
+                  ['C₆H₁₂O₆', 'Glukosa', 'Gula sederhana'],
+                  ['C₂H₅OH', 'Etanol', 'Alkohol'],
+                  ['CO(NH₂)₂', 'Urea', 'Pupuk urea'],
+                  ['C₃H₈O₃', 'Gliserol', 'Bahan pelembap'],
+                ]}
+              />
+
+              <h3 style={subTitle}>C. Proses Pelarutan Non-Elektrolit</h3>
+
+              <p style={paragraph}>
+                Ketika zat non-elektrolit dilarutkan dalam air,
+                molekul zat terlarut akan terpisah satu sama lain
+                dan tersebar di antara molekul air. Namun,
+                molekul tersebut tidak terurai menjadi ion.
+                Proses ini disebut pelarutan, bukan ionisasi.
+              </p>
+
+              <InfoBox title="1. Pelarutan Gula (Sukrosa)">
+                Gula pasir merupakan senyawa molekuler yang
+                dapat larut dalam air. Ketika dilarutkan,
+                molekul sukrosa tetap utuh dan tidak membentuk
+                ion.
+                <div style={equationStyle}>
+                  C₁₂H₂₂O₁₁(s) → C₁₂H₂₂O₁₁(aq)
+                </div>
+              </InfoBox>
+
+              <InfoBox title="2. Pelarutan Urea">
+                Urea merupakan senyawa kovalen yang larut
+                dalam air tanpa membentuk ion.
+                <div style={equationStyle}>
+                  CO(NH₂)₂(s) → CO(NH₂)₂(aq)
+                </div>
+              </InfoBox>
+
+              <h3 style={subTitle}>D. Contoh dalam Kehidupan Sehari-hari</h3>
+
+              <p style={paragraph}>
+                Air gula merupakan contoh larutan non-elektrolit.
+                Ketika gula dilarutkan dalam air, molekul sukrosa
+                tersebar merata tetapi tidak membentuk ion.
+                Oleh karena itu, air gula tidak dapat
+                menghantarkan arus listrik secara berarti.
+              </p>
+
+              <p style={paragraph}>
+                Contoh lainnya adalah larutan urea dan etanol.
+                Keduanya dapat larut dalam air, tetapi tidak
+                menghasilkan ion melalui proses pelarutan.
+              </p>
+
+              <InfoBox title="Kesimpulan Non-Elektrolit">
+                Zat non-elektrolit tetap dapat larut dalam air,
+                tetapi tidak menghasilkan ion-ion bebas.
+                Dengan demikian, larutan tersebut tidak
+                memiliki kemampuan menghantarkan arus
+                listrik secara berarti.
+              </InfoBox>
+            </div>
+          )}
+
+          {/* TAB 5: PERBANDINGAN */}
+          {activeTab === 'perbandingan' && (
+            <div>
+              <h2 style={sectionTitle}>
+                5. Perbandingan Larutan Elektrolit Kuat,
+                Elektrolit Lemah, dan Non-Elektrolit
+              </h2>
+
+              <p style={paragraph}>
+                Ketiga jenis larutan memiliki karakteristik
+                berbeda berdasarkan kemampuan zat terlarut
+                menghasilkan ion dalam air. Perbedaan tersebut
+                dapat dilihat dari proses ionisasi, jumlah ion,
+                derajat ionisasi, serta hasil pengujian daya
+                hantar listrik.
+              </p>
+
+              <h3 style={subTitle}>A. Tabel Perbandingan Ketiga Larutan</h3>
+
+              <DataTable
+                headers={[
+                  'Aspek',
+                  'Elektrolit Kuat',
+                  'Elektrolit Lemah',
+                  'Non-Elektrolit',
+                ]}
+                rows={[
+                  [
+                    'Ionisasi/disosiasi',
+                    'Hampir sempurna',
+                    'Sebagian',
+                    'Tidak menghasilkan ion',
+                  ],
+                  [
+                    'Jumlah ion',
+                    'Relatif banyak',
+                    'Relatif sedikit',
+                    'Tidak ada ion dari zat terlarut',
+                  ],
+                  [
+                    'Derajat ionisasi',
+                    'Mendekati 1',
+                    '0 < α < 1',
+                    '0 (dalam penyederhanaan SMA)',
+                  ],
+                  [
+                    'Daya hantar listrik',
+                    'Relatif tinggi',
+                    'Relatif rendah',
+                    'Tidak berarti',
+                  ],
+                  [
+                    'Nyala lampu',
+                    'Umumnya terang',
+                    'Redup atau terkadang padam',
+                    'Padam',
+                  ],
+                  [
+                    'Gelembung gas',
+                    'Umumnya banyak',
+                    'Umumnya sedikit',
+                    'Tidak ada akibat elektrolisis zat terlarut',
+                  ],
+                  [
+                    'Contoh',
+                    'NaCl, HCl, NaOH',
+                    'CH₃COOH, NH₃, HF',
+                    'Gula, urea, etanol',
+                  ],
+                ]}
+              />
+
+              <h3 style={subTitle}>B. Derajat Ionisasi (α)</h3>
+
+              <p style={paragraph}>
+                Derajat ionisasi merupakan perbandingan antara
+                jumlah mol zat yang mengalami ionisasi dengan
+                jumlah mol zat mula-mula yang dilarutkan.
+                Besaran ini digunakan untuk menggambarkan
+                seberapa besar bagian zat yang terionisasi.
+              </p>
+
+              <div style={equationStyle}>
+                α = Mol zat yang terionisasi / Mol zat mula-mula
+              </div>
+
+              <p style={paragraph}>
+                Berdasarkan derajat ionisasinya, larutan
+                dapat dikelompokkan sebagai berikut:
+              </p>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gap: '1rem',
+              }}>
+                <div style={{
+                  ...cardStyle,
+                  backgroundColor: 'var(--strong-bg)',
+                  borderColor: 'var(--strong-border)',
+                }}>
+                  <h3 style={{ color: 'var(--strong-text)' }}>
+                    Elektrolit Kuat
+                  </h3>
+                  <h2 style={{ fontSize: '1.5rem' }}>α ≈ 1</h2>
+                  <p style={paragraph}>
+                    Ionisasi atau disosiasi hampir sempurna.
+                  </p>
+                </div>
+
+                <div style={{
+                  ...cardStyle,
+                  backgroundColor: 'var(--weak-bg)',
+                  borderColor: 'var(--weak-border)',
+                }}>
+                  <h3 style={{ color: 'var(--weak-text)' }}>
+                    Elektrolit Lemah
+                  </h3>
+                  <h2 style={{ fontSize: '1.5rem' }}>0 &lt; α &lt; 1</h2>
+                  <p style={paragraph}>
+                    Ionisasi hanya berlangsung sebagian.
+                  </p>
+                </div>
+
+                <div style={{
+                  ...cardStyle,
+                  backgroundColor: 'var(--non-bg)',
+                  borderColor: 'var(--non-border)',
+                }}>
+                  <h3 style={{ color: 'var(--slate-700)' }}>
+                    Non-Elektrolit
+                  </h3>
+                  <h2 style={{ fontSize: '1.5rem' }}>α = 0</h2>
+                  <p style={paragraph}>
+                    Tidak terjadi ionisasi zat terlarut.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style={subTitle}>C. Contoh Perhitungan Derajat Ionisasi</h3>
+
+              <p style={paragraph}>
+                Sebanyak 0,5 mol suatu zat elektrolit dilarutkan
+                dalam air. Dari jumlah tersebut, 0,1 mol
+                mengalami ionisasi. Berapakah derajat ionisasinya?
+              </p>
+
+              <InfoBox title="Penyelesaian">
+                Diketahui:
+                <br />
+                Mol zat mula-mula = 0,5 mol
+                <br />
+                Mol zat terionisasi = 0,1 mol
+                <br /><br />
+                Ditanya: Derajat ionisasi (α).
+                <div style={equationStyle}>
+                  α = 0,1 / 0,5
+                  <br /><br />
+                  α = 0,2 = 20%
+                </div>
+                Jadi, derajat ionisasi zat tersebut adalah 0,2
+                atau 20%. Artinya, sebanyak 20% zat mengalami
+                ionisasi, sedangkan sisanya masih berupa
+                molekul yang belum terionisasi.
+              </InfoBox>
+
+              <h3 style={subTitle}>D. Hasil Pengujian Daya Hantar Listrik</h3>
+
+              <p style={paragraph}>
+                Untuk membedakan ketiga jenis larutan, dapat
+                dilakukan percobaan menggunakan alat uji
+                elektrolit. Alat ini terdiri atas baterai,
+                kabel, lampu, dan elektroda yang dicelupkan
+                ke dalam larutan.
+              </p>
+
+              <div style={{
+                backgroundColor: 'var(--slate-50)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                margin: '1rem 0',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  marginBottom: '0.75rem',
+                }}>
+                  <FlaskConical color="var(--teal-600)" size={23} />
+                  <h3 style={{ margin: 0 }}>Hasil Pengamatan</h3>
+                </div>
+
+                <DataTable
+                  headers={[
+                    'Jenis Larutan',
+                    'Lampu',
+                    'Gelembung Gas',
+                  ]}
+                  rows={[
+                    ['Elektrolit kuat', 'Terang', 'Banyak'],
+                    ['Elektrolit lemah', 'Redup atau padam', 'Sedikit'],
+                    ['Non-elektrolit', 'Padam', 'Tidak ada'],
+                  ]}
+                />
+              </div>
+
+              <h3 style={subTitle}>E. Faktor yang Memengaruhi Daya Hantar Listrik</h3>
+
+              <p style={paragraph}>
+                Kemampuan larutan dalam menghantarkan listrik
+                tidak hanya ditentukan oleh jenis elektrolit,
+                tetapi juga dipengaruhi beberapa faktor berikut:
+              </p>
+
+              <ol style={listStyle}>
+                <li>
+                  <strong>Jumlah ion:</strong> banyaknya ion
+                  yang bergerak bebas memengaruhi kemampuan
+                  larutan menghantarkan listrik.
+                </li>
+                <li>
+                  <strong>Konsentrasi larutan:</strong> jumlah
+                  ion per satuan volume dapat berubah sesuai
+                  konsentrasi larutan.
+                </li>
+                <li>
+                  <strong>Jenis zat terlarut:</strong> setiap
+                  zat memiliki kemampuan berbeda dalam
+                  menghasilkan ion.
+                </li>
+                <li>
+                  <strong>Suhu:</strong> perubahan suhu dapat
+                  memengaruhi mobilitas ion dalam larutan.
+                </li>
+              </ol>
+
+              <InfoBox title="Catatan Penting">
+                Nyala lampu tidak selalu menjadi satu-satunya
+                indikator kekuatan elektrolit. Hasil pengujian
+                dipengaruhi konsentrasi, suhu, jenis elektroda,
+                dan sensitivitas alat. Elektrolit lemah tetap
+                dapat menghantarkan listrik meskipun lampu
+                tidak terlihat menyala.
+              </InfoBox>
+
+              <InfoBox title="Kesimpulan Perbandingan" color="green">
+                Elektrolit kuat menghasilkan ion hampir sempurna,
+                elektrolit lemah hanya menghasilkan ion sebagian,
+                sedangkan non-elektrolit tidak menghasilkan ion
+                melalui proses pelarutan. Perbedaan tersebut
+                menyebabkan kemampuan daya hantar listrik
+                ketiganya berbeda.
+              </InfoBox>
+            </div>
+          )}
+
+          {/* TAB 6: ARRHENIUS */}
+          {activeTab === 'arrhenius' && (
+            <div>
+              <h2 style={sectionTitle}>
+                6. Teori Ionisasi Svante Arrhenius
+              </h2>
+
+              <p style={paragraph}>
+                Svante August Arrhenius merupakan ilmuwan asal
+                Swedia yang mengemukakan teori ionisasi pada
+                tahun 1887. Teori ini menjelaskan bahwa zat
+                elektrolit ketika dilarutkan dalam air akan
+                menghasilkan ion-ion yang dapat bergerak bebas.
+                Ion-ion tersebut berperan dalam menghantarkan
+                arus listrik melalui larutan.
+              </p>
+
+              <InfoBox title="Konsep Utama Teori Arrhenius">
+                Zat elektrolit dapat menghasilkan ion ketika
+                dilarutkan dalam air. Keberadaan ion-ion tersebut
+                menyebabkan larutan mampu menghantarkan
+                arus listrik.
+              </InfoBox>
+
+              <h3 style={subTitle}>A. Pengertian Asam Menurut Arrhenius</h3>
+
+              <p style={paragraph}>
+                Menurut teori Arrhenius, asam adalah zat yang
+                meningkatkan konsentrasi ion H⁺ dalam air.
+                Dalam larutan berair, ion H⁺ berikatan dengan
+                molekul air membentuk ion hidronium (H₃O⁺).
+              </p>
+
+              <div style={equationStyle}>
+                HCl + H₂O → H₃O⁺ + Cl⁻
+              </div>
+
+              <p style={paragraph}>
+                Contoh lainnya adalah asam nitrat (HNO₃)
+                yang menghasilkan ion hidronium dan ion nitrat
+                ketika bereaksi dengan air.
+              </p>
+
+              <div style={equationStyle}>
+                HNO₃ + H₂O → H₃O⁺ + NO₃⁻
+              </div>
+
+              <h3 style={subTitle}>B. Pengertian Basa Menurut Arrhenius</h3>
+
+              <p style={paragraph}>
+                Menurut teori Arrhenius, basa adalah zat yang
+                meningkatkan konsentrasi ion hidroksida (OH⁻)
+                ketika dilarutkan dalam air.
+              </p>
+
+              <div style={equationStyle}>
+                NaOH → Na⁺ + OH⁻
+              </div>
+
+              <p style={paragraph}>
+                Contoh lainnya adalah kalium hidroksida (KOH)
+                yang terdisosiasi menghasilkan ion kalium
+                dan ion hidroksida.
+              </p>
+
+              <div style={equationStyle}>
+                KOH → K⁺ + OH⁻
+              </div>
+
+              <h3 style={subTitle}>C. Hubungan Teori Arrhenius dengan Elektrolit</h3>
+
+              <p style={paragraph}>
+                Teori Arrhenius membantu menjelaskan mengapa
+                larutan asam dan basa dapat menghantarkan arus
+                listrik. Ketika zat asam atau basa dilarutkan
+                dalam air, zat tersebut menghasilkan ion-ion
+                yang dapat bergerak bebas.
+              </p>
+
+              <p style={paragraph}>
+                Asam kuat dan basa kuat umumnya menghasilkan
+                ion dalam jumlah besar karena mengalami
+                ionisasi atau disosiasi hampir sempurna.
+                Sementara itu, asam lemah dan basa lemah hanya
+                mengalami ionisasi sebagian sehingga jumlah
+                ion yang dihasilkan lebih sedikit.
+              </p>
+
+              <h3 style={subTitle}>D. Kelebihan dan Keterbatasan Teori Arrhenius</h3>
+
+              <DataTable
+                headers={['Aspek', 'Penjelasan']}
+                rows={[
+                  [
+                    'Kelebihan',
+                    'Menjelaskan sifat asam dan basa berdasarkan pembentukan ion dalam air.',
+                  ],
+                  [
+                    'Kelebihan',
+                    'Membantu menjelaskan mengapa larutan asam dan basa dapat menghantarkan listrik.',
+                  ],
+                  [
+                    'Keterbatasan',
+                    'Hanya menjelaskan sifat asam dan basa dalam pelarut air.',
+                  ],
+                  [
+                    'Keterbatasan',
+                    'Belum dapat menjelaskan seluruh reaksi asam-basa yang tidak melibatkan pembentukan H⁺ atau OH⁻ secara langsung.',
+                  ],
+                ]}
+              />
+
+              <InfoBox title="Kesimpulan Teori Arrhenius" color="green">
+                Teori Arrhenius menjelaskan bahwa keberadaan
+                ion merupakan dasar kemampuan larutan elektrolit
+                dalam menghantarkan listrik. Teori ini juga
+                menjadi dasar untuk memahami sifat asam dan
+                basa berdasarkan ion yang dihasilkan dalam air.
+              </InfoBox>
+            </div>
+          )}
 
         </div>
 
-      </main>
+        {/* NAVIGASI ANTARMATERI */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          marginBottom: '1.5rem',
+        }}>
+          <button
+            onClick={() => {
+              const currentIndex = tabs.findIndex(
+                tab => tab.id === activeTab
+              );
+              if (currentIndex > 0) {
+                setActiveTab(tabs[currentIndex - 1].id);
+              }
+            }}
+            disabled={activeTab === 'dasar'}
+            style={{
+              padding: '0.75rem 1.2rem',
+              borderRadius: '8px',
+              border: '1px solid var(--slate-200)',
+              background: '#ffffff',
+              color: 'var(--navy-900)',
+              cursor: activeTab === 'dasar' ? 'not-allowed' : 'pointer',
+              opacity: activeTab === 'dasar' ? 0.4 : 1,
+            }}
+          >
+            ← Materi Sebelumnya
+          </button>
 
+          <span style={{
+            fontSize: '0.85rem',
+            color: 'var(--slate-500)',
+            fontWeight: 600,
+          }}>
+            Materi {tabs.findIndex(tab => tab.id === activeTab) + 1} dari 6
+          </span>
+
+          <button
+            onClick={() => {
+              const currentIndex = tabs.findIndex(
+                tab => tab.id === activeTab
+              );
+              if (currentIndex < tabs.length - 1) {
+                setActiveTab(tabs[currentIndex + 1].id);
+              }
+            }}
+            disabled={activeTab === 'arrhenius'}
+            style={{
+              padding: '0.75rem 1.2rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--teal-600)',
+              color: '#ffffff',
+              cursor: activeTab === 'arrhenius' ? 'not-allowed' : 'pointer',
+              opacity: activeTab === 'arrhenius' ? 0.4 : 1,
+            }}
+          >
+            Materi Selanjutnya →
+          </button>
+        </div>
+
+        {/* CTA LABORATORIUM VIRTUAL */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#ffffff',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--slate-200)',
+          padding: '1.5rem 2rem',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}>
+          <div>
+            <h4 style={{
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              color: 'var(--navy-900)',
+            }}>
+              Sudah Memahami Konsepnya?
+            </h4>
+            <p style={{
+              fontSize: '0.9rem',
+              color: 'var(--slate-600)',
+              lineHeight: 1.6,
+            }}>
+              Uji pemahamanmu dengan melakukan eksperimen
+              langsung di Laboratorium Virtual.
+            </p>
+          </div>
+
+          <button
+            onClick={onStartLab}
+            className="btn btn-primary"
+            style={{ padding: '0.75rem 1.4rem' }}
+          >
+            <span>Buka Laboratorium Virtual</span>
+            <ArrowRight size={17} />
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 };
-
-export default Materi;
