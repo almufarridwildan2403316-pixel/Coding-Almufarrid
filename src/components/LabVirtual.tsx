@@ -243,7 +243,7 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               </button>
               <button
                 onClick={() => {
-                  if (selectedSolutionId.startsWith('M-')) setSampleMode('mystery');
+                  if (mysterySolution) setSampleMode('mystery');
                   else handleCreateMysterySample();
                 }}
                 className="btn"
@@ -642,9 +642,9 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isSwitchClosed ? (hasBubbles ? 'var(--teal-700)' : 'var(--slate-600)') : 'var(--slate-400)', marginTop: '0.2rem' }}>
                 {!isSwitchClosed 
                   ? 'Menunggu saklar dinyalakan...' 
-                  : activeSolution.expectedBubbles === 'visible'
+                  : activeSolution.expectedBubbles === 'visible' 
                   ? '🫧 Banyak Gelembung Gas' 
-                  : activeSolution.expectedBubbles === 'possible'
+                  : activeSolution.expectedBubbles === 'possible' 
                   ? '🫧 Sedikit / Halus' 
                   : '❌ Tidak Ada Gelembung'}
               </div>

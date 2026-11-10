@@ -1,5 +1,6 @@
 import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
-import { supabase } from './supabase';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { firestore } from './firebase';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
@@ -90,41 +91,34 @@ export const getStoredProgress = (student: StudentIdentity): LearningProgress =>
 };
 
 export const loadAccountProgress = async (student: StudentIdentity): Promise<LearningProgress> => {
-  if (!supabase || !student.id) {
-    throw new Error('Supabase belum dikonfigurasi untuk memuat progres akun.');
+  if (!firestore || !student.id) {
+    throw new Error('Firebase belum dikonfigurasi untuk memuat progres akun.');
   }
 
-  const { data, error } = await supabase
-    .from('student_progress')
-    .select('progress')
-    .eq('user_id', student.id)
-    .maybeSingle();
+  const progressRef = doc(firestore, 'studentProgress', student.id);
+  const snapshot = await getDoc(progressRef);
 
-  if (error) throw error;
-
-  if (!data) return getStoredProgress(student);
-  if (!isLearningProgress(data.progress)) {
+  if (!snapshot.exists()) return getStoredProgress(student);
+  const remoteProgress: unknown = snapshot.data().progress;
+  if (!isLearningProgress(remoteProgress)) {
     throw new Error('Format progres akun tidak valid. Data lokal tidak akan menimpa data tersebut.');
   }
 
-  return { ...data.progress, student };
+  return { ...remoteProgress, student };
 };
 
 export const saveAccountProgress = async (
   progress: LearningProgress,
   student: StudentIdentity,
 ): Promise<void> => {
-  if (!supabase || !student.id) {
-    throw new Error('Supabase belum dikonfigurasi untuk menyimpan progres akun.');
+  if (!firestore || !student.id) {
+    throw new Error('Firebase belum dikonfigurasi untuk menyimpan progres akun.');
   }
 
-  const { error } = await supabase.from('student_progress').upsert({
-    user_id: student.id,
+  await setDoc(doc(firestore, 'studentProgress', student.id), {
     progress: { ...progress, student },
-    updated_at: new Date().toISOString(),
+    updatedAt: serverTimestamp(),
   });
-
-  if (error) throw error;
 };
 
 export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): void => {
