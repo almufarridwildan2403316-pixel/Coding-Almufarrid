@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
@@ -16,7 +17,7 @@ import {
   updateQuizSubmission,
   resetAllProgress 
 } from './utils/storage';
-import { isSupabaseConfigured, supabase } from './utils/supabase';
+import { firebaseAuth, isFirebaseConfigured } from './utils/firebase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Beranda } from './components/Beranda';
@@ -35,19 +36,21 @@ export function App() {
   const authUserId = useRef<string | null>(null);
   const [student, setStudent] = useState<StudentIdentity | null>(null);
   const [progress, setProgress] = useState<LearningProgress>(DEFAULT_PROGRESS);
-  const [isAuthLoading, setIsAuthLoading] = useState(isSupabaseConfigured);
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(isFirebaseConfigured);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(
+    () => new URLSearchParams(window.location.search).get('mode') === 'resetPassword'
+      && new URLSearchParams(window.location.search).has('oobCode'),
+  );
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressLoadError, setProgressLoadError] = useState('');
   const [progressSyncError, setProgressSyncError] = useState('');
   const [canSyncProgress, setCanSyncProgress] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!firebaseAuth) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const nextUser = session?.user ?? null;
-      const nextUserId = nextUser?.id ?? null;
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
+      const nextUserId = nextUser?.uid ?? null;
       const accountChanged = authUserId.current !== nextUserId;
       authUserId.current = nextUserId;
 
@@ -68,11 +71,9 @@ export function App() {
         clearActiveStudent();
       }
 
-      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') setIsPasswordRecovery(false);
     });
 
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -80,14 +81,11 @@ export function App() {
 
     let active = true;
     const email = authUser.email ?? '';
-    const metadata = authUser.user_metadata;
-    const profileName = [metadata.display_name, metadata.full_name, metadata.name]
-      .find((value): value is string => typeof value === 'string' && Boolean(value.trim()));
     const identity: StudentIdentity = {
-      id: authUser.id,
+      id: authUser.uid,
       email,
-      name: profileName?.trim() || email.split('@')[0] || 'Siswa',
-      className: typeof metadata.class_name === 'string' ? metadata.class_name : '',
+      name: authUser.displayName?.trim() || email.split('@')[0] || 'Siswa',
+      className: '',
     };
 
     loadAccountProgress(identity)
@@ -106,8 +104,8 @@ export function App() {
         setProgress(getStoredProgress(identity));
         setProgressLoadError(
           error instanceof Error
-            ? `Progres akun belum dapat dimuat dari Supabase: ${error.message}`
-            : 'Progres akun belum dapat dimuat dari Supabase.',
+            ? `Progres akun belum dapat dimuat dari Firebase: ${error.message}`
+            : 'Progres akun belum dapat dimuat dari Firebase.',
         );
         setIsProgressLoading(false);
       });
@@ -128,7 +126,7 @@ export function App() {
           setProgressSyncError(
             error instanceof Error
               ? `Progres tersimpan di perangkat, tetapi gagal disinkronkan: ${error.message}`
-              : 'Progres tersimpan di perangkat, tetapi gagal disinkronkan ke akun.',
+              : 'Progres tersimpan di perangkat, tetapi gagal disinkronkan ke Firebase.',
           );
         });
     }, 500);
@@ -137,17 +135,22 @@ export function App() {
   }, [authUser, canSyncProgress, progress, student]);
 
   const handleLogout = async () => {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) setProgressSyncError(`Tidak dapat keluar dari akun: ${error.message}`);
-    else setActivePage('beranda');
+    if (!firebaseAuth) return;
+    try {
+      await signOut(firebaseAuth);
+      setActivePage('beranda');
+    } catch (error) {
+      setProgressSyncError(
+        error instanceof Error ? `Tidak dapat keluar dari akun: ${error.message}` : 'Tidak dapat keluar dari akun.',
+      );
+    }
   };
 
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
     if (!student) return;
-    // 1. Mark solution as tested
-    markSolutionTested(record.solutionId, student);
-    // 2. Save worksheet record
+    if (record.sampleType !== 'mystery') {
+      markSolutionTested(record.solutionId, student);
+    }
     const updated = saveWorksheetRecord({ ...record, studentName: student.name, studentClass: student.className }, student);
     setProgress(updated);
   };

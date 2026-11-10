@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Solution, SolutionCategory, LampStatus, LearningProgress, ExperimentRecord } from '../types/chemistry';
 import { SOLUTIONS } from '../data/solutionsData';
 import { 
@@ -8,8 +8,59 @@ import {
   Save, 
   CheckCircle2, 
   Eye, 
-  ClipboardList
+  ClipboardList,
+  Sparkles
 } from 'lucide-react';
+
+const createMysterySolution = (
+  id: string,
+  name: string,
+  category: SolutionCategory,
+): Solution => {
+  const profiles: Record<SolutionCategory, Pick<Solution, 'categoryLabel' | 'expectedLamp' | 'expectedBubbles' | 'degreeOfIonization' | 'particleModel' | 'equation' | 'ions' | 'explanation'>> = {
+    strong_electrolyte: {
+      categoryLabel: 'Elektrolit Kuat',
+      expectedLamp: 'bright',
+      expectedBubbles: 'visible',
+      degreeOfIonization: 'Ionisasi hampir sempurna',
+      particleModel: 'Model menunjukkan banyak ion positif dan negatif yang dapat bergerak bebas sebagai pembawa muatan.',
+      equation: 'Zat terlarut → ion positif + ion negatif',
+      ions: { positive: 'K⁺', negative: 'A⁻' },
+      explanation: 'Lampu terang dan banyak gelembung menunjukkan banyak ion bergerak bebas di dalam larutan.',
+    },
+    weak_electrolyte: {
+      categoryLabel: 'Elektrolit Lemah',
+      expectedLamp: 'dim',
+      expectedBubbles: 'possible',
+      degreeOfIonization: 'Ionisasi sebagian',
+      particleModel: 'Model menunjukkan sebagian besar partikel tetap sebagai molekul netral dan hanya sedikit yang menjadi ion.',
+      equation: 'Molekul ⇌ ion positif + ion negatif',
+      ions: { positive: 'K⁺', negative: 'A⁻', neutral: 'Molekul' },
+      explanation: 'Lampu redup dan sedikit gelembung menunjukkan hanya sebagian kecil partikel membentuk ion.',
+    },
+    nonelectrolyte: {
+      categoryLabel: 'Non-Elektrolit',
+      expectedLamp: 'off',
+      expectedBubbles: 'not_expected',
+      degreeOfIonization: 'Tidak menghasilkan ion',
+      particleModel: 'Model menunjukkan partikel-partikel netral yang tidak membentuk ion penghantar listrik.',
+      equation: 'Molekul → molekul netral',
+      ions: { positive: '', negative: '', neutral: 'Molekul' },
+      explanation: 'Lampu padam dan tidak ada gelembung menunjukkan larutan tidak menghasilkan ion bebas.',
+    },
+  };
+
+  return {
+    id,
+    name,
+    formula: 'Larutan X (aq)',
+    category,
+    ...profiles[category],
+    liquidColor: 'rgba(20, 184, 166, 0.22)',
+    accentColor: '#0d9488',
+    description: 'Sampel simulasi tanpa identitas zat spesifik.',
+  };
+};
 
 interface LabVirtualProps {
   initialSampleId?: string;
@@ -24,31 +75,33 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
   onSaveRecord,
   onOpenWorksheet,
 }) => {
+  const initialRecord = progress.worksheetRecords[initialSampleId];
+  const initialMystery = initialRecord?.sampleType === 'mystery' && initialRecord.conclusion
+    ? createMysterySolution(
+      initialRecord.solutionId,
+      initialRecord.sampleName ?? 'Sampel Misteri',
+      initialRecord.conclusion,
+    )
+    : null;
   const [selectedSolutionId, setSelectedSolutionId] = useState<string>(initialSampleId);
-  const [isSwitchClosed, setIsSwitchClosed] = useState<boolean>(false);
-  const [hasTested, setHasTested] = useState<boolean>(false);
-  const [prediction, setPrediction] = useState<SolutionCategory | ''>('');
+  const [sampleMode, setSampleMode] = useState<'prepared' | 'mystery'>(initialMystery ? 'mystery' : 'prepared');
+  const [mysterySolution, setMysterySolution] = useState<Solution | null>(initialMystery);
+  const [mysteryName, setMysteryName] = useState('');
+  const [mysteryIndex, setMysteryIndex] = useState(
+    () => Object.values(progress.worksheetRecords).filter((record) => record.sampleType === 'mystery').length + 1,
+  );
+  const [isSwitchClosed, setIsSwitchClosed] = useState<boolean>(Boolean(initialMystery));
+  const [hasTested, setHasTested] = useState<boolean>(Boolean(initialMystery));
+  const [prediction, setPrediction] = useState<SolutionCategory | ''>(initialRecord?.prediction ?? '');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
-  // Sync if initialSampleId changes
-  useEffect(() => {
-    setSelectedSolutionId(initialSampleId);
-    setIsSwitchClosed(false);
-    setHasTested(false);
-    setSavedSuccess(false);
-    
-    // Check if there is an existing record
-    const existing = progress.worksheetRecords[initialSampleId];
-    if (existing) {
-      setPrediction(existing.prediction);
-    } else {
-      setPrediction('');
-    }
-  }, [initialSampleId]);
-
   const currentSolution: Solution = SOLUTIONS.find((s) => s.id === selectedSolutionId) || SOLUTIONS[0];
+  const activeSolution = mysterySolution ?? currentSolution;
+  const isMystery = sampleMode === 'mystery';
 
   const handleSelectSolution = (id: string) => {
+    setSampleMode('prepared');
+    setMysterySolution(null);
     setSelectedSolutionId(id);
     setIsSwitchClosed(false);
     setHasTested(false);
@@ -62,8 +115,26 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
     }
   };
 
+  const handleCreateMysterySample = () => {
+    const categories: SolutionCategory[] = ['strong_electrolyte', 'weak_electrolyte', 'nonelectrolyte'];
+    const category = categories[Math.floor(Math.random() * categories.length)];
+    const id = `M-${Date.now()}-${mysteryIndex}`;
+    const name = mysteryName.trim() || `Sampel Misteri ${mysteryIndex}`;
+    const solution = createMysterySolution(id, name, category);
+
+    setMysteryIndex((index) => index + 1);
+    setMysterySolution(solution);
+    setSampleMode('mystery');
+    setSelectedSolutionId(id);
+    setIsSwitchClosed(false);
+    setHasTested(false);
+    setSavedSuccess(false);
+    setPrediction('');
+  };
+
   const handleToggleSwitch = () => {
     const newState = !isSwitchClosed;
+    if (newState && !prediction) return;
     setIsSwitchClosed(newState);
     if (newState) {
       setHasTested(true);
@@ -80,13 +151,16 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
     if (!hasTested) return;
 
     const record: ExperimentRecord = {
-      solutionId: currentSolution.id,
+      solutionId: activeSolution.id,
+      sampleType: isMystery ? 'mystery' : 'prepared',
+      sampleName: isMystery ? activeSolution.name : undefined,
+      sampleFormula: isMystery ? activeSolution.formula : undefined,
       studentName: progress.student?.name ?? '',
       studentClass: progress.student?.className ?? '',
-      prediction: prediction,
-      lampObservation: currentSolution.expectedLamp,
-      bubbleObservation: currentSolution.expectedBubbles,
-      conclusion: currentSolution.category,
+      prediction,
+      lampObservation: activeSolution.expectedLamp,
+      bubbleObservation: activeSolution.expectedBubbles,
+      conclusion: activeSolution.category,
       completed: true,
       completedAt: new Date().toISOString(),
     };
@@ -96,8 +170,8 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const lampStatus: LampStatus = isSwitchClosed ? currentSolution.expectedLamp : 'off';
-  const hasBubbles: boolean = isSwitchClosed && currentSolution.expectedBubbles !== 'not_expected';
+  const lampStatus: LampStatus = isSwitchClosed ? activeSolution.expectedLamp : 'off';
+  const hasBubbles: boolean = isSwitchClosed && activeSolution.expectedBubbles !== 'not_expected';
 
   return (
     <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
@@ -152,44 +226,103 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               <span>1. Pilih Sampel Larutan</span>
             </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1.5rem' }}>
-              {SOLUTIONS.map((sol) => {
-                const isSelected = sol.id === selectedSolutionId;
-                const isTested = progress.testedSolutions.includes(sol.id);
-                return (
-                  <button
-                    key={sol.id}
-                    onClick={() => handleSelectSolution(sol.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.7rem 0.85rem',
-                      borderRadius: '10px',
-                      backgroundColor: isSelected ? 'var(--teal-50)' : '#ffffff',
-                      border: isSelected ? '2px solid var(--teal-600)' : '1px solid var(--slate-200)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: isSelected ? 'var(--teal-900)' : 'var(--navy-900)' }}>
-                        {sol.name}
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--slate-500)' }}>
-                        {sol.formula}
-                      </div>
-                    </div>
-                    {isTested && (
-                      <span title="Sudah dicatat ke lembar kerja">
-                        <CheckCircle2 size={16} color="var(--teal-600)" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+              <button
+                onClick={() => handleSelectSolution(
+                  SOLUTIONS.some((solution) => solution.id === selectedSolutionId) ? selectedSolutionId : SOLUTIONS[0].id,
+                )}
+                className="btn"
+                style={{
+                  backgroundColor: sampleMode === 'prepared' ? 'var(--teal-700)' : 'var(--slate-100)',
+                  color: sampleMode === 'prepared' ? '#ffffff' : 'var(--navy-900)',
+                  fontSize: '0.78rem',
+                  padding: '0.6rem 0.4rem',
+                }}
+              >
+                Sampel Siap Uji
+              </button>
+              <button
+                onClick={() => {
+                  if (mysterySolution) setSampleMode('mystery');
+                  else handleCreateMysterySample();
+                }}
+                className="btn"
+                style={{
+                  backgroundColor: sampleMode === 'mystery' ? 'var(--teal-700)' : 'var(--slate-100)',
+                  color: sampleMode === 'mystery' ? '#ffffff' : 'var(--navy-900)',
+                  fontSize: '0.78rem',
+                  padding: '0.6rem 0.4rem',
+                }}
+              >
+                Sampel Misteri
+              </button>
             </div>
+
+            {sampleMode === 'prepared' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1.5rem' }}>
+                {SOLUTIONS.map((sol) => {
+                  const isSelected = sol.id === selectedSolutionId;
+                  const isTested = progress.testedSolutions.includes(sol.id);
+                  return (
+                    <button
+                      key={sol.id}
+                      onClick={() => handleSelectSolution(sol.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.7rem 0.85rem',
+                        borderRadius: '10px',
+                        backgroundColor: isSelected ? 'var(--teal-50)' : '#ffffff',
+                        border: isSelected ? '2px solid var(--teal-600)' : '1px solid var(--slate-200)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: isSelected ? 'var(--teal-900)' : 'var(--navy-900)' }}>
+                          {sol.name}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--slate-500)' }}>
+                          {sol.formula}
+                        </div>
+                      </div>
+                      {isTested && (
+                        <span title="Sudah dicatat ke lembar kerja">
+                          <CheckCircle2 size={16} color="var(--teal-600)" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="mystery-sample-name" style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-900)', marginBottom: '0.4rem' }}>
+                  Nama sampel (opsional)
+                </label>
+                <input
+                  id="mystery-sample-name"
+                  value={mysteryName}
+                  onChange={(event) => setMysteryName(event.target.value)}
+                  placeholder="Contoh: Sampel A"
+                  maxLength={40}
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid var(--slate-300)', marginBottom: '0.6rem' }}
+                />
+                <button
+                  onClick={handleCreateMysterySample}
+                  className="btn btn-primary"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.65rem' }}
+                >
+                  <Sparkles size={16} />
+                  Sampel Misteri Baru
+                </button>
+                <p style={{ fontSize: '0.75rem', color: 'var(--slate-500)', lineHeight: 1.5, marginTop: '0.6rem' }}>
+                  Karakteristik daya hantar diacak dari tiga kategori. Nama zat dan kategorinya tidak ditampilkan sebelum pengujian.
+                </p>
+              </div>
+            )}
 
             {/* Prediksi Siswa */}
             <div style={{ borderTop: '1px solid var(--slate-200)', paddingTop: '1.25rem' }}>
@@ -201,7 +334,8 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               </p>
               <select
                 value={prediction}
-                onChange={(e) => setPrediction(e.target.value as SolutionCategory)}
+                onChange={(e) => setPrediction(e.target.value as SolutionCategory | '')}
+                disabled={hasTested}
                 style={{
                   width: '100%',
                   padding: '0.65rem 0.75rem',
@@ -220,6 +354,11 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                 <option value="weak_electrolyte">Elektrolit Lemah</option>
                 <option value="nonelectrolyte">Non-Elektrolit</option>
               </select>
+              {!prediction && (
+                <p style={{ fontSize: '0.74rem', color: 'var(--amber-700, #b45309)', marginTop: '0.45rem' }}>
+                  Pilih prediksi sebelum menyalakan saklar.
+                </p>
+              )}
             </div>
           </div>
 
@@ -238,20 +377,23 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                   Alat Uji Virtual:
                 </span>
                 <span style={{ marginLeft: '0.5rem', fontWeight: 800, fontSize: '1rem', color: '#ffffff' }}>
-                  {currentSolution.name} ({currentSolution.formula})
+                  {activeSolution.name} ({activeSolution.formula})
                 </span>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   onClick={handleToggleSwitch}
+                  disabled={!isSwitchClosed && !prediction}
                   className="btn"
                   style={{
                     backgroundColor: isSwitchClosed ? '#10b981' : '#ef4444',
                     color: '#ffffff',
                     padding: '0.45rem 0.9rem',
                     fontSize: '0.82rem',
-                    boxShadow: isSwitchClosed ? '0 0 14px rgba(16, 185, 129, 0.5)' : 'none'
+                    boxShadow: isSwitchClosed ? '0 0 14px rgba(16, 185, 129, 0.5)' : 'none',
+                    opacity: !isSwitchClosed && !prediction ? 0.55 : 1,
+                    cursor: !isSwitchClosed && !prediction ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <Power size={14} />
@@ -279,8 +421,8 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               <svg viewBox="0 0 460 300" style={{ width: '100%', height: '100%' }}>
                 <defs>
                   <linearGradient id="labLiquid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={currentSolution.accentColor} stopOpacity="0.45" />
-                    <stop offset="100%" stopColor={currentSolution.accentColor} stopOpacity="0.8" />
+                    <stop offset="0%" stopColor={activeSolution.accentColor} stopOpacity="0.45" />
+                    <stop offset="100%" stopColor={activeSolution.accentColor} stopOpacity="0.8" />
                   </linearGradient>
                   <linearGradient id="beakerGlassFull" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
@@ -393,36 +535,36 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                   )}
 
                   {/* Microscopic Particle overlay inside Beaker */}
-                  {currentSolution.category === 'strong_electrolyte' && (
+                  {(!isMystery || hasTested) && activeSolution.category === 'strong_electrolyte' && (
                     <g>
                       <g className="anim-particle" style={{ animationDuration: '3.5s' }}>
                         <circle cx="-20" cy="70" r="9" fill="#0d9488" />
-                        <text x="-20" y="74" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{currentSolution.ions.positive}</text>
+                        <text x="-20" y="74" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
                       </g>
                       <g className="anim-particle" style={{ animationDuration: '4.2s', animationDelay: '0.6s' }}>
                         <circle cx="10" cy="80" r="10" fill="#8b5cf6" />
-                        <text x="10" y="84" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{currentSolution.ions.negative}</text>
+                        <text x="10" y="84" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
                       </g>
                       <g className="anim-particle" style={{ animationDuration: '3.8s', animationDelay: '1.2s' }}>
                         <circle cx="-10" cy="115" r="9" fill="#0d9488" />
-                        <text x="-10" y="119" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{currentSolution.ions.positive}</text>
+                        <text x="-10" y="119" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
                       </g>
                       <g className="anim-particle" style={{ animationDuration: '4.5s', animationDelay: '1.8s' }}>
                         <circle cx="18" cy="125" r="10" fill="#8b5cf6" />
-                        <text x="18" y="129" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{currentSolution.ions.negative}</text>
+                        <text x="18" y="129" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
                       </g>
                     </g>
                   )}
 
-                  {currentSolution.category === 'weak_electrolyte' && (
+                  {(!isMystery || hasTested) && activeSolution.category === 'weak_electrolyte' && (
                     <g>
                       <g className="anim-particle" style={{ animationDuration: '4s' }}>
                         <circle cx="-15" cy="75" r="8" fill="#0d9488" />
-                        <text x="-15" y="78" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{currentSolution.ions.positive}</text>
+                        <text x="-15" y="78" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
                       </g>
                       <g className="anim-particle" style={{ animationDuration: '4.5s', animationDelay: '0.8s' }}>
                         <circle cx="15" cy="110" r="9" fill="#8b5cf6" />
-                        <text x="15" y="114" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{currentSolution.ions.negative}</text>
+                        <text x="15" y="114" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
                       </g>
                       <g className="anim-particle" style={{ animationDuration: '5s', animationDelay: '1s' }}>
                         <rect x="-25" y="95" width="28" height="16" rx="4" fill="#f59e0b" opacity="0.85" />
@@ -435,7 +577,7 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                     </g>
                   )}
 
-                  {currentSolution.category === 'nonelectrolyte' && (
+                  {(!isMystery || hasTested) && activeSolution.category === 'nonelectrolyte' && (
                     <g>
                       <g className="anim-particle" style={{ animationDuration: '4.2s' }}>
                         <rect x="-26" y="70" width="34" height="18" rx="4" fill="#64748b" opacity="0.9" />
@@ -455,7 +597,7 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                   {/* Formula Tag on Beaker */}
                   <rect x="-50" y="160" width="100" height="22" rx="4" fill="rgba(15, 23, 42, 0.9)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
                   <text x="0" y="175" fill="#5eead4" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                    {currentSolution.formula}
+                    {isMystery && !hasTested ? 'Sampel X' : activeSolution.formula}
                   </text>
                 </g>
               </svg>
@@ -500,9 +642,9 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
               <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isSwitchClosed ? (hasBubbles ? 'var(--teal-700)' : 'var(--slate-600)') : 'var(--slate-400)', marginTop: '0.2rem' }}>
                 {!isSwitchClosed 
                   ? 'Menunggu saklar dinyalakan...' 
-                  : currentSolution.expectedBubbles === 'visible' 
+                  : activeSolution.expectedBubbles === 'visible' 
                   ? '🫧 Banyak Gelembung Gas' 
-                  : currentSolution.expectedBubbles === 'possible' 
+                  : activeSolution.expectedBubbles === 'possible' 
                   ? '🫧 Sedikit / Halus' 
                   : '❌ Tidak Ada Gelembung'}
               </div>
@@ -514,8 +656,15 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                 Model Partikel Mikroskopis:
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--slate-700)', lineHeight: 1.5 }}>
-                {currentSolution.particleModel}
+                {isMystery && !hasTested
+                  ? 'Model partikel akan ditampilkan setelah sampel diuji. Amati lampu dan gelembung untuk membuat kesimpulan.'
+                  : activeSolution.particleModel}
               </p>
+              {isMystery && hasTested && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--teal-900)', lineHeight: 1.5, fontWeight: 700, marginTop: '0.65rem' }}>
+                  Kesimpulan simulasi: {activeSolution.categoryLabel}
+                </p>
+              )}
             </div>
 
             {/* Save to worksheet action */}

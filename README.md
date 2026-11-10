@@ -31,15 +31,14 @@ If you are developing a production application, we recommend enabling type-aware
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
 
-## Konfigurasi autentikasi Supabase
+## Konfigurasi Firebase
 
-Fitur login, pendaftaran, pemulihan kata sandi, Google OAuth, dan sinkronisasi progres memerlukan proyek Supabase:
+Login email/kata sandi, Google, pemulihan kata sandi, dan sinkronisasi progres menggunakan Firebase Authentication dan Cloud Firestore:
 
-1. Buat proyek Supabase, lalu salin **Project URL** dan **anon/public key** ke `.env.local` berdasarkan contoh di `.env.example`.
-2. Jalankan SQL pada `supabase/schema.sql` di SQL Editor Supabase untuk membuat tabel progres dan kebijakan Row Level Security.
-3. Pada Authentication → URL Configuration, atur Site URL ke URL aplikasi dan tambahkan URL pengalihan aplikasi ke daftar redirect yang diizinkan.
-4. Aktifkan provider Google pada Authentication → Providers. Buat OAuth client di Google Cloud, lalu masukkan client ID dan client secret ke pengaturan provider Google di Supabase. Jangan menaruh client secret atau service-role key di frontend.
-5. Untuk pengembangan lokal, gunakan `http://localhost:5173` sebagai URL aplikasi dan redirect yang diizinkan. Atur provider email sesuai kebutuhan verifikasi akun.
-6. Jalankan aplikasi dengan `npm run dev`.
+1. Buat proyek Firebase dan daftarkan aplikasi web. Salin konfigurasi aplikasi ke `.env.local` berdasarkan nama variabel pada `.env.example`. Nilai konfigurasi web Firebase digunakan di frontend; jangan menaruh service-account key di aplikasi.
+2. Pada Firebase Console → Authentication → Sign-in method, aktifkan **Email/Password** dan **Google**.
+3. Pada Authentication → Settings → Authorized domains, pastikan domain aplikasi dan `localhost` tersedia. Template email reset kata sandi diatur dari Authentication → Templates.
+4. Buat database Cloud Firestore. Terapkan aturan dari `firebase/firestore.rules` melalui Firebase Console → Firestore Database → Rules.
+5. Untuk pengembangan lokal, gunakan `http://localhost:5173`, lalu jalankan `npm run dev`.
 
-Progres disimpan lokal sebagai cache dan disinkronkan ke tabel `student_progress` berdasarkan ID akun. Kebijakan RLS membatasi setiap siswa untuk membaca dan mengubah progres miliknya sendiri. Jika sinkronisasi gagal, aplikasi menampilkan peringatan dan tetap mempertahankan cache lokal.
+Progres disimpan lokal sebagai cache dan disinkronkan ke dokumen `studentProgress/{uid}`. Aturan Firestore membatasi akses dokumen hanya kepada pemilik akun. Jika sinkronisasi gagal, aplikasi menampilkan peringatan dan tetap mempertahankan cache lokal.

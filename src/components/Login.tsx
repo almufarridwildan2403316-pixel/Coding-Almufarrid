@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import {
+  confirmPasswordReset,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  updateProfile,
+} from 'firebase/auth';
+import {
   ArrowLeft,
   ArrowRight,
   Atom,
@@ -13,10 +22,45 @@ import {
   UserRound,
   Zap,
 } from 'lucide-react';
-import { supabase } from '../utils/supabase';
+import { firebaseAuth, isFirebaseConfigured } from '../utils/firebase';
 import './Login.css';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'recovery';
+
+const getAuthErrorMessage = (error: unknown): string => {
+  if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
+    switch (error.code) {
+      case 'auth/invalid-api-key':
+        return 'Konfigurasi Firebase tidak valid. Periksa API key dan konfigurasi Web App di .env.local.';
+      case 'auth/operation-not-allowed':
+        return 'Metode login ini belum diaktifkan. Aktifkan Email/Password atau Google di Firebase Authentication.';
+      case 'auth/unauthorized-domain':
+        return 'Domain aplikasi belum diizinkan. Tambahkan domain ini di Firebase Authentication → Settings → Authorized domains.';
+      case 'auth/invalid-credential':
+        return 'Email atau kata sandi salah, atau kredensial tidak valid.';
+      case 'auth/user-disabled':
+        return 'Akun ini dinonaktifkan. Hubungi pengelola aplikasi.';
+      case 'auth/email-already-in-use':
+        return 'Email sudah terdaftar. Silakan masuk atau gunakan fitur lupa kata sandi.';
+      case 'auth/weak-password':
+        return 'Kata sandi terlalu lemah. Gunakan sedikitnya 8 karakter.';
+      case 'auth/too-many-requests':
+        return 'Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.';
+      case 'auth/network-request-failed':
+        return 'Tidak dapat terhubung ke Firebase. Periksa koneksi internet lalu coba lagi.';
+      case 'auth/popup-blocked':
+        return 'Popup login Google diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.';
+      case 'auth/popup-closed-by-user':
+        return 'Jendela login Google ditutup sebelum proses selesai.';
+      case 'auth/invalid-action-code':
+        return 'Tautan pemulihan tidak valid atau sudah kedaluwarsa. Minta tautan baru.';
+      default:
+        return error instanceof Error ? `${error.message} (${error.code})` : `Firebase Auth: ${error.code}`;
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Terjadi kesalahan. Silakan coba kembali.';
+};
 
 interface LoginProps {
   isPasswordRecovery: boolean;
@@ -45,8 +89,8 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
     setError('');
     setMessage('');
 
-    if (!supabase) {
-      setError('Autentikasi belum siap. Atur URL dan anon key Supabase di file .env.local.');
+    if (!firebaseAuth) {
+      setError('Autentikasi belum siap. Lengkapi konfigurasi Firebase di file .env.local.');
       return;
     }
 
@@ -59,38 +103,27 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
     try {
       const activeMode = isPasswordRecovery ? 'recovery' : mode;
       if (activeMode === 'login') {
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (authError) throw authError;
+        await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       } else if (activeMode === 'register') {
-        const { data, error: authError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: { display_name: name.trim() },
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (authError) throw authError;
-        if (!data.session) {
-          setMessage('Pendaftaran berhasil. Periksa email untuk memverifikasi akun sebelum masuk.');
-        }
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
+        await updateProfile(credential.user, { displayName: name.trim() });
       } else if (activeMode === 'forgot') {
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin,
+        await sendPasswordResetEmail(firebaseAuth, email.trim(), {
+          url: window.location.origin,
         });
-        if (authError) throw authError;
         setMessage('Jika alamat email terdaftar, tautan untuk mengatur ulang kata sandi akan dikirim ke email tersebut.');
       } else {
-        const { error: authError } = await supabase.auth.updateUser({ password });
-        if (authError) throw authError;
-        setMessage('Kata sandi berhasil diperbarui. Membuka akun Anda…');
+        const actionCode = new URLSearchParams(window.location.search).get('oobCode');
+        if (!actionCode) throw new Error('Tautan pemulihan tidak valid atau sudah kedaluwarsa.');
+        await confirmPasswordReset(firebaseAuth, actionCode, password);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setMode('login');
+        setPassword('');
+        setMessage('Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.');
         onPasswordUpdated();
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Terjadi kesalahan. Silakan coba kembali.');
+      setError(getAuthErrorMessage(caughtError));
     } finally {
       setBusy(false);
     }
@@ -99,20 +132,16 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
   const handleGoogleSignIn = async () => {
     setError('');
     setMessage('');
-    if (!supabase) {
-      setError('Autentikasi belum siap. Atur URL dan anon key Supabase di file .env.local.');
+    if (!firebaseAuth) {
+      setError('Autentikasi belum siap. Lengkapi konfigurasi Firebase di file .env.local.');
       return;
     }
 
     setBusy(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      });
-      if (authError) throw authError;
+      await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Tidak dapat memulai login Google.');
+      setError(getAuthErrorMessage(caughtError));
       setBusy(false);
     }
   };
@@ -202,9 +231,9 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
             <p>{description}</p>
           </div>
 
-          {!supabase && (
+          {!isFirebaseConfigured && (
             <div className="auth-config-warning" role="status">
-              Autentikasi Supabase belum dikonfigurasi. Tambahkan <code>VITE_SUPABASE_URL</code> dan <code>VITE_SUPABASE_ANON_KEY</code> ke <code>.env.local</code>.
+              Firebase belum dikonfigurasi. Tambahkan seluruh variabel <code>VITE_FIREBASE_*</code> yang tercantum di <code>.env.example</code> ke <code>.env.local</code>.
             </div>
           )}
 
@@ -214,7 +243,7 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
                 className="auth-google-button"
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={busy || !supabase}
+                disabled={busy || !isFirebaseConfigured}
               >
                 <svg aria-hidden="true" viewBox="0 0 48 48" className="auth-google-icon">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" transform="translate(0 4)" />
@@ -301,7 +330,7 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
             {error && <p className="auth-feedback auth-feedback--error" role="alert">{error}</p>}
             {message && <p className="auth-feedback auth-feedback--success" role="status"><CheckCircle2 size={17} />{message}</p>}
 
-            <button className="auth-submit" type="submit" disabled={busy || !supabase}>
+            <button className="auth-submit" type="submit" disabled={busy || !isFirebaseConfigured}>
               <span>{busy ? 'Memproses…' : isRecovery ? 'Simpan kata sandi baru' : isForgot ? 'Kirim tautan pemulihan' : isRegister ? 'Buat akun' : 'Masuk ke KimiaLab'}</span>
               {!busy && <ArrowRight size={18} />}
             </button>
@@ -320,7 +349,7 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
           </div>
 
           <p className="auth-privacy-note">Dengan melanjutkan, progres belajar Anda akan tersimpan pada akun ini.</p>
-          <div className="auth-secure-note"><LockKeyhole size={14} /> Autentikasi aman oleh Supabase</div>
+          <div className="auth-secure-note"><LockKeyhole size={14} /> Autentikasi aman oleh Firebase</div>
         </div>
       </section>
     </main>

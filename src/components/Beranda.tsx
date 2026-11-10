@@ -31,6 +31,7 @@ export const Beranda: React.FC<BerandaProps> = ({
 }) => {
   const testedCount = progress.testedSolutions.length;
   const worksheetCount = Object.keys(progress.worksheetRecords).length;
+  const mysteryCount = Object.values(progress.worksheetRecords).filter((record) => record.sampleType === 'mystery').length;
   const quizScore = progress.quizResult ? progress.quizResult.score : null;
 
   const handleStartLab = (sampleId?: string) => {
@@ -211,15 +212,22 @@ export const Beranda: React.FC<BerandaProps> = ({
                   </span>
                 </div>
                 <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--navy-900)' }}>
-                  {testedCount === 0 
+                  {testedCount === 0 && mysteryCount === 0
                     ? 'Anda belum memulai eksperimen virtual.'
+                    : testedCount === 0
+                    ? 'Anda telah mulai menyelidiki sampel misteri.'
                     : testedCount < 6
-                    ? `Bagus! Anda telah menguji ${testedCount} dari 6 sampel larutan.`
-                    : '🎉 Luar biasa! Seluruh 6 sampel larutan telah Anda selidiki!'}
+                    ? `Bagus! Anda telah menguji ${testedCount} dari 6 sampel siap uji.`
+                    : '🎉 Luar biasa! Seluruh 6 sampel siap uji telah Anda selidiki!'}
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: 'var(--slate-600)', marginTop: '0.25rem' }}>
                   Progres Anda otomatis tersimpan di peramban ini untuk pembelajaran mandiri.
                 </p>
+                {mysteryCount > 0 && (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--teal-700)', marginTop: '0.25rem', fontWeight: 700 }}>
+                    Anda juga telah mencatat {mysteryCount} percobaan sampel misteri.
+                  </p>
+                )}
               </div>
 
               {/* Progress Counters Grid */}
@@ -230,17 +238,17 @@ export const Beranda: React.FC<BerandaProps> = ({
                     {testedCount}<span style={{ fontSize: '1rem', color: 'var(--slate-400)' }}>/6</span>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)', fontWeight: 600, marginTop: '0.35rem' }}>
-                    Sampel Diuji
+                    Sampel Siap Uji
                   </div>
                 </div>
 
                 {/* Metric 2 */}
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-800)', lineHeight: 1 }}>
-                    {worksheetCount}<span style={{ fontSize: '1rem', color: 'var(--slate-400)' }}>/6</span>
+                    {worksheetCount}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)', fontWeight: 600, marginTop: '0.35rem' }}>
-                    Lembar Kerja
+                    Catatan Pengamatan
                   </div>
                 </div>
 
