@@ -146,7 +146,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ textAlign: 'right', lineHeight: 1.25 }}>
             <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-900)' }}>{student.name}</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>Kelas {student.className}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
+              {student.className ? `Kelas ${student.className}` : student.email ?? 'Siswa'}
+            </div>
           </div>
           <button
             onClick={onLogout}

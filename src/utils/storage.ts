@@ -1,4 +1,5 @@
 import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
+import { supabase } from './supabase';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
@@ -14,8 +15,24 @@ export const DEFAULT_PROGRESS: LearningProgress = {
 };
 
 const getProgressKey = (student: StudentIdentity): string => {
+  if (student.id) return `${STORAGE_KEY}:account:${encodeURIComponent(student.id)}`;
   const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
   return `${STORAGE_KEY}:${encodeURIComponent(`${normalize(student.name)}|${normalize(student.className)}`)}`;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isLearningProgress = (value: unknown): value is LearningProgress => {
+  if (!isRecord(value)) return false;
+  return (
+    Array.isArray(value.testedSolutions) &&
+    isRecord(value.worksheetRecords) &&
+    (value.worksheetConclusion === null || isRecord(value.worksheetConclusion)) &&
+    (value.quizResult === null || isRecord(value.quizResult)) &&
+    Array.isArray(value.quizSubmissions) &&
+    Array.isArray(value.readMaterials)
+  );
 };
 
 const createDefaultProgress = (student: StudentIdentity): LearningProgress => ({
@@ -70,6 +87,44 @@ export const getStoredProgress = (student: StudentIdentity): LearningProgress =>
     console.error('Error loading progress from localStorage:', e);
     return createDefaultProgress(student);
   }
+};
+
+export const loadAccountProgress = async (student: StudentIdentity): Promise<LearningProgress> => {
+  if (!supabase || !student.id) {
+    throw new Error('Supabase belum dikonfigurasi untuk memuat progres akun.');
+  }
+
+  const { data, error } = await supabase
+    .from('student_progress')
+    .select('progress')
+    .eq('user_id', student.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) return getStoredProgress(student);
+  if (!isLearningProgress(data.progress)) {
+    throw new Error('Format progres akun tidak valid. Data lokal tidak akan menimpa data tersebut.');
+  }
+
+  return { ...data.progress, student };
+};
+
+export const saveAccountProgress = async (
+  progress: LearningProgress,
+  student: StudentIdentity,
+): Promise<void> => {
+  if (!supabase || !student.id) {
+    throw new Error('Supabase belum dikonfigurasi untuk menyimpan progres akun.');
+  }
+
+  const { error } = await supabase.from('student_progress').upsert({
+    user_id: student.id,
+    progress: { ...progress, student },
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) throw error;
 };
 
 export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): void => {
