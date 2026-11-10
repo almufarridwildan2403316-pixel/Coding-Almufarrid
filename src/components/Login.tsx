@@ -1,84 +1,327 @@
-import React, { useState } from 'react';
-import { ArrowRight, FlaskConical } from 'lucide-react';
-import type { StudentIdentity } from '../types/chemistry';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Atom,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  FlaskConical,
+  LockKeyhole,
+  Mail,
+  UserRound,
+  Zap,
+} from 'lucide-react';
+import { supabase } from '../utils/supabase';
+import './Login.css';
+
+type AuthMode = 'login' | 'register' | 'forgot' | 'recovery';
 
 interface LoginProps {
-  onLogin: (student: StudentIdentity) => void;
+  isPasswordRecovery: boolean;
+  onPasswordUpdated: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => {
+  const [mode, setMode] = useState<AuthMode>(isPasswordRecovery ? 'recovery' : 'login');
   const [name, setName] = useState('');
-  const [className, setClassName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const changeMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setError('');
+    setMessage('');
+    setPassword('');
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedName = name.trim().replace(/\s+/g, ' ');
-    const normalizedClass = className.trim().replace(/\s+/g, ' ');
+    setError('');
+    setMessage('');
 
-    if (!normalizedName || !normalizedClass) {
-      setError('Nama dan kelas wajib diisi.');
+    if (!supabase) {
+      setError('Autentikasi belum siap. Atur URL dan anon key Supabase di file .env.local.');
       return;
     }
 
-    onLogin({ name: normalizedName, className: normalizedClass });
+    if (mode === 'register' && !name.trim()) {
+      setError('Nama lengkap wajib diisi.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const activeMode = isPasswordRecovery ? 'recovery' : mode;
+      if (activeMode === 'login') {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (authError) throw authError;
+      } else if (activeMode === 'register') {
+        const { data, error: authError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { display_name: name.trim() },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (authError) throw authError;
+        if (!data.session) {
+          setMessage('Pendaftaran berhasil. Periksa email untuk memverifikasi akun sebelum masuk.');
+        }
+      } else if (activeMode === 'forgot') {
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        });
+        if (authError) throw authError;
+        setMessage('Jika alamat email terdaftar, tautan untuk mengatur ulang kata sandi akan dikirim ke email tersebut.');
+      } else {
+        const { error: authError } = await supabase.auth.updateUser({ password });
+        if (authError) throw authError;
+        setMessage('Kata sandi berhasil diperbarui. Membuka akun Anda…');
+        onPasswordUpdated();
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Terjadi kesalahan. Silakan coba kembali.');
+    } finally {
+      setBusy(false);
+    }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setMessage('');
+    if (!supabase) {
+      setError('Autentikasi belum siap. Atur URL dan anon key Supabase di file .env.local.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (authError) throw authError;
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Tidak dapat memulai login Google.');
+      setBusy(false);
+    }
+  };
+
+  const activeMode = isPasswordRecovery ? 'recovery' : mode;
+  const isRecovery = activeMode === 'recovery';
+  const isForgot = activeMode === 'forgot';
+  const isRegister = activeMode === 'register';
+  const title = isRecovery
+    ? 'Buat kata sandi baru'
+    : isForgot
+      ? 'Atur ulang kata sandi'
+      : isRegister
+        ? 'Buat akun siswa'
+        : 'Selamat datang kembali';
+  const description = isRecovery
+    ? 'Gunakan kata sandi baru untuk mengamankan akun belajar Anda.'
+    : isForgot
+      ? 'Masukkan email akun Anda. Kami akan mengirimkan tautan pemulihan jika email terdaftar.'
+      : isRegister
+        ? 'Daftar untuk menyimpan progres praktikum, lembar kerja, dan hasil evaluasi.'
+        : 'Masuk dan lanjutkan perjalanan belajar kimia Anda.';
+
   return (
-    <main className="lab-grid-pattern" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '2rem 1rem' }}>
-      <section className="card" style={{ width: '100%', maxWidth: '460px', padding: '2.25rem', borderRadius: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '2rem' }}>
-          <div style={{ width: '46px', height: '46px', display: 'grid', placeItems: 'center', borderRadius: '12px', background: 'linear-gradient(135deg, var(--teal-600), var(--navy-900))', color: '#ffffff' }}>
-            <FlaskConical size={25} />
-          </div>
-          <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-900)' }}>Kimia<span style={{ color: 'var(--teal-600)' }}>Lab</span></div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>Laboratorium Virtual Kimia SMA</div>
-          </div>
+    <main className="auth-page">
+      <section className="auth-showcase" aria-label="Materi larutan elektrolit dan nonelektrolit">
+        <div className="auth-showcase__brand">
+          <div className="auth-brand-mark"><FlaskConical size={22} strokeWidth={2.2} /></div>
+          <span>Kimia<span className="auth-brand-accent">Lab</span></span>
         </div>
 
-        <h1 style={{ fontSize: '1.75rem', lineHeight: 1.2, fontWeight: 800, color: 'var(--navy-950)', marginBottom: '0.5rem' }}>
-          Masuk untuk belajar
-        </h1>
-        <p style={{ color: 'var(--slate-600)', fontSize: '0.92rem', marginBottom: '1.5rem' }}>
-          Isi nama dan kelas untuk membuka materi dan menyimpan progres belajar.
-        </p>
+        <div className="auth-showcase__content">
+          <div className="auth-eyebrow"><Atom size={15} /> LABORATORIUM VIRTUAL KIMIA</div>
+          <h1>Kenali Larutan<br /><span>Elektrolit & Nonelektrolit</span></h1>
+          <p>Amati bagaimana ion dalam larutan menghantarkan listrik melalui simulasi praktikum yang interaktif.</p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.86rem', fontWeight: 700, color: 'var(--navy-900)' }}>
-            Nama
-            <input
-              autoComplete="name"
-              autoFocus
-              required
-              maxLength={80}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nama lengkap"
-              style={{ width: '100%', padding: '0.8rem 0.9rem', border: '1px solid var(--slate-300)', borderRadius: '8px', font: 'inherit', fontWeight: 500, outlineColor: 'var(--teal-600)' }}
-            />
-          </label>
+          <div className="auth-experiment" aria-label="Ilustrasi perbandingan uji daya hantar tiga jenis larutan">
+            <div className="auth-experiment__wires" aria-hidden="true">
+              <span className="auth-wire auth-wire--left" />
+              <span className="auth-wire auth-wire--right" />
+              <span className="auth-wire auth-wire--bridge" />
+            </div>
+            <div className="auth-battery"><Zap size={16} fill="currentColor" /><span>Sumber listrik</span></div>
+            <div className="auth-test-row">
+              <div className="auth-test-card auth-test-card--strong">
+                <div className="auth-bulb auth-bulb--bright"><span /></div>
+                <div className="auth-vessel">
+                  <i className="auth-ion auth-ion--plus">+</i><i className="auth-ion auth-ion--minus">−</i>
+                  <i className="auth-ion auth-ion--plus">+</i><i className="auth-ion auth-ion--minus">−</i>
+                  <i className="auth-ion auth-ion--plus">+</i>
+                </div>
+                <strong>Elektrolit kuat</strong><small>Lampu terang</small>
+              </div>
+              <div className="auth-test-card auth-test-card--weak">
+                <div className="auth-bulb auth-bulb--dim"><span /></div>
+                <div className="auth-vessel">
+                  <i className="auth-ion auth-ion--plus">+</i><i className="auth-molecule">○</i>
+                  <i className="auth-ion auth-ion--minus">−</i><i className="auth-molecule">○</i>
+                </div>
+                <strong>Elektrolit lemah</strong><small>Lampu redup</small>
+              </div>
+              <div className="auth-test-card auth-test-card--none">
+                <div className="auth-bulb auth-bulb--off"><span /></div>
+                <div className="auth-vessel">
+                  <i className="auth-molecule">○</i><i className="auth-molecule">○</i>
+                  <i className="auth-molecule">○</i><i className="auth-molecule">○</i>
+                </div>
+                <strong>Nonelektrolit</strong><small>Lampu padam</small>
+              </div>
+            </div>
+            <div className="auth-experiment__note">Model visual kualitatif · bukan hasil pengukuran nyata</div>
+          </div>
+        </div>
+        <div className="auth-showcase__footer">Belajar konsep kimia melalui eksplorasi dan bukti.</div>
+      </section>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.86rem', fontWeight: 700, color: 'var(--navy-900)' }}>
-            Kelas
-            <input
-              autoComplete="off"
-              required
-              maxLength={40}
-              value={className}
-              onChange={(event) => setClassName(event.target.value)}
-              placeholder="Contoh: X IPA 1"
-              style={{ width: '100%', padding: '0.8rem 0.9rem', border: '1px solid var(--slate-300)', borderRadius: '8px', font: 'inherit', fontWeight: 500, outlineColor: 'var(--teal-600)' }}
-            />
-          </label>
+      <section className="auth-form-panel">
+        <div className="auth-form-wrap">
+          <div className="auth-mobile-brand">
+            <div className="auth-brand-mark"><FlaskConical size={20} /></div>
+            <span>Kimia<span className="auth-brand-accent">Lab</span></span>
+          </div>
 
-          {error && <p role="alert" style={{ color: '#b91c1c', fontSize: '0.84rem' }}>{error}</p>}
+          <div className="auth-form-heading">
+            <span className="auth-form-kicker">{isRecovery ? 'PEMULIHAN AKUN' : 'RUANG BELAJAR SISWA'}</span>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.35rem' }}>
-            <span>Masuk ke KimiaLab</span>
-            <ArrowRight size={17} />
-          </button>
-        </form>
+          {!supabase && (
+            <div className="auth-config-warning" role="status">
+              Autentikasi Supabase belum dikonfigurasi. Tambahkan <code>VITE_SUPABASE_URL</code> dan <code>VITE_SUPABASE_ANON_KEY</code> ke <code>.env.local</code>.
+            </div>
+          )}
+
+          {!isRecovery && !isForgot && (
+            <>
+              <button
+                className="auth-google-button"
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={busy || !supabase}
+              >
+                <svg aria-hidden="true" viewBox="0 0 48 48" className="auth-google-icon">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" transform="translate(0 4)" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.73 7.18l7.65 5.93c4.47-4.13 7.12-10.2 7.12-17.58Z" />
+                  <path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a23.9 23.9 0 0 0 0 21.56l7.98-6.19Z" transform="translate(0 -2)" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.8l-7.65-5.93c-2.13 1.43-4.86 2.28-8.25 2.28-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+                </svg>
+                Lanjutkan dengan Google
+              </button>
+              <div className="auth-divider"><span>atau lanjutkan dengan email</span></div>
+            </>
+          )}
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            {isRegister && (
+              <label className="auth-field">
+                <span>Nama lengkap</span>
+                <span className="auth-input-wrap">
+                  <UserRound size={18} aria-hidden="true" />
+                  <input
+                    autoComplete="name"
+                    maxLength={80}
+                    required
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Masukkan nama lengkap"
+                  />
+                </span>
+              </label>
+            )}
+
+            {!isRecovery && (
+              <label className="auth-field">
+                <span>Email</span>
+                <span className="auth-input-wrap">
+                  <Mail size={18} aria-hidden="true" />
+                  <input
+                    autoComplete="email"
+                    autoFocus={!isRegister}
+                    required
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="nama@email.com"
+                  />
+                </span>
+              </label>
+            )}
+
+            {!isForgot && (
+              <label className="auth-field">
+                <span>{isRecovery ? 'Kata sandi baru' : 'Kata sandi'}</span>
+                <span className="auth-input-wrap">
+                  <LockKeyhole size={18} aria-hidden="true" />
+                  <input
+                    autoComplete={isRecovery || isRegister ? 'new-password' : 'current-password'}
+                    minLength={8}
+                    required
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Minimal 8 karakter"
+                  />
+                  <button
+                    className="auth-password-toggle"
+                    type="button"
+                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </span>
+              </label>
+            )}
+
+            {activeMode === 'login' && (
+              <div className="auth-forgot-row">
+                <button type="button" className="auth-text-button" onClick={() => changeMode('forgot')}>
+                  Lupa kata sandi?
+                </button>
+              </div>
+            )}
+
+            {error && <p className="auth-feedback auth-feedback--error" role="alert">{error}</p>}
+            {message && <p className="auth-feedback auth-feedback--success" role="status"><CheckCircle2 size={17} />{message}</p>}
+
+            <button className="auth-submit" type="submit" disabled={busy || !supabase}>
+              <span>{busy ? 'Memproses…' : isRecovery ? 'Simpan kata sandi baru' : isForgot ? 'Kirim tautan pemulihan' : isRegister ? 'Buat akun' : 'Masuk ke KimiaLab'}</span>
+              {!busy && <ArrowRight size={18} />}
+            </button>
+          </form>
+
+          <div className="auth-switch">
+            {isRecovery ? (
+              <span>Jika tautan kedaluwarsa, kembali ke halaman login untuk meminta tautan baru.</span>
+            ) : isForgot ? (
+              <button type="button" className="auth-back-button" onClick={() => changeMode('login')}><ArrowLeft size={16} /> Kembali ke login</button>
+            ) : isRegister ? (
+              <span>Sudah memiliki akun? <button type="button" className="auth-text-button" onClick={() => changeMode('login')}>Masuk</button></span>
+            ) : (
+              <span>Belum memiliki akun? <button type="button" className="auth-text-button" onClick={() => changeMode('register')}>Daftar sekarang</button></span>
+            )}
+          </div>
+
+          <p className="auth-privacy-note">Dengan melanjutkan, progres belajar Anda akan tersimpan pada akun ini.</p>
+          <div className="auth-secure-note"><LockKeyhole size={14} /> Autentikasi aman oleh Supabase</div>
+        </div>
       </section>
     </main>
   );

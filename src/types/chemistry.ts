@@ -101,6 +101,8 @@ export interface LearningProgress {
 }
 
 export interface StudentIdentity {
+  id?: string;
+  email?: string;
   name: string;
   className: string;
 }
