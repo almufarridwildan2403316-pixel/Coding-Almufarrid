@@ -29,13 +29,19 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { HasilBelajar } from './components/HasilBelajar';
 import { Login } from './components/Login';
 
+const createGuestStudent = (): StudentIdentity => ({ name: 'Tamu', className: '' });
+
 export function App() {
   const [activePage, setActivePage] = useState<ActivePage>('beranda');
   const [selectedSampleId, setSelectedSampleId] = useState<string>('S01');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const authUserId = useRef<string | null>(null);
-  const [student, setStudent] = useState<StudentIdentity | null>(null);
-  const [progress, setProgress] = useState<LearningProgress>(DEFAULT_PROGRESS);
+  const [student, setStudent] = useState<StudentIdentity | null>(
+    () => isFirebaseConfigured ? null : createGuestStudent(),
+  );
+  const [progress, setProgress] = useState<LearningProgress>(
+    () => isFirebaseConfigured ? DEFAULT_PROGRESS : getStoredProgress(createGuestStudent()),
+  );
   const [isAuthLoading, setIsAuthLoading] = useState(isFirebaseConfigured);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(
     () => new URLSearchParams(window.location.search).get('mode') === 'resetPassword'
@@ -135,7 +141,13 @@ export function App() {
   }, [authUser, canSyncProgress, progress, student]);
 
   const handleLogout = async () => {
-    if (!firebaseAuth) return;
+    if (!authUser || !firebaseAuth) {
+      setStudent(null);
+      setProgress(DEFAULT_PROGRESS);
+      setCanSyncProgress(false);
+      return;
+    }
+
     try {
       await signOut(firebaseAuth);
       setActivePage('beranda');
@@ -144,6 +156,19 @@ export function App() {
         error instanceof Error ? `Tidak dapat keluar dari akun: ${error.message}` : 'Tidak dapat keluar dari akun.',
       );
     }
+  };
+
+  const handleContinueAsGuest = () => {
+    const guest = createGuestStudent();
+    const guestProgress = getStoredProgress(guest);
+    saveActiveStudent(guest);
+    saveStoredProgress(guestProgress, guest);
+    setStudent(guest);
+    setProgress(guestProgress);
+    setCanSyncProgress(false);
+    setProgressLoadError('');
+    setProgressSyncError('');
+    setActivePage('beranda');
   };
 
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
@@ -198,11 +223,23 @@ export function App() {
   }
 
   if (isPasswordRecovery) {
-    return <Login isPasswordRecovery onPasswordUpdated={() => setIsPasswordRecovery(false)} />;
+    return (
+      <Login
+        isPasswordRecovery
+        onPasswordUpdated={() => setIsPasswordRecovery(false)}
+        onContinueAsGuest={handleContinueAsGuest}
+      />
+    );
   }
 
-  if (!authUser) {
-    return <Login isPasswordRecovery={false} onPasswordUpdated={() => setIsPasswordRecovery(false)} />;
+  if (!authUser && !student) {
+    return (
+      <Login
+        isPasswordRecovery={false}
+        onPasswordUpdated={() => setIsPasswordRecovery(false)}
+        onContinueAsGuest={handleContinueAsGuest}
+      />
+    );
   }
 
   if (!student || isProgressLoading) {

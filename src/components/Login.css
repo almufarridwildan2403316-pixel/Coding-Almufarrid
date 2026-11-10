@@ -590,6 +590,30 @@
   text-align: center;
 }
 
+.auth-guest-button {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: .65rem 1rem;
+  color: var(--teal-700);
+  border: 1px solid var(--teal-200);
+  border-radius: 10px;
+  background: var(--teal-50);
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-guest-button:hover:not(:disabled) {
+  background: var(--teal-100);
+}
+
+.auth-guest-button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
 .auth-back-button {
   display: inline-flex;
   align-items: center;

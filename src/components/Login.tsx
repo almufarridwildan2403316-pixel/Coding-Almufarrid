@@ -34,6 +34,8 @@ const getAuthErrorMessage = (error: unknown): string => {
         return 'Konfigurasi Firebase tidak valid. Periksa API key dan konfigurasi Web App di .env.local.';
       case 'auth/operation-not-allowed':
         return 'Metode login ini belum diaktifkan. Aktifkan Email/Password atau Google di Firebase Authentication.';
+      case 'auth/configuration-not-found':
+        return 'Firebase Authentication belum disiapkan untuk proyek ini. Aktifkan metode login di Firebase Console, atau lanjutkan sebagai tamu.';
       case 'auth/unauthorized-domain':
         return 'Domain aplikasi belum diizinkan. Tambahkan domain ini di Firebase Authentication → Settings → Authorized domains.';
       case 'auth/invalid-credential':
@@ -65,9 +67,10 @@ const getAuthErrorMessage = (error: unknown): string => {
 interface LoginProps {
   isPasswordRecovery: boolean;
   onPasswordUpdated: () => void;
+  onContinueAsGuest: () => void;
 }
 
-export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => {
+export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest }: LoginProps) => {
   const [mode, setMode] = useState<AuthMode>(isPasswordRecovery ? 'recovery' : 'login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -348,8 +351,19 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated }: LoginProps) => 
             )}
           </div>
 
-          <p className="auth-privacy-note">Dengan melanjutkan, progres belajar Anda akan tersimpan pada akun ini.</p>
-          <div className="auth-secure-note"><LockKeyhole size={14} /> Autentikasi aman oleh Firebase</div>
+          {!isRecovery && (
+            <button
+              className="auth-guest-button"
+              type="button"
+              onClick={onContinueAsGuest}
+              disabled={busy}
+            >
+              Lanjutkan sebagai tamu
+            </button>
+          )}
+
+          <p className="auth-privacy-note">Progres tamu tersimpan di browser ini; masuk akun untuk sinkronisasi Firebase.</p>
+          <div className="auth-secure-note"><LockKeyhole size={14} /> Login akun dan sinkronisasi menggunakan Firebase</div>
         </div>
       </section>
     </main>
