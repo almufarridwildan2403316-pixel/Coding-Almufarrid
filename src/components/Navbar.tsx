@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
                 SMA X
               </span>
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)', fontWeight: 500 }}>
+            <div className="brand-subtitle" style={{ fontSize: '0.75rem', color: 'var(--slate-500)', fontWeight: 500 }}>
               Virtual Electrolyte Laboratory
             </div>
           </div>
@@ -143,8 +143,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
         </nav>
 
         {/* Right CTA / Progress Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ textAlign: 'right', lineHeight: 1.25 }}>
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="student-identity" style={{ textAlign: 'right', lineHeight: 1.25 }}>
             <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-900)' }}>{student.name}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>Kelas {student.className}</div>
           </div>
@@ -152,6 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
             onClick={onLogout}
             title="Keluar dari identitas siswa"
             aria-label="Keluar dari identitas siswa"
+            className="logout-button"
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '8px', border: '1px solid var(--slate-200)', background: '#ffffff', color: 'var(--slate-600)', cursor: 'pointer' }}
           >
             <LogOut size={17} />
@@ -159,6 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
           <button
             onClick={() => handleNavClick('hasil')}
             title="Lihat progres belajar Anda"
+            className="progress-button"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -175,8 +177,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
             }}
           >
             <Sparkles size={15} color="#0d9488" />
-            <span>Progres: <strong style={{ color: 'var(--teal-700)' }}>{testedCount}/6</strong> Sampel</span>
-            <div style={{
+            <span className="progress-label">Progres: <strong style={{ color: 'var(--teal-700)' }}>{testedCount}/6</strong> Sampel</span>
+            <span className="progress-count" aria-label={`${testedCount} dari 6 sampel diuji`} style={{ display: 'none' }}>{testedCount}/6</span>
+            <div className="progress-track" style={{
               width: '40px',
               height: '6px',
               borderRadius: '999px',
@@ -250,13 +253,34 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                color: 'var(--slate-700)',
+                background: '#ffffff',
+                border: '1px solid var(--slate-200)',
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left',
+              }}
+            >
+              <LogOut size={18} />
+              Keluar dari akun
+            </button>
           </div>
         </div>
       )}
 
       {/* Responsive Inline CSS rules */}
       <style>{`
-        @media (min-width: 900px) {
+        @media (min-width: 1300px) {
           .desktop-nav {
             display: flex !important;
           }
@@ -264,12 +288,56 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
             display: none !important;
           }
         }
-        @media (max-width: 899px) {
+        @media (max-width: 1299px) {
           .desktop-nav {
             display: none !important;
           }
           .mobile-toggle {
             display: flex !important;
+          }
+        }
+        @media (max-width: 520px) {
+          .brand-subtitle,
+          .student-identity,
+          .logout-button,
+          .progress-label,
+          .progress-track {
+            display: none !important;
+          }
+          .header-actions {
+            gap: 0.4rem !important;
+          }
+          .progress-button {
+            gap: 0.35rem !important;
+            padding: 0.5rem 0.6rem !important;
+            border-radius: 8px !important;
+          }
+          .progress-count {
+            display: inline !important;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: var(--teal-800);
+          }
+        }
+        @media (max-width: 350px) {
+          .header-actions {
+            gap: 0.25rem !important;
+          }
+          .mobile-toggle {
+            width: 36px;
+            min-width: 36px;
+            padding: 0.4rem !important;
+          }
+          .progress-button {
+            padding: 0.4rem !important;
+          }
+          .progress-count {
+            font-size: 0.7rem;
+          }
+        }
+        @media (min-width: 521px) {
+          .progress-count {
+            display: none !important;
           }
         }
       `}</style>

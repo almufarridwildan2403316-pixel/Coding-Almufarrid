@@ -17,7 +17,7 @@ const sectionTitle: React.CSSProperties = {
   fontWeight: 800,
   color: 'var(--navy-900)',
   marginBottom: '1rem',
-  letterSpacing: '-0.02em',
+  letterSpacing: '0',
 };
 
 const paragraph: React.CSSProperties = {
@@ -192,6 +192,211 @@ const ReferenceList = () => (
   </div>
 );
 
+const ParticleVisual = () => (
+  <figure
+    style={{
+      ...cardStyle,
+      padding: '1rem',
+      background: 'linear-gradient(135deg, #f0fdfa 0%, #ffffff 58%, #fff7ed 100%)',
+      borderRadius: '8px',
+    }}
+  >
+    <style>{`@media (max-width: 520px) { .materi-particle-wide { display: none !important; } .materi-particle-mobile { display: block !important; } }`}</style>
+    <svg className="materi-particle-wide" viewBox="0 0 720 250" role="img" aria-labelledby="particle-title particle-desc" style={{ display: 'block', width: '100%', height: 'auto' }}>
+      <title id="particle-title">Perbandingan partikel garam dan gula dalam air</title>
+      <desc id="particle-desc">Garam terpisah menjadi ion natrium dan klorida yang tersebar. Gula tetap sebagai molekul netral.</desc>
+      <rect x="12" y="12" width="330" height="220" rx="18" fill="#ffffff" stroke="#99f6e4" strokeWidth="2" />
+      <rect x="378" y="12" width="330" height="220" rx="18" fill="#ffffff" stroke="#fed7aa" strokeWidth="2" />
+      <text x="177" y="43" textAnchor="middle" fill="#115e59" fontSize="18" fontWeight="700">Garam dalam air</text>
+      <text x="543" y="43" textAnchor="middle" fill="#9a3412" fontSize="18" fontWeight="700">Gula dalam air</text>
+      <path d="M38 72v112q0 18 18 18h252q18 0 18-18V72" fill="#ecfeff" stroke="#0d9488" strokeWidth="3" />
+      <path d="M404 72v112q0 18 18 18h252q18 0 18-18V72" fill="#fff7ed" stroke="#ea580c" strokeWidth="3" />
+      <path d="M41 121h282v62q0 16-16 16H57q-16 0-16-16z" fill="#99f6e4" opacity="0.58" />
+      <path d="M407 121h282v62q0 16-16 16H423q-16 0-16-16z" fill="#fed7aa" opacity="0.55" />
+      <g fontSize="15" fontWeight="700" textAnchor="middle">
+        <circle cx="94" cy="107" r="20" fill="#0d9488" /><text x="94" y="112" fill="#fff">Na⁺</text>
+        <circle cx="161" cy="158" r="20" fill="#f97316" /><text x="161" y="163" fill="#fff">Cl⁻</text>
+        <circle cx="239" cy="103" r="20" fill="#f97316" /><text x="239" y="108" fill="#fff">Cl⁻</text>
+        <circle cx="280" cy="166" r="20" fill="#0d9488" /><text x="280" y="171" fill="#fff">Na⁺</text>
+        <circle cx="99" cy="168" r="20" fill="#f97316" /><text x="99" y="173" fill="#fff">Cl⁻</text>
+        <circle cx="199" cy="101" r="20" fill="#0d9488" /><text x="199" y="106" fill="#fff">Na⁺</text>
+        <rect x="446" y="91" width="80" height="42" rx="21" fill="#c2410c" /><text x="486" y="118" fill="#fff">C₆H₁₂O₆</text>
+        <rect x="553" y="151" width="80" height="42" rx="21" fill="#c2410c" /><text x="593" y="178" fill="#fff">C₆H₁₂O₆</text>
+        <rect x="571" y="86" width="80" height="42" rx="21" fill="#c2410c" /><text x="611" y="113" fill="#fff">C₆H₁₂O₆</text>
+      </g>
+    </svg>
+    <svg className="materi-particle-mobile" viewBox="0 0 360 480" role="img" aria-labelledby="particle-mobile-title particle-mobile-desc" style={{ display: 'none', width: '100%', height: 'auto' }}>
+      <title id="particle-mobile-title">Partikel garam dan gula dalam air</title>
+      <desc id="particle-mobile-desc">Panel atas menunjukkan garam yang terpisah menjadi ion, panel bawah menunjukkan molekul gula netral yang tersebar.</desc>
+      <rect x="12" y="10" width="336" height="220" rx="16" fill="#ffffff" stroke="#99f6e4" strokeWidth="2" />
+      <rect x="12" y="248" width="336" height="220" rx="16" fill="#ffffff" stroke="#fed7aa" strokeWidth="2" />
+      <text x="180" y="42" textAnchor="middle" fill="#115e59" fontSize="18" fontWeight="700">Garam dalam air</text>
+      <text x="180" y="280" textAnchor="middle" fill="#9a3412" fontSize="18" fontWeight="700">Gula dalam air</text>
+      <path d="M38 66v112q0 18 18 18h248q18 0 18-18V66" fill="#ecfeff" stroke="#0d9488" strokeWidth="3" />
+      <path d="M38 126h284v52q0 18-18 18H56q-18 0-18-18z" fill="#99f6e4" opacity="0.58" />
+      <path d="M38 304v42h284v-42" fill="#fff7ed" stroke="#ea580c" strokeWidth="3" />
+      <path d="M38 324h284v22H38z" fill="#fed7aa" opacity="0.55" />
+      <g fontSize="14" fontWeight="700" textAnchor="middle">
+        <circle cx="90" cy="100" r="18" fill="#0d9488" /><text x="90" y="105" fill="#fff">Na⁺</text>
+        <circle cx="151" cy="155" r="18" fill="#f97316" /><text x="151" y="160" fill="#fff">Cl⁻</text>
+        <circle cx="220" cy="99" r="18" fill="#f97316" /><text x="220" y="104" fill="#fff">Cl⁻</text>
+        <circle cx="278" cy="158" r="18" fill="#0d9488" /><text x="278" y="163" fill="#fff">Na⁺</text>
+        <rect x="55" y="365" width="100" height="40" rx="20" fill="#c2410c" /><text x="105" y="390" fill="#fff">C₆H₁₂O₆</text>
+        <rect x="205" y="365" width="100" height="40" rx="20" fill="#c2410c" /><text x="255" y="390" fill="#fff">C₆H₁₂O₆</text>
+        <rect x="130" y="416" width="100" height="40" rx="20" fill="#c2410c" /><text x="180" y="441" fill="#fff">C₆H₁₂O₆</text>
+      </g>
+    </svg>
+    <figcaption style={{ color: 'var(--slate-600)', fontSize: '0.86rem', lineHeight: 1.65 }}>
+      Garam terurai menjadi ion bergerak, sedangkan gula larut sebagai molekul netral. Air hanya digambarkan sebagai latar agar partikel zat terlarut mudah dibandingkan.
+    </figcaption>
+  </figure>
+);
+
+const CircuitVisual = () => (
+  <figure
+    style={{
+      ...cardStyle,
+      padding: '1rem',
+      background: 'linear-gradient(135deg, #ecfeff 0%, #ffffff 55%, #f0fdf4 100%)',
+      borderRadius: '8px',
+    }}
+  >
+    <style>{`@media (max-width: 520px) { .materi-circuit-wide { display: none !important; } .materi-circuit-mobile { display: block !important; } }`}</style>
+    <svg className="materi-circuit-wide" viewBox="0 0 720 290" role="img" aria-labelledby="circuit-title circuit-desc" style={{ display: 'block', width: '100%', height: 'auto' }}>
+      <title id="circuit-title">Skema alat uji daya hantar larutan</title>
+      <desc id="circuit-desc">Rangkaian baterai bertegangan rendah, lampu indikator, dan dua elektroda yang dicelupkan ke larutan.</desc>
+      <path d="M116 132V72h175M425 72h179v60M604 196v38H116v-38" fill="none" stroke="#0f766e" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="358" cy="72" r="46" fill="#fef3c7" stroke="#f59e0b" strokeWidth="5" />
+      <path d="M339 53l38 38m0-38l-38 38" stroke="#b45309" strokeWidth="5" strokeLinecap="round" />
+      <path d="M116 124v18m-15 0h30m-25 12h20m-10 0v42" stroke="#0f172a" strokeWidth="5" strokeLinecap="round" />
+      <path d="M536 158v58q0 15 15 15h106q15 0 15-15v-58" fill="#cffafe" stroke="#0891b2" strokeWidth="4" />
+      <path d="M540 184h128v31q0 12-12 12h-104q-12 0-12-12z" fill="#67e8f9" opacity="0.6" />
+      <path d="M570 72v92m70-92v92" stroke="#64748b" strokeWidth="9" strokeLinecap="round" />
+      <circle cx="584" cy="194" r="8" fill="#0d9488" /><circle cx="604" cy="204" r="7" fill="#f97316" />
+      <circle cx="625" cy="190" r="6" fill="#0d9488" />
+      <text x="116" y="270" textAnchor="middle" fill="#334155" fontSize="16" fontWeight="700">Baterai rendah</text>
+      <text x="358" y="143" textAnchor="middle" fill="#334155" fontSize="15">Lampu indikator</text>
+      <text x="604" y="270" textAnchor="middle" fill="#334155" fontSize="16" fontWeight="700">Sampel larutan</text>
+      <text x="604" y="121" textAnchor="middle" fill="#475569" fontSize="14">Elektroda</text>
+    </svg>
+    <svg className="materi-circuit-mobile" viewBox="0 0 360 430" role="img" aria-labelledby="circuit-mobile-title circuit-mobile-desc" style={{ display: 'none', width: '100%', height: 'auto' }}>
+      <title id="circuit-mobile-title">Skema vertikal alat uji larutan</title>
+      <desc id="circuit-mobile-desc">Sumber baterai dan lampu indikator terhubung ke dua elektroda di dalam sampel larutan.</desc>
+      <path d="M78 72V38h88m40 0h82v128m-30 20v38m-82 0v-38m-18 0H78V92" fill="none" stroke="#0f766e" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="186" cy="38" r="22" fill="#fef3c7" stroke="#f59e0b" strokeWidth="4" />
+      <path d="M176 28l20 20m0-20l-20 20" stroke="#b45309" strokeWidth="3" strokeLinecap="round" />
+      <path d="M72 55v30m-10 0h20m-16 8h12" stroke="#0f172a" strokeWidth="4" strokeLinecap="round" />
+      <path d="M88 188v148q0 18 18 18h150q18 0 18-18V188" fill="#cffafe" stroke="#0891b2" strokeWidth="4" />
+      <path d="M92 264h178v72q0 14-14 14H106q-14 0-14-14z" fill="#67e8f9" opacity="0.55" />
+      <path d="M136 176v117m90-117v117" stroke="#64748b" strokeWidth="8" strokeLinecap="round" />
+      <circle cx="157" cy="304" r="7" fill="#0d9488" /><circle cx="181" cy="315" r="6" fill="#f97316" /><circle cx="204" cy="300" r="6" fill="#0d9488" />
+      <text x="78" y="119" textAnchor="middle" fill="#334155" fontSize="14" fontWeight="700">Baterai</text>
+      <text x="186" y="82" textAnchor="middle" fill="#334155" fontSize="14">Lampu indikator</text>
+      <text x="181" y="390" textAnchor="middle" fill="#334155" fontSize="15" fontWeight="700">Sampel larutan</text>
+      <text x="181" y="166" textAnchor="middle" fill="#475569" fontSize="13">Elektroda</text>
+    </svg>
+    <figcaption style={{ color: 'var(--slate-600)', fontSize: '0.86rem', lineHeight: 1.65 }}>
+      Gunakan kit uji berbaterai bertegangan rendah yang disiapkan atau diperiksa guru. Skema ini hanya ilustrasi, bukan panduan merakit rangkaian.
+    </figcaption>
+  </figure>
+);
+
+const MiniLabCheck = () => {
+  const [answer, setAnswer] = React.useState<string | null>(null);
+  const choices = ['Air garam', 'Air gula', 'Air suling'];
+
+  return (
+    <div style={{ ...cardStyle, backgroundColor: 'var(--navy-900)', color: '#ffffff', borderRadius: '8px' }}>
+      <p style={{ color: '#99f6e4', fontWeight: 800, marginBottom: '0.5rem' }}>Cek prediksi</p>
+      <p style={{ color: '#ffffff', lineHeight: 1.7, marginBottom: '1rem' }}>
+        Sampel mana yang kamu perkirakan menghasilkan ion bergerak paling banyak pada konsentrasi yang setara?
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+        {choices.map((choice) => (
+          <button
+            key={choice}
+            type="button"
+            aria-pressed={answer === choice}
+            onClick={() => setAnswer(choice)}
+            style={{
+              padding: '0.65rem 0.9rem',
+              borderRadius: '6px',
+              border: answer === choice ? '2px solid #5eead4' : '1px solid #64748b',
+              background: answer === choice ? '#134e4a' : '#1e293b',
+              color: '#ffffff',
+              font: 'inherit',
+              cursor: 'pointer',
+            }}
+          >
+            {choice}
+          </button>
+        ))}
+      </div>
+      {answer && (
+        <p role="status" style={{ color: '#e2e8f0', lineHeight: 1.7, marginTop: '1rem', marginBottom: 0 }}>
+          {answer === 'Air garam'
+            ? 'Tepat. Garam yang larut menghasilkan ion Na⁺ dan Cl⁻ yang dapat bergerak. Buktikan dengan alat, lalu catat hasil pengamatanmu.'
+            : 'Coba pikirkan lagi partikel yang terbentuk saat sampel larut. Gula tetap sebagai molekul netral, sedangkan air suling hanya memiliki sangat sedikit ion.'}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const ApplicationVisual = () => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', margin: '1rem 0' }}>
+    <div style={{ ...cardStyle, background: '#ecfeff', borderColor: '#a5f3fc', borderRadius: '8px', textAlign: 'center' }}>
+      <span style={{ display: 'inline-flex', padding: '0.7rem', borderRadius: '50%', color: '#0e7490', background: '#cffafe' }}><FlaskConical size={25} /></span>
+      <h4 style={{ color: 'var(--navy-900)', margin: '0.5rem 0 0.2rem' }}>Cairan tubuh</h4>
+      <p style={{ ...paragraph, fontSize: '0.85rem', margin: 0 }}>Ion membantu kerja saraf dan otot.</p>
+    </div>
+    <div style={{ ...cardStyle, background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: '8px', textAlign: 'center' }}>
+      <span style={{ display: 'inline-flex', padding: '0.7rem', borderRadius: '50%', color: '#15803d', background: '#dcfce7' }}><BookOpen size={25} /></span>
+      <h4 style={{ color: 'var(--navy-900)', margin: '0.5rem 0 0.2rem' }}>Larutan rehidrasi</h4>
+      <p style={{ ...paragraph, fontSize: '0.85rem', margin: 0 }}>Mengandung air dan ion terlarut dengan takaran tertentu.</p>
+    </div>
+    <div style={{ ...cardStyle, background: '#fff7ed', borderColor: '#fed7aa', borderRadius: '8px', textAlign: 'center' }}>
+      <span style={{ display: 'inline-flex', padding: '0.7rem', borderRadius: '50%', color: '#c2410c', background: '#ffedd5' }}><FlaskConical size={25} /></span>
+      <h4 style={{ color: 'var(--navy-900)', margin: '0.5rem 0 0.2rem' }}>Aki timbal-asam</h4>
+      <p style={{ ...paragraph, fontSize: '0.85rem', margin: 0 }}>Elektrolitnya membantu berlangsungnya reaksi kimia.</p>
+    </div>
+  </div>
+);
+
+const ObservationCards = () => {
+  const samples = [
+    { name: 'Air suling', clue: 'Apa yang dapat disimpulkan?' },
+    { name: 'Air keran', clue: 'Ion terlarut apa yang mungkin ada?' },
+    { name: 'Larutan garam', clue: 'Partikel apa yang bergerak?' },
+    { name: 'Larutan gula', clue: 'Apakah gula membentuk ion?' },
+    { name: 'Cuka encer', clue: 'Mengapa hasilnya dapat berbeda dari garam?' },
+  ];
+  const fields = [
+    ['Prediksi', 'Isi sebelum uji'],
+    ['Indikator alat', 'Catat saat praktikum'],
+    ['Gelembung', 'Catat jika terlihat'],
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(205px, 1fr))', gap: '0.75rem', margin: '1rem 0' }}>
+      {samples.map((sample) => (
+        <article key={sample.name} style={{ border: '1px solid var(--slate-200)', borderTop: '3px solid var(--teal-500)', borderRadius: '6px', padding: '0.9rem', background: '#ffffff' }}>
+          <h4 style={{ color: 'var(--navy-900)', marginBottom: '0.65rem', fontSize: '0.98rem' }}>{sample.name}</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            {fields.map(([label, hint]) => (
+              <div key={label} style={{ minWidth: 0, background: 'var(--slate-50)', borderRadius: '4px', padding: '0.5rem' }}>
+                <span style={{ display: 'block', color: 'var(--slate-600)', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>{label}</span>
+                <span style={{ display: 'block', color: 'var(--slate-500)', fontSize: '0.76rem', lineHeight: 1.4 }}>{hint}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ color: 'var(--teal-800)', fontSize: '0.78rem', lineHeight: 1.5, margin: '0.65rem 0 0' }}>{sample.clue}</p>
+        </article>
+      ))}
+    </div>
+  );
+};
+
 const modules: ModuleItem[] = [
   {
     id: 'modul-1',
@@ -206,6 +411,8 @@ const modules: ModuleItem[] = [
         <h3 style={subTitle}>Uraian Materi</h3>
         <p style={paragraph}>Larutan adalah campuran homogen yang terdiri atas zat terlarut dan pelarut. Ketika zat terlarut dilarutkan dalam air, partikel zat tersebut dapat tersebar merata. Namun, tidak semua larutan memiliki kemampuan yang sama untuk menghantarkan arus listrik.</p>
         <p style={paragraph}>Larutan elektrolit adalah larutan yang dapat menghantarkan listrik karena mengandung ion-ion yang bergerak bebas. Sementara larutan non-elektrolit tidak menghantarkan listrik karena zat terlarutnya tidak membentuk ion ketika dilarutkan dalam air.</p>
+
+        <ParticleVisual />
 
         <h3 style={subTitle}>Perbedaan Elektrolit dan Non-Elektrolit</h3>
         <DataTable
@@ -347,39 +554,80 @@ const modules: ModuleItem[] = [
   },
   {
     id: 'modul-4',
-    title: 'Modul 4: Aplikasi dalam Kehidupan Sehari-hari',
+    title: 'Modul 4: Praktikum Mini Menguji Daya Hantar',
     objectives: [
-      'Menjelaskan peran elektrolit dalam tubuh manusia dan produk sehari-hari.',
-      'Mengaitkan konsep elektrolit dengan kesehatan, teknologi, dan industri.',
-      'Memahami manfaat elektrolit dalam kehidupan nyata.',
+      'Membuat prediksi tentang kemampuan beberapa larutan menghantarkan listrik.',
+      'Mengamati indikator alat uji dan mencatat hasil secara sistematis.',
+      'Menjelaskan hasil pengamatan berdasarkan keberadaan ion bergerak.',
     ],
     content: (
       <>
-        <h3 style={subTitle}>Uraian Materi</h3>
-        <p style={paragraph}>Konsep larutan elektrolit tidak hanya dipelajari di kelas, tetapi juga sangat dekat dengan kehidupan sehari-hari. Elektrolit berperan dalam kesehatan, teknologi, dan berbagai proses industri.</p>
-
-        <h3 style={subTitle}>Aplikasi Elektrolit dalam Kehidupan</h3>
-        <ul style={listStyle}>
-          <li><strong>Dalam tubuh manusia:</strong> ion Na⁺, K⁺, Ca²⁺, dan Cl⁻ membantu menjaga cairan tubuh, kerja otot, dan impuls saraf.</li>
-          <li><strong>Cairan infus:</strong> dibuat dengan konsentrasi ion yang tepat agar aman dan isotonik dengan darah.</li>
-          <li><strong>Minuman isotonik:</strong> mengandung elektrolit untuk menggantikan cairan dan mineral yang hilang saat berolahraga.</li>
-          <li><strong>Aki kendaraan:</strong> menggunakan asam sulfat sebagai elektrolit untuk menghasilkan arus listrik.</li>
-          <li><strong>Industri kimia:</strong> elektrolit digunakan dalam proses elektrolisis dan pembuatan logam.</li>
-        </ul>
-
-        <InfoBox title="Pojok Info / Fun Fact">
-          Aki mobil bekerja karena larutan elektrolit di dalamnya dapat menghantarkan arus listrik dan memicu reaksi kimia. Tanpa elektrolit, aki tidak akan bisa menghasilkan energi listrik.
+        <h3 style={subTitle}>Pertanyaan penyelidikan</h3>
+        <InfoBox title="Bagaimana keberadaan ion memengaruhi hasil uji?">
+          Bandingkan air suling, air keran, larutan garam, larutan gula, dan cuka yang telah diencerkan oleh guru. Sebelum menguji, tulis dugaanmu dan alasan berdasarkan model partikel yang sudah dipelajari.
         </InfoBox>
+        <CircuitVisual />
+        <MiniLabCheck />
 
-        <h3 style={subTitle}>Rangkuman Materi</h3>
+        <h3 style={subTitle}>Alat dan sampel</h3>
         <ul style={listStyle}>
-          <li>Larutan elektrolit dapat menghantarkan listrik karena mengandung ion yang bergerak bebas.</li>
-          <li>Larutan non-elektrolit tidak dapat menghantarkan listrik karena tidak membentuk ion.</li>
-          <li>Elektrolit kuat memiliki ionisasi hampir sempurna, sementara elektrolit lemah mengalami ionisasi sebagian.</li>
-          <li>Jenis ikatan dan bentuk zat memengaruhi kemampuan menghantarkan listrik.</li>
-          <li>Elektrolit sangat penting dalam tubuh manusia, cairan infus, minuman isotonik, serta aki kendaraan.</li>
+          <li>Kit uji daya hantar bertegangan rendah yang disiapkan atau diperiksa oleh guru.</li>
+          <li>Gelas bening berlabel, batang pengaduk bersih, tisu, dan lembar pencatatan.</li>
+          <li>Air suling, air keran, larutan garam, larutan gula, serta cuka encer yang disiapkan guru.</li>
         </ul>
+        <h3 style={subTitle}>Langkah pengamatan</h3>
+        <ol style={listStyle}>
+          <li>Catat prediksi untuk setiap sampel sebelum pengujian.</li>
+          <li>Uji satu sampel pada satu waktu sesuai petunjuk kit dan arahan guru.</li>
+          <li>Amati nyala atau indikator alat, lalu catat gelembung jika terlihat.</li>
+          <li>Bilas elektroda dengan air suling dan keringkan sebelum berpindah sampel.</li>
+          <li>Bandingkan hasil dengan prediksi dan jelaskan menggunakan model ion.</li>
+        </ol>
 
+        <ObservationCards />
+
+        <InfoBox title="Variabel yang perlu dijaga" color="green">
+          Gunakan prosedur, volume sampel, kedalaman elektroda, dan alat yang sama. Konsentrasi memengaruhi hasil, jadi perbandingan hanya adil jika sampelnya disiapkan dengan ketentuan yang setara.
+        </InfoBox>
+        <InfoBox title="Keselamatan praktikum" color="orange">
+          Jangan pernah menghubungkan larutan ke listrik stopkontak. Gunakan hanya kit baterai bertegangan rendah, jangan mencicipi sampel, hindari kontak sampel dengan mata, dan ikuti arahan guru. Cuka yang digunakan harus encer dan disiapkan guru.
+        </InfoBox>
+        <p style={paragraph}>
+          Nyala lampu dan gelembung adalah petunjuk pengamatan, bukan ukuran pasti jumlah ion. Hasil dapat dipengaruhi konsentrasi, kondisi elektroda, dan kepekaan alat; karena itu, simpulkan dengan mempertimbangkan semua data.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'modul-5',
+    title: 'Modul 5: Elektrolit di Kehidupan Sehari-hari',
+    objectives: [
+      'Menghubungkan konsep ion dengan beberapa contoh di sekitar kita.',
+      'Menjelaskan fungsi elektrolit tanpa menyamakan semua produk elektrolit.',
+      'Merangkum hubungan partikel, daya hantar, dan penerapannya.',
+    ],
+    content: (
+      <>
+        <h3 style={subTitle}>Dari konsep ke konteks nyata</h3>
+        <p style={paragraph}>
+          Ion bergerak tidak hanya penting dalam percobaan kimia. Ion terlarut berperan dalam proses tubuh, larutan rehidrasi, dan reaksi elektrokimia di aki. Contoh-contoh ini memiliki fungsi dan komposisi berbeda, jadi istilah “mengandung elektrolit” tidak berarti semuanya bekerja dengan cara yang sama.
+        </p>
+        <ApplicationVisual />
+        <DataTable
+          headers={['Konteks', 'Kaitan dengan ion', 'Pertanyaan untuk dipikirkan']}
+          rows={[
+            ['Cairan tubuh', 'Ion seperti Na⁺, K⁺, dan Cl⁻ berperan dalam keseimbangan cairan serta fungsi saraf dan otot.', 'Mengapa perpindahan ion penting bagi sel?'],
+            ['Larutan rehidrasi', 'Mengandung air dan zat terlarut dengan komposisi tertentu untuk membantu mengganti cairan dan elektrolit.', 'Mengapa komposisi dan takaran harus sesuai petunjuk?'],
+            ['Aki timbal-asam', 'Larutan asam sulfat menjadi bagian dari reaksi elektrokimia yang menghasilkan energi listrik.', 'Apa perbedaan fungsi elektrolit di aki dan di tubuh?'],
+          ]}
+        />
+        <InfoBox title="Rangkuman inti" color="green">
+          Daya hantar larutan berkaitan dengan keberadaan ion yang dapat bergerak. Jenis zat dan interaksinya dengan air menentukan partikel yang terbentuk; jumlah ion dan kondisi pengukuran turut memengaruhi hasil percobaan.
+        </InfoBox>
+        <h3 style={subTitle}>Tantangan akhir</h3>
+        <p style={paragraph}>
+          Pilih satu contoh penggunaan elektrolit di rumah atau lingkunganmu. Gambarkan partikel yang berperan, jelaskan fungsi ionnya, lalu sebutkan informasi apa yang masih perlu dicari agar penjelasanmu lebih lengkap.
+        </p>
       </>
     ),
   },
@@ -387,56 +635,42 @@ const modules: ModuleItem[] = [
 
 export const Materi: React.FC<MateriProps> = ({ onStartLab }) => {
   const [activeModule, setActiveModule] = React.useState<string>(modules[0].id);
+  const activeModuleIndex = Math.max(0, modules.findIndex((module) => module.id === activeModule));
+  const selectedModule = modules[activeModuleIndex];
 
-  const renderModuleSection = (module: ModuleItem, isActive: boolean) => (
+  const renderModuleSection = (module: ModuleItem) => (
     <section
-      key={module.id}
       id={module.id}
+      role="tabpanel"
+      aria-labelledby={`tab-${module.id}`}
       className="card"
       style={{
         padding: 'clamp(1rem, 3vw, 2rem)',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        border: isActive ? '1px solid var(--teal-300)' : '1px solid var(--slate-200)',
-        boxShadow: isActive ? '0 12px 30px rgba(15, 118, 110, 0.08)' : 'none',
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8fffe 100%)',
-        borderRadius: '18px',
+        border: '1px solid var(--slate-200)',
+        boxShadow: '0 8px 26px rgba(15, 23, 42, 0.05)',
+        background: '#ffffff',
+        borderRadius: '8px',
       }}
-      onClick={() => setActiveModule(isActive ? '' : module.id)}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.8rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <FlaskConical size={18} color="var(--teal-600)" />
           <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--teal-700)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {module.id.replace('-', ' ').toUpperCase()}
           </span>
         </div>
-
-        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--slate-500)' }}>
-          {isActive ? 'Tutup' : 'Buka'}
-        </span>
       </div>
 
-      <h2 style={{ ...sectionTitle, marginTop: '1rem' }}>{module.title}</h2>
-
-      {!isActive ? (
-        <p style={{ ...paragraph, marginBottom: 0, color: 'var(--slate-500)' }}>
-          Klik untuk membuka materi modul ini.
-        </p>
-      ) : (
-        <>
-          <div style={{ marginBottom: '1.2rem' }}>
-            <h3 style={subTitle}>Tujuan Pembelajaran</h3>
-            <ul style={listStyle}>
-              {module.objectives.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
-          {module.content}
-        </>
-      )}
+      <h2 style={{ ...sectionTitle, marginTop: 0 }}>{module.title}</h2>
+      <div style={{ ...cardStyle, background: 'var(--teal-50)', borderColor: 'var(--teal-100)', borderRadius: '6px', margin: '1rem 0 1.5rem' }}>
+        <h3 style={{ ...subTitle, marginTop: 0 }}>Tujuan Pembelajaran</h3>
+        <ul style={listStyle}>
+          {module.objectives.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+      {module.content}
     </section>
   );
 
@@ -463,7 +697,7 @@ export const Materi: React.FC<MateriProps> = ({ onStartLab }) => {
             Kurikulum Merdeka Fase E
           </div>
 
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--navy-950)', letterSpacing: '-0.04em', marginBottom: '0.75rem' }}>
+          <h1 style={{ fontSize: '2rem', lineHeight: 1.2, fontWeight: 900, color: 'var(--navy-950)', letterSpacing: '0', marginBottom: '0.75rem' }}>
             Larutan Elektrolit dan Non-Elektrolit
           </h1>
 
@@ -472,9 +706,68 @@ export const Materi: React.FC<MateriProps> = ({ onStartLab }) => {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gap: '1.5rem' }}>
-          {modules.map((module) => renderModuleSection(module, activeModule === module.id))}
+        <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
+          <div role="tablist" aria-label="Pilih modul pembelajaran" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.55rem' }}>
+            {modules.map((module, index) => {
+              const isSelected = index === activeModuleIndex;
+              return (
+                <button
+                  key={module.id}
+                  id={`tab-${module.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={module.id}
+                  onClick={() => setActiveModule(module.id)}
+                  style={{
+                    minHeight: '68px',
+                    padding: '0.7rem 0.85rem',
+                    border: isSelected ? '1px solid var(--teal-700)' : '1px solid var(--slate-200)',
+                    borderRadius: '6px',
+                    background: isSelected ? 'var(--teal-50)' : '#ffffff',
+                    color: isSelected ? 'var(--teal-900)' : 'var(--slate-700)',
+                    textAlign: 'left',
+                    font: 'inherit',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Modul {index + 1}</span>
+                  <span style={{ display: 'block', fontSize: '0.82rem', lineHeight: 1.35, fontWeight: 650 }}>{module.title.replace(/^Modul \d+:\s*/, '')}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div aria-label={`Progres modul ${activeModuleIndex + 1} dari ${modules.length}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ height: '5px', flex: 1, overflow: 'hidden', borderRadius: '999px', background: 'var(--slate-200)' }}>
+              <div style={{ width: `${((activeModuleIndex + 1) / modules.length) * 100}%`, height: '100%', background: 'var(--teal-600)', transition: 'width 180ms ease' }} />
+            </div>
+            <span style={{ color: 'var(--slate-600)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>Modul {activeModuleIndex + 1} dari {modules.length}</span>
+          </div>
         </div>
+
+        {renderModuleSection(selectedModule)}
+
+        <nav aria-label="Navigasi modul" style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '1rem', width: '100%', minWidth: 0 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ minWidth: 0, maxWidth: '48%', flex: '1 1 0', padding: '0.65rem 0.75rem', fontSize: '0.85rem', whiteSpace: 'normal', textAlign: 'center' }}
+            disabled={activeModuleIndex === 0}
+            onClick={() => setActiveModule(modules[activeModuleIndex - 1].id)}
+          >
+            Modul sebelumnya
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ minWidth: 0, maxWidth: '48%', flex: '1 1 0', padding: '0.65rem 0.75rem', fontSize: '0.85rem', whiteSpace: 'normal', textAlign: 'center' }}
+            disabled={activeModuleIndex === modules.length - 1}
+            onClick={() => setActiveModule(modules[activeModuleIndex + 1].id)}
+          >
+            Modul berikutnya <ArrowRight size={17} />
+          </button>
+        </nav>
 
         <ReferenceList />
 
@@ -499,7 +792,7 @@ export const Materi: React.FC<MateriProps> = ({ onStartLab }) => {
             </p>
           </div>
 
-          <button onClick={onStartLab} className="btn btn-primary" style={{ padding: '0.8rem 1.5rem' }}>
+          <button onClick={onStartLab} className="btn btn-primary" style={{ padding: '0.8rem 1.5rem', maxWidth: '100%', whiteSpace: 'normal', textAlign: 'center' }}>
             <span>Buka Laboratorium Virtual</span>
             <ArrowRight size={17} />
           </button>
