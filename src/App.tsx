@@ -55,9 +55,9 @@ export function App() {
 
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
     if (!student) return;
-    // 1. Mark solution as tested
-    markSolutionTested(record.solutionId, student);
-    // 2. Save worksheet record
+    if (record.sampleType !== 'mystery') {
+      markSolutionTested(record.solutionId, student);
+    }
     const updated = saveWorksheetRecord({ ...record, studentName: student.name, studentClass: student.className }, student);
     setProgress(updated);
   };

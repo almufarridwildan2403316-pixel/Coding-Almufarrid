@@ -67,7 +67,7 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
               Lembar Kerja Terisi
             </div>
             <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--navy-900)', lineHeight: 1, marginBottom: '0.35rem' }}>
-              {worksheetCount} <span style={{ fontSize: '1.2rem', color: 'var(--slate-400)' }}>/ 6</span>
+              {worksheetCount}
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)' }}>
               Data observasi tersimpan

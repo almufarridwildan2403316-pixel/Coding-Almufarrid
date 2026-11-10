@@ -40,7 +40,37 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
     return 'Belum diuji';
   };
 
-  const totalTested = progress.testedSolutions.length;
+  const mysteryRecords = Object.values(progress.worksheetRecords).filter((record) => record.sampleType === 'mystery');
+  const totalTested = progress.testedSolutions.length + mysteryRecords.length;
+  const experimentRows = [
+    ...SOLUTIONS.map((sol) => {
+      const record = progress.worksheetRecords[sol.id];
+      return {
+        id: sol.id,
+        name: sol.name,
+        formula: sol.formula,
+        accentColor: sol.accentColor,
+        record,
+        isTested: progress.testedSolutions.includes(sol.id),
+        lamp: record?.lampObservation || sol.expectedLamp,
+        bubbles: record?.bubbleObservation || sol.expectedBubbles,
+        category: record?.conclusion || sol.category,
+        categoryLabel: sol.categoryLabel,
+      };
+    }),
+    ...mysteryRecords.map((record) => ({
+      id: record.solutionId,
+      name: record.sampleName ?? 'Sampel Misteri',
+      formula: record.sampleFormula ?? 'Larutan X (aq)',
+      accentColor: 'var(--teal-700)',
+      record,
+      isTested: record.completed,
+      lamp: record.lampObservation,
+      bubbles: record.bubbleObservation,
+      category: record.conclusion,
+      categoryLabel: formatCategory(record.conclusion),
+    })),
+  ];
 
   return (
     <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
@@ -83,7 +113,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
             color: 'var(--navy-900)'
           }}>
             <span>Status Pengamatan:</span>
-            <strong style={{ color: totalTested === 6 ? '#10b981' : 'var(--teal-700)' }}>{totalTested}/6 Sampel Selesai</strong>
+            <strong style={{ color: totalTested >= 6 ? '#10b981' : 'var(--teal-700)' }}>{totalTested} percobaan tercatat</strong>
           </div>
         </div>
 
@@ -103,37 +133,34 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
               </tr>
             </thead>
             <tbody style={{ fontSize: '0.88rem' }}>
-              {SOLUTIONS.map((sol, index) => {
-                const record = progress.worksheetRecords[sol.id];
-                const isTested = progress.testedSolutions.includes(sol.id);
-
+              {experimentRows.map((row, index) => {
                 return (
-                  <tr key={sol.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--slate-500)' }}>
-                      0{index + 1}
+                      {String(index + 1).padStart(2, '0')}
                     </td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--navy-900)' }}>
-                      {sol.name}
+                      {row.name}
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: sol.accentColor }}>
-                      {sol.formula}
+                    <td style={{ padding: '0.85rem 1rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: row.accentColor }}>
+                      {row.formula}
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', color: record?.prediction ? 'var(--navy-800)' : 'var(--slate-400)' }}>
-                      {formatCategory(record?.prediction)}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>
-                      {isTested ? getLampText(sol.expectedLamp) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
+                    <td style={{ padding: '0.85rem 1rem', color: row.record?.prediction ? 'var(--navy-800)' : 'var(--slate-400)' }}>
+                      {formatCategory(row.record?.prediction)}
                     </td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>
-                      {isTested ? getBubbleText(sol.expectedBubbles) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
+                      {row.isTested ? getLampText(row.lamp) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>
+                      {row.isTested ? getBubbleText(row.bubbles) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
                     </td>
                     <td style={{ padding: '0.85rem 1rem' }}>
-                      {isTested ? (
+                      {row.isTested ? (
                         <span className={`badge ${
-                          sol.category === 'strong_electrolyte' ? 'badge-strong' :
-                          sol.category === 'weak_electrolyte' ? 'badge-weak' : 'badge-none'
+                          row.category === 'strong_electrolyte' ? 'badge-strong' :
+                          row.category === 'weak_electrolyte' ? 'badge-weak' : 'badge-none'
                         }`}>
-                          {sol.categoryLabel}
+                          {row.categoryLabel}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--slate-400)' }}>Belum diuji</span>
@@ -141,11 +168,11 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
                     </td>
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <button
-                        onClick={() => onOpenLabSample(sol.id)}
+                        onClick={() => onOpenLabSample(row.id)}
                         className="btn btn-teal-light"
                         style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
                       >
-                        {isTested ? 'Uji Ulang' : 'Uji Sekarang'}
+                        {row.isTested ? 'Uji Ulang' : 'Uji Sekarang'}
                       </button>
                     </td>
                   </tr>

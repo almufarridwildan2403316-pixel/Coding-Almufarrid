@@ -30,6 +30,9 @@ export interface Solution {
 
 export interface ExperimentRecord {
   solutionId: string;
+  sampleType?: 'prepared' | 'mystery';
+  sampleName?: string;
+  sampleFormula?: string;
   studentName: string;
   studentClass: string;
   prediction: SolutionCategory | '';
