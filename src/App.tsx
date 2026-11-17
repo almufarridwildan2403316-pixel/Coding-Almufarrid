@@ -304,28 +304,26 @@ export function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {(progressLoadError || progressSyncError) && (
-        <div className="progress-sync-warning" role="alert">
-          {progressLoadError || progressSyncError}
-        </div>
-      )}
-      {isProgressLoading && (
-        <div className="progress-sync-status" role="status" aria-live="polite">
-          Progres akun sedang disinkronkan. Anda tetap dapat menggunakan aplikasi.
-        </div>
-      )}
-      {/* Top Sticky Navigation */}
-      <Navbar 
-        activePage={activePage} 
-        setActivePage={setActivePage} 
-        progress={progress} 
+    <div className="app-shell">
+      <Navbar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        progress={progress}
         student={student}
         onLogout={handleLogout}
       />
-
-      {/* Main Content View Switcher */}
-      <main style={{ flex: 1 }}>
+      <div className="app-content">
+        {(progressLoadError || progressSyncError) && (
+          <div className="progress-sync-warning" role="alert">
+            {progressLoadError || progressSyncError}
+          </div>
+        )}
+        {isProgressLoading && (
+          <div className="progress-sync-status" role="status" aria-live="polite">
+            Progres akun sedang disinkronkan. Anda tetap dapat menggunakan aplikasi.
+          </div>
+        )}
+        <main className="app-main">
         {activePage === 'beranda' && (
           <Beranda 
             setActivePage={setActivePage} 
@@ -386,13 +384,13 @@ export function App() {
             onResetProgress={handleResetProgress} 
           />
         )}
-      </main>
+        </main>
 
-      {/* Modern Footer */}
-      <Footer 
-        setActivePage={setActivePage} 
-        onResetProgress={handleResetProgress} 
-      />
+        <Footer
+          setActivePage={setActivePage}
+          onResetProgress={handleResetProgress}
+        />
+      </div>
     </div>
   );
 }
