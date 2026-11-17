@@ -325,11 +325,7 @@ export function App() {
         )}
         <main className="app-main">
         {activePage === 'beranda' && (
-          <Beranda 
-            setActivePage={setActivePage} 
-            progress={progress} 
-            onSelectSample={handleOpenLabWithSample} 
-          />
+          <Beranda setActivePage={setActivePage} />
         )}
 
         {activePage === 'materi' && (
@@ -386,10 +382,12 @@ export function App() {
         )}
         </main>
 
-        <Footer
-          setActivePage={setActivePage}
-          onResetProgress={handleResetProgress}
-        />
+        {activePage !== 'beranda' && (
+          <Footer
+            setActivePage={setActivePage}
+            onResetProgress={handleResetProgress}
+          />
+        )}
       </div>
     </div>
   );
