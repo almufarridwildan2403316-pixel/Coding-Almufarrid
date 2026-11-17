@@ -64,7 +64,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
   const completedRows = allRows.filter((row) => row.record?.completed);
   const unfinishedCount = allRows.length - completedRows.length;
   const totalScore = completedRows.reduce((total, row) => total + (row.record?.score?.total ?? 0), 0);
-  const maximumScore = completedRows.length * 3;
+  const maximumScore = allRows.length * 3;
   const percentage = maximumScore ? Math.round((totalScore / maximumScore) * 100) : 0;
   const selectedRowCompleted = Boolean(selectedRow?.record?.completed);
 

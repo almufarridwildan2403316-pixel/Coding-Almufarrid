@@ -421,7 +421,7 @@ Tepat 10 sampel elektrolit kuat, 10 elektrolit lemah, dan 10 nonelektrolit.
 }
 ```
 
-## 3. Percobaan 2 — Larutan sehari-hari (9 sampel)
+## 3. Percobaan 2 — Larutan sehari-hari (10 sampel)
 
 Komposisi larutan sehari-hari berubah menurut sumber, merek, pengenceran, dan cara pembuatan. Nilai di bawah adalah **asumsi model** agar hasil simulasi deterministik, bukan klaim komposisi semua produk nyata.
 
@@ -535,6 +535,18 @@ Komposisi larutan sehari-hari berubah menurut sumber, merek, pengenceran, dan ca
       "persamaan_reaksi": "H₂CO₃(aq) + H₂O(l) ⇌ H₃O⁺(aq) + HCO₃⁻(aq)",
       "alasan": "CO₂ terlarut membentuk sistem asam karbonat lemah yang menghasilkan ion dalam jumlah terbatas.",
       "catatan_keselamatan_batasan": "Minuman berkarbonasi dapat mengandung asam dan garam tambahan; model hanya mengisolasi pengaruh CO₂."
+    },
+    {
+      "id": "P2_10",
+      "nama": "Larutan deterjen cair",
+      "rumus": "C₁₂H₂₅NaO₄S (SLS sebagai senyawa representatif)",
+      "kategori_acuan": "elektrolit_kuat",
+      "kondisi_acuan": "Model: deterjen cair dalam air dengan sodium lauryl sulfate (SLS) sebagai surfaktan anionik representatif; pengenceran simulasi; 25 °C",
+      "nyala_lampu_benar": "terang",
+      "gelembung_benar": "banyak",
+      "persamaan_reaksi": "C₁₂H₂₅NaO₄S(aq) → Na⁺(aq) + C₁₂H₂₅O₄S⁻(aq)",
+      "alasan": "Sodium lauryl sulfate (SLS), juga dikenal sebagai sodium dodecyl sulfate (SDS), terdisosiasi menjadi ion Na⁺ dan ion dodecyl sulfate. SLS dipakai sebagai senyawa representatif elektrolit kuat; lampu terang dan gelembung banyak adalah pemetaan kualitatif simulasi, bukan hasil ukur universal.",
+      "catatan_keselamatan_batasan": "Deterjen adalah campuran multikomponen, bukan senyawa murni. Komposisi dan konduktivitas berbeda antarformulasi dan dipengaruhi konsentrasi serta interaksi ion. Gelembung merepresentasikan elektrolisis pada elektroda, bukan produk langsung disosiasi SLS."
     }
   ]
 }
@@ -674,7 +686,7 @@ Best practices:
 | Percobaan 1 — elektrolit lemah | 10 |
 | Percobaan 1 — nonelektrolit | 10 |
 | Total Percobaan 1 | 30 |
-| Total Percobaan 2 | 9 |
+| Total Percobaan 2 | 10 |
 | ID sampel unik lintas percobaan | Ya |
 | Nilai lampu valid | `terang`, `redup`, `mati` |
 | Nilai gelembung valid | `banyak`, `sedikit`, `tidak_ada` |
