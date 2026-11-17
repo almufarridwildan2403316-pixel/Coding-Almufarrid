@@ -656,6 +656,15 @@
   text-align: center;
 }
 
+.progress-sync-status {
+  padding: .5rem 1rem;
+  color: var(--slate-600);
+  border-bottom: 1px solid var(--slate-200);
+  background: var(--slate-50);
+  font-size: .78rem;
+  text-align: center;
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: minmax(0, .9fr) minmax(390px, 1fr);
