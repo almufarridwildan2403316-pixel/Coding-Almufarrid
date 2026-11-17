@@ -1,16 +1,38 @@
-import type { ActivePage } from '../types/chemistry';
-import { ArrowRight, Atom, FlaskConical, Lightbulb } from 'lucide-react';
+import { useState } from 'react';
+import type { ActivePage, HomePromptResponse, LearningProgress } from '../types/chemistry';
+import { ArrowRight, FlaskConical, Lightbulb, Save } from 'lucide-react';
 import './Beranda.css';
 
 interface BerandaProps {
+  progress: LearningProgress;
   setActivePage: (page: ActivePage) => void;
+  onSaveHomePromptResponse: (response: HomePromptResponse) => void;
 }
 
-export const Beranda = ({ setActivePage }: BerandaProps) => {
+export const Beranda = ({ progress, setActivePage, onSaveHomePromptResponse }: BerandaProps) => {
+  const savedResponse = progress.homePromptResponse ?? null;
+  const [answer, setAnswer] = useState(savedResponse?.text ?? '');
+  const [saveError, setSaveError] = useState('');
+  const savedAt = savedResponse?.submittedAt ?? '';
+
   const openNextFeature = () => {
     setActivePage('materi');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const saveAnswer = () => {
+    const text = answer.trim();
+    if (!text) return;
+    const response = { text, submittedAt: new Date().toISOString() };
+    try {
+      onSaveHomePromptResponse(response);
+      setSaveError('');
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : 'Jawaban pemantik gagal disimpan.');
+    }
+  };
+
+  const hasUnsavedChanges = answer.trim() !== (savedResponse?.text ?? '');
 
   return (
     <section className="home-intro" aria-labelledby="home-intro-title">
@@ -21,46 +43,75 @@ export const Beranda = ({ setActivePage }: BerandaProps) => {
             PEMANTIK PEMBELAJARAN
           </span>
           <h1 id="home-intro-title">
-            Mengapa ada larutan yang menyalakan lampu, sementara yang lain tidak?
+            Jelajahi Dunia Larutan
           </h1>
           <p>
-            Dua larutan bisa terlihat sama, tetapi menunjukkan perilaku berbeda saat diuji dengan rangkaian listrik.
-            Apa yang terjadi di dalam larutan hingga lampu dapat menyala?
+            Kenali partikel tak kasatmata yang menentukan bagaimana larutan menghantarkan listrik.
           </p>
           <div className="home-intro-question">
             <Lightbulb size={19} aria-hidden="true" />
-            <span>
-              <strong>Coba pikirkan:</strong> adakah partikel dalam larutan yang dapat bergerak dan membawa muatan?
-            </span>
+            <div>
+              <strong>Pertanyaan pemantik</strong>
+              <p>
+                Mengapa air garam dapat menghantarkan listrik, sedangkan air gula hampir tidak? Menurut dugaanmu, bagaimana nyala lampu dan gelembung yang mungkin terlihat?
+              </p>
+            </div>
           </div>
-          <div className="home-intro-answer">
+          <form
+            className="home-intro-answer"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveAnswer();
+            }}
+          >
             <label htmlFor="initial-thought">Tuliskan dugaan awalmu</label>
             <textarea
               id="initial-thought"
               rows={3}
-              placeholder="Menurut saya, larutan dapat menyalakan lampu karena..."
+              value={answer}
+              onChange={(event) => {
+                setAnswer(event.target.value);
+                setSaveError('');
+              }}
+              placeholder="Menurut saya, air garam dapat menghantarkan listrik karena..."
               aria-describedby="initial-thought-note"
             />
             <p id="initial-thought-note">
-              Jawaban bersifat terbuka, tidak dinilai, dan tidak ada jawaban benar atau salah.
+              Dugaan awal ini tidak dinilai. Kamu dapat menyimpan jawaban sekarang dan memperbaruinya nanti.
             </p>
-          </div>
+            <div className="home-intro-answer-actions">
+              <button type="submit" disabled={!answer.trim() || !hasUnsavedChanges}>
+                <Save size={16} aria-hidden="true" />
+                Simpan Jawaban
+              </button>
+              <span role="status" aria-live="polite">
+                {saveError || (savedAt && !hasUnsavedChanges
+                  ? `Jawaban tersimpan ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(savedAt))}`
+                  : hasUnsavedChanges && answer.trim()
+                    ? 'Ada perubahan yang belum disimpan.'
+                    : '')}
+              </span>
+            </div>
+          </form>
         </div>
 
-        <div className="home-intro-visual" aria-hidden="true">
-          <div className="home-intro-orbit home-intro-orbit--outer" />
-          <div className="home-intro-orbit home-intro-orbit--inner" />
-          <div className="home-intro-beaker">
-            <div className="home-intro-liquid">
-              <span className="home-intro-particle home-intro-particle--one">+</span>
-              <span className="home-intro-particle home-intro-particle--two">−</span>
-              <span className="home-intro-particle home-intro-particle--three">+</span>
-              <span className="home-intro-particle home-intro-particle--four">?</span>
-            </div>
+        <div className="home-intro-video">
+          <div className="home-intro-video-frame">
+            <iframe
+              src="https://www.youtube.com/embed/RsGBcP4alDo?si=Y0zdseVdfvk8T05v"
+              title="Video pengantar dunia larutan"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+              loading="lazy"
+            />
           </div>
-          <span className="home-intro-atom home-intro-atom--one"><Atom size={21} /></span>
-          <span className="home-intro-atom home-intro-atom--two"><Atom size={16} /></span>
-          <span className="home-intro-visual-caption">Apa yang ada di dalam larutan?</span>
+          <p>
+            Video pengantar: amati bagaimana larutan berperilaku saat diuji.{' '}
+            <a href="https://www.youtube.com/watch?v=RsGBcP4alDo" target="_blank" rel="noreferrer">
+              Tonton langsung di YouTube
+            </a>
+          </p>
         </div>
       </div>
 

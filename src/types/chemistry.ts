@@ -110,11 +110,17 @@ export interface QuizSubmission {
   teacherNotes?: string;
 }
 
+export interface HomePromptResponse {
+  text: string;
+  submittedAt: string;
+}
+
 export interface LearningProgress {
   student: StudentIdentity | null;
   testedSolutions: string[]; // List of solution IDs tested in simulation
   worksheetRecords: Record<string, ExperimentRecord>;
   worksheetConclusion: WorksheetConclusion | null;
+  homePromptResponse?: HomePromptResponse | null;
   quizResult: QuizResult | null;
   quizSubmissions: QuizSubmission[];
   readMaterials: string[]; // IDs of materials read

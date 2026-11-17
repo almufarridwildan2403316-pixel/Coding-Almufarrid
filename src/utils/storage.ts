@@ -1,4 +1,4 @@
-import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
+import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { firestore } from './firebase';
 import { getExperimentRecordKey } from './experimentRecords';
@@ -11,6 +11,7 @@ export const DEFAULT_PROGRESS: LearningProgress = {
   testedSolutions: [],
   worksheetRecords: {},
   worksheetConclusion: null,
+  homePromptResponse: null,
   quizResult: null,
   quizSubmissions: [],
   readMaterials: [],
@@ -31,6 +32,11 @@ const isLearningProgress = (value: unknown): value is LearningProgress => {
     Array.isArray(value.testedSolutions) &&
     isRecord(value.worksheetRecords) &&
     (value.worksheetConclusion === null || isRecord(value.worksheetConclusion)) &&
+    (value.homePromptResponse === undefined ||
+      value.homePromptResponse === null ||
+      (isRecord(value.homePromptResponse) &&
+        typeof value.homePromptResponse.text === 'string' &&
+        typeof value.homePromptResponse.submittedAt === 'string')) &&
     (value.quizResult === null || isRecord(value.quizResult)) &&
     Array.isArray(value.quizSubmissions) &&
     Array.isArray(value.readMaterials)
@@ -81,6 +87,11 @@ export const getStoredProgress = (student: StudentIdentity): LearningProgress =>
       testedSolutions: Array.isArray(parsed.testedSolutions) ? parsed.testedSolutions : [],
       worksheetRecords: parsed.worksheetRecords || {},
       worksheetConclusion: parsed.worksheetConclusion || null,
+      homePromptResponse: isRecord(parsed.homePromptResponse) &&
+        typeof parsed.homePromptResponse.text === 'string' &&
+        typeof parsed.homePromptResponse.submittedAt === 'string'
+        ? { text: parsed.homePromptResponse.text, submittedAt: parsed.homePromptResponse.submittedAt }
+        : null,
       quizResult: parsed.quizResult || null,
       quizSubmissions: Array.isArray(parsed.quizSubmissions) ? parsed.quizSubmissions : [],
       readMaterials: Array.isArray(parsed.readMaterials) ? parsed.readMaterials : [],
@@ -105,7 +116,7 @@ export const loadAccountProgress = async (student: StudentIdentity): Promise<Lea
     throw new Error('Format progres akun tidak valid. Data lokal tidak akan menimpa data tersebut.');
   }
 
-  return { ...remoteProgress, student };
+  return { ...remoteProgress, homePromptResponse: remoteProgress.homePromptResponse ?? null, student };
 };
 
 export const saveAccountProgress = async (
@@ -122,11 +133,13 @@ export const saveAccountProgress = async (
   });
 };
 
-export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): void => {
+export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): boolean => {
   try {
     localStorage.setItem(getProgressKey(student), JSON.stringify({ ...progress, student }));
+    return true;
   } catch (e) {
     console.error('Error saving progress to localStorage:', e);
+    return false;
   }
 };
 
@@ -163,6 +176,15 @@ export const saveWorksheetConclusion = (conclusion: WorksheetConclusion, student
   const current = getStoredProgress(student);
   const updated: LearningProgress = { ...current, worksheetConclusion: conclusion };
   saveStoredProgress(updated, student);
+  return updated;
+};
+
+export const saveHomePromptResponse = (response: HomePromptResponse, student: StudentIdentity): LearningProgress => {
+  const current = getStoredProgress(student);
+  const updated: LearningProgress = { ...current, homePromptResponse: response };
+  if (!saveStoredProgress(updated, student)) {
+    throw new Error('Jawaban pemantik gagal disimpan di perangkat. Periksa ruang penyimpanan browser lalu coba lagi.');
+  }
   return updated;
 };
 

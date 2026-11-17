@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
+import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
   DEFAULT_PROGRESS,
@@ -9,6 +9,7 @@ import {
   loadAccountProgress,
   saveWorksheetRecord, 
   saveWorksheetConclusion,
+  saveHomePromptResponse,
   markSolutionTested, 
   saveQuizResult, 
   saveActiveStudent,
@@ -64,6 +65,9 @@ const mergeProgressChanges = (
     worksheetConclusion: changed(initial.worksheetConclusion, local.worksheetConclusion)
       ? local.worksheetConclusion
       : remote.worksheetConclusion,
+    homePromptResponse: changed(initial.homePromptResponse, local.homePromptResponse)
+      ? local.homePromptResponse ?? null
+      : remote.homePromptResponse ?? null,
     quizResult: changed(initial.quizResult, local.quizResult) ? local.quizResult : remote.quizResult,
     quizSubmissions: submissionsChanged
       ? local.quizSubmissions.length === 0
@@ -256,6 +260,13 @@ export function App() {
     setProgress(updated);
   };
 
+  const handleSaveHomePromptResponse = (response: HomePromptResponse) => {
+    if (!student) return;
+    const updated = saveHomePromptResponse(response, student);
+    markProgressChanged(student);
+    setProgress(updated);
+  };
+
   const handleSaveTeacherReview = (submissionId: string, updates: Partial<QuizSubmission>) => {
     if (!student) return;
     const updated = updateQuizSubmission(submissionId, updates, student);
@@ -265,7 +276,7 @@ export function App() {
 
   const handleResetProgress = () => {
     if (!student) return;
-    if (window.confirm('Apakah Anda yakin ingin menghapus seluruh riwayat pengujian dan kuis? Progres akan dimulai ulang dari awal.')) {
+    if (window.confirm('Apakah Anda yakin ingin menghapus seluruh progres belajar, termasuk jawaban pemantik? Progres akan dimulai ulang dari awal.')) {
       const reset = resetAllProgress(student);
       markProgressChanged(student);
       setProgress(reset);
@@ -330,7 +341,12 @@ export function App() {
         )}
         <main className="app-main">
         {activePage === 'beranda' && (
-          <Beranda setActivePage={setActivePage} />
+          <Beranda
+            key={`${student.id ?? `${student.name}:${student.className}`}:${progress.homePromptResponse?.submittedAt ?? 'unsaved'}`}
+            progress={progress}
+            setActivePage={setActivePage}
+            onSaveHomePromptResponse={handleSaveHomePromptResponse}
+          />
         )}
 
         {activePage === 'materi' && (
