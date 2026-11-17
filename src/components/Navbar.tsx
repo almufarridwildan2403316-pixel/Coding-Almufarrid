@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { ActivePage, LearningProgress, StudentIdentity } from '../types/chemistry';
+import { EXPERIMENT_SAMPLES } from '../data/larutanData';
+import { getExperimentRecordKey } from '../utils/experimentRecords';
 import {
   Atom,
   Award,
@@ -30,7 +32,7 @@ const navItems: { id: ActivePage; label: string; icon: typeof FlaskConical }[] =
   { id: 'materi', label: 'Materi Konsep', icon: BookOpen },
   { id: 'lab', label: 'Laboratorium Virtual', icon: Atom },
   { id: 'lembar-kerja', label: 'Lembar Kerja', icon: ClipboardList },
-  { id: 'evaluasi', label: 'Evaluasi & Kuis', icon: Award },
+  { id: 'evaluasi', label: 'Evaluasi', icon: Award },
   { id: 'guru', label: 'Akses Guru', icon: ShieldCheck },
   { id: 'hasil', label: 'Hasil Belajar', icon: BarChart3 },
 ];
@@ -38,8 +40,14 @@ const navItems: { id: ActivePage; label: string; icon: typeof FlaskConical }[] =
 export const Navbar = ({ activePage, setActivePage, progress, student, onLogout }: NavbarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const testedCount = progress.testedSolutions.length;
-  const progressPercent = Math.round((testedCount / 6) * 100);
+  const allSamples = [
+    ...EXPERIMENT_SAMPLES.percobaan_1.map((sample) => ({ experimentId: 'percobaan_1' as const, id: sample.id })),
+    ...EXPERIMENT_SAMPLES.percobaan_2.map((sample) => ({ experimentId: 'percobaan_2' as const, id: sample.id })),
+  ];
+  const testedCount = allSamples.filter((sample) =>
+    progress.worksheetRecords[getExperimentRecordKey(sample.experimentId, sample.id)]?.completed,
+  ).length;
+  const progressPercent = Math.round((testedCount / allSamples.length) * 100);
 
   const handleNavClick = (page: ActivePage) => {
     setActivePage(page);
@@ -86,11 +94,11 @@ export const Navbar = ({ activePage, setActivePage, progress, student, onLogout 
             type="button"
             className="sidebar-progress"
             onClick={() => handleNavClick('hasil')}
-            title={collapsed ? `Progres: ${testedCount} dari 6 sampel` : undefined}
+            title={collapsed ? `Progres: ${testedCount} dari ${allSamples.length} sampel` : undefined}
           >
             <span className="sidebar-progress-top">
               <span className="sidebar-progress-title"><BarChart3 size={16} /> Progres belajar</span>
-              <strong>{testedCount}/6</strong>
+              <strong>{testedCount}/{allSamples.length}</strong>
             </span>
             <span className="sidebar-progress-track" aria-hidden="true">
               <span style={{ width: `${progressPercent}%` }} />

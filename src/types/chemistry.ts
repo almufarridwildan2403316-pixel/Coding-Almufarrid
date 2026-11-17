@@ -5,6 +5,16 @@ export type SolutionCategory =
 
 export type LampStatus = 'bright' | 'dim' | 'off';
 export type BubbleStatus = 'visible' | 'possible' | 'not_expected';
+export type ExperimentId = 'percobaan_1' | 'percobaan_2';
+
+export interface SampleScore {
+  prediction?: number;
+  lamp: number;
+  bubbles: number;
+  classification?: number;
+  total: number;
+  maximum: 3;
+}
 
 export interface Solution {
   id: string; // S01 - S06
@@ -30,15 +40,25 @@ export interface Solution {
 
 export interface ExperimentRecord {
   solutionId: string;
+  experimentId?: ExperimentId;
   sampleType?: 'prepared' | 'mystery';
   sampleName?: string;
   sampleFormula?: string;
+  sampleCondition?: string;
+  referenceCategory?: SolutionCategory;
+  referenceLamp?: LampStatus;
+  referenceBubbles?: BubbleStatus;
+  referenceEquation?: string;
+  referenceExplanation?: string;
+  safetyNote?: string;
   studentName: string;
   studentClass: string;
   prediction: SolutionCategory | '';
+  predictionLocked?: boolean;
   lampObservation: LampStatus | '';
   bubbleObservation: BubbleStatus | '';
   conclusion: SolutionCategory | '';
+  score?: SampleScore;
   notes?: string;
   completed: boolean;
   completedAt?: string;

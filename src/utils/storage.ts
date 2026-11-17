@@ -1,6 +1,7 @@
 import type { LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { firestore } from './firebase';
+import { getExperimentRecordKey } from './experimentRecords';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
@@ -144,11 +145,14 @@ export const markSolutionTested = (solutionId: string, student: StudentIdentity)
 
 export const saveWorksheetRecord = (record: ExperimentRecord, student: StudentIdentity): LearningProgress => {
   const current = getStoredProgress(student);
+  const recordKey = record.experimentId
+    ? getExperimentRecordKey(record.experimentId, record.solutionId)
+    : record.solutionId;
   const updated: LearningProgress = {
     ...current,
     worksheetRecords: {
       ...current.worksheetRecords,
-      [record.solutionId]: record,
+      [recordKey]: record,
     },
   };
   saveStoredProgress(updated, student);

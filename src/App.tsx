@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
+import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
   DEFAULT_PROGRESS,
@@ -76,7 +76,8 @@ const mergeProgressChanges = (
 
 export function App() {
   const [activePage, setActivePage] = useState<ActivePage>('beranda');
-  const [selectedSampleId, setSelectedSampleId] = useState<string>('S01');
+  const [selectedSampleId, setSelectedSampleId] = useState<string>('K01');
+  const [selectedExperimentId, setSelectedExperimentId] = useState<ExperimentId>('percobaan_1');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const authUserId = useRef<string | null>(null);
   const progressLoadRef = useRef<{ userId: string; initial: LearningProgress; hasLocalChanges: boolean } | null>(null);
@@ -226,7 +227,10 @@ export function App() {
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
     if (!student) return;
     if (record.sampleType !== 'mystery') {
-      markSolutionTested(record.solutionId, student);
+      markSolutionTested(
+        record.experimentId ? `${record.experimentId}:${record.solutionId}` : record.solutionId,
+        student,
+      );
     }
     const updated = saveWorksheetRecord({ ...record, studentName: student.name, studentClass: student.className }, student);
     markProgressChanged(student);
@@ -269,8 +273,9 @@ export function App() {
     }
   };
 
-  const handleOpenLabWithSample = (sampleId: string) => {
+  const handleOpenLabWithSample = (sampleId: string, experimentId: ExperimentId) => {
     setSelectedSampleId(sampleId);
+    setSelectedExperimentId(experimentId);
     setActivePage('lab');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -340,8 +345,10 @@ export function App() {
         {activePage === 'lab' && (
           <LabVirtual 
             initialSampleId={selectedSampleId} 
+            initialExperimentId={selectedExperimentId}
             progress={progress} 
             onSaveRecord={handleSaveExperimentRecord} 
+            setActivePage={setActivePage}
             onOpenWorksheet={() => {
               setActivePage('lembar-kerja');
               window.scrollTo({ top: 0, behavior: 'smooth' });
