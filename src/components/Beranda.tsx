@@ -40,59 +40,26 @@ export const Beranda = ({ progress, setActivePage, onSaveHomePromptResponse }: B
         <div className="home-intro-copy">
           <span className="home-intro-kicker">
             <FlaskConical size={16} aria-hidden="true" />
-            PEMANTIK PEMBELAJARAN
+            MEDIA PEMBELAJARAN KIMIA
           </span>
           <h1 id="home-intro-title">
-            Jelajahi Dunia Larutan
+            Larutan Elektrolit dan <span>Non-Elektrolit</span>
           </h1>
           <p>
-            Kenali partikel tak kasatmata yang menentukan bagaimana larutan menghantarkan listrik.
+            Kenali perbedaan, sifat, dan contoh larutan yang dapat atau tidak dapat menghantarkan listrik.
           </p>
-          <div className="home-intro-question">
-            <Lightbulb size={19} aria-hidden="true" />
-            <div>
-              <strong>Pertanyaan pemantik</strong>
-              <p>
-                Mengapa air garam dapat menghantarkan listrik, sedangkan air gula hampir tidak? Menurut dugaanmu, bagaimana nyala lampu dan gelembung yang mungkin terlihat?
-              </p>
+          <section className="home-intro-prompt" aria-labelledby="home-prompt-title">
+            <h2 id="home-prompt-title">Pemantik Pembelajaran</h2>
+            <div className="home-intro-question">
+              <Lightbulb size={19} aria-hidden="true" />
+              <div>
+                <strong>Pertanyaan pemantik</strong>
+                <p>
+                  Mengapa air garam dapat menghantarkan listrik, sedangkan air gula hampir tidak? Menurut dugaanmu, bagaimana nyala lampu dan gelembung yang mungkin terlihat?
+                </p>
+              </div>
             </div>
-          </div>
-          <form
-            className="home-intro-answer"
-            onSubmit={(event) => {
-              event.preventDefault();
-              saveAnswer();
-            }}
-          >
-            <label htmlFor="initial-thought">Tuliskan dugaan awalmu</label>
-            <textarea
-              id="initial-thought"
-              rows={3}
-              value={answer}
-              onChange={(event) => {
-                setAnswer(event.target.value);
-                setSaveError('');
-              }}
-              placeholder="Menurut saya, air garam dapat menghantarkan listrik karena..."
-              aria-describedby="initial-thought-note"
-            />
-            <p id="initial-thought-note">
-              Dugaan awal ini tidak dinilai. Kamu dapat menyimpan jawaban sekarang dan memperbaruinya nanti.
-            </p>
-            <div className="home-intro-answer-actions">
-              <button type="submit" disabled={!answer.trim() || !hasUnsavedChanges}>
-                <Save size={16} aria-hidden="true" />
-                Simpan Jawaban
-              </button>
-              <span role="status" aria-live="polite">
-                {saveError || (savedAt && !hasUnsavedChanges
-                  ? `Jawaban tersimpan ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(savedAt))}`
-                  : hasUnsavedChanges && answer.trim()
-                    ? 'Ada perubahan yang belum disimpan.'
-                    : '')}
-              </span>
-            </div>
-          </form>
+          </section>
         </div>
 
         <div className="home-intro-video">
@@ -113,6 +80,43 @@ export const Beranda = ({ progress, setActivePage, onSaveHomePromptResponse }: B
             </a>
           </p>
         </div>
+
+        <form
+          className="home-intro-answer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            saveAnswer();
+          }}
+        >
+          <label htmlFor="initial-thought">Tuliskan dugaan awalmu</label>
+          <textarea
+            id="initial-thought"
+            rows={3}
+            value={answer}
+            onChange={(event) => {
+              setAnswer(event.target.value);
+              setSaveError('');
+            }}
+            placeholder="Menurut saya, air garam dapat menghantarkan listrik karena..."
+            aria-describedby="initial-thought-note"
+          />
+          <p id="initial-thought-note">
+            Dugaan awal ini tidak dinilai. Kamu dapat menyimpan jawaban sekarang dan memperbaruinya nanti.
+          </p>
+          <div className="home-intro-answer-actions">
+            <button type="submit" disabled={!answer.trim() || !hasUnsavedChanges}>
+              <Save size={16} aria-hidden="true" />
+              Simpan Jawaban
+            </button>
+            <span role="status" aria-live="polite">
+              {saveError || (savedAt && !hasUnsavedChanges
+                ? `Jawaban tersimpan ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(savedAt))}`
+                : hasUnsavedChanges && answer.trim()
+                  ? 'Ada perubahan yang belum disimpan.'
+                  : '')}
+            </span>
+          </div>
+        </form>
       </div>
 
       <div className="home-intro-next">
