@@ -277,7 +277,7 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
             <div style={{ marginTop: '1rem', padding: '0.85rem', borderRadius: '10px', background: 'var(--slate-50)', border: '1px solid var(--slate-200)' }}>
               <div style={{ color: 'var(--slate-500)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Sampel</div>
               <div style={{ color: 'var(--navy-900)', fontWeight: 800, marginTop: '0.2rem' }}>{sample.name}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', color: sample.accentColor, fontSize: '0.9rem', marginTop: '0.1rem' }}>{sample.formula}</div>
+              <div style={{ color: 'var(--text-main)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', fontWeight: 500, lineHeight: 1.5, marginTop: '0.1rem' }}>{sample.formula}</div>
               <div style={{ color: 'var(--slate-600)', fontSize: '0.8rem', lineHeight: 1.5, marginTop: '0.55rem' }}>{sample.condition}</div>
             </div>
 

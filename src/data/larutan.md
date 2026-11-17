@@ -13,7 +13,7 @@
 - Elektrolit kuat: zat terlarut menghasilkan ion secara hampir menyeluruh (misalnya garam ionik yang larut).
 - Elektrolit lemah: molekul hanya terionisasi/ bereaksi dengan air sebagian dan membentuk kesetimbangan.
 - Nonelektrolit: larut sebagai molekul netral, tanpa pembentukan ion yang berarti.
-- `H₂CO₃*` adalah notasi praktis untuk sistem CO₂(aq) + H₂CO₃; bukan berarti semua CO₂ terlarut berubah menjadi H₂CO₃.
+- CO₂(aq) berada dalam kesetimbangan dengan H₂CO₃; tidak semua CO₂ terlarut berubah menjadi H₂CO₃.
 - Untuk asam poliprotik, persamaan yang ditampilkan adalah tahap pertama kecuali dinyatakan lain.
 - Panah `→` dipakai untuk disosiasi/pelarutan yang dianggap hampir lengkap; `⇌` untuk kesetimbangan parsial.
 - Persamaan nonelektrolit menunjukkan pelarutan molekuler, bukan ionisasi.
@@ -191,15 +191,15 @@ Tepat 10 sampel elektrolit kuat, 10 elektrolit lemah, dan 10 nonelektrolit.
     },
     {
       "id": "L02",
-      "nama": "Asam karbonat (sistem CO₂ terlarut)",
-      "rumus": "H₂CO₃*",
+      "nama": "Asam karbonat",
+      "rumus": "H₂CO₃",
       "kategori_acuan": "elektrolit_lemah",
-      "kondisi_acuan": "0.010 mol/L sebagai CO₂(aq)/H₂CO₃*; 25 °C",
+      "kondisi_acuan": "Model CO₂(aq) ⇌ H₂CO₃; 0.010 mol/L; 25 °C",
       "nyala_lampu_benar": "redup",
       "gelembung_benar": "sedikit",
       "persamaan_reaksi": "H₂CO₃(aq) + H₂O(l) ⇌ H₃O⁺(aq) + HCO₃⁻(aq)",
-      "alasan": "CO₂ terlarut membentuk sistem asam karbonat yang hanya menghasilkan ion sebagian; H₂CO₃* lazim dipakai sebagai notasi gabungan CO₂(aq) dan H₂CO₃.",
-      "catatan_keselamatan_batasan": "Model kesetimbangan disederhanakan; jangan menganggap seluruh CO₂ terlarut berupa H₂CO₃ molekuler."
+      "alasan": "Sebagian CO₂ terlarut bereaksi dengan air membentuk H₂CO₃ yang hanya terionisasi sebagian; ion yang terbentuk terbatas.",
+      "catatan_keselamatan_batasan": "Model kesetimbangan disederhanakan; jangan menganggap seluruh CO₂ terlarut menjadi H₂CO₃ molekuler."
     },
     {
       "id": "L03",
@@ -527,9 +527,9 @@ Komposisi larutan sehari-hari berubah menurut sumber, merek, pengenceran, dan ca
     {
       "id": "H09",
       "nama": "Air berkarbonasi",
-      "rumus": "CO₂ terlarut / sistem asam karbonat",
+      "rumus": "CO₂(aq) ⇌ H₂CO₃",
       "kategori_acuan": "elektrolit_lemah",
-      "kondisi_acuan": "Model: CO₂(aq)/H₂CO₃* 0.010 mol/L; 25 °C",
+      "kondisi_acuan": "Model: CO₂(aq) ⇌ H₂CO₃; 0.010 mol/L; 25 °C",
       "nyala_lampu_benar": "redup",
       "gelembung_benar": "sedikit",
       "persamaan_reaksi": "H₂CO₃(aq) + H₂O(l) ⇌ H₃O⁺(aq) + HCO₃⁻(aq)",

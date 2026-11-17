@@ -3,6 +3,7 @@ import type { ActivePage, ExperimentId, ExperimentRecord, LearningProgress, Solu
 import { EXPERIMENT_SAMPLES, type LabSample } from '../data/larutanData';
 import { getExperimentRecordKey } from '../utils/experimentRecords';
 import { ArrowRight, CheckCircle2, ClipboardList, X } from 'lucide-react';
+import './LembarKerja.css';
 
 interface LembarKerjaProps {
   progress: LearningProgress;
@@ -37,6 +38,10 @@ const bubbleLabel = (bubbles?: string) => {
   if (bubbles === 'not_expected') return 'Tidak ada';
   return '—';
 };
+
+const formatFormula = (formula: string) => formula.split(/(\d+)/).map((part, index) => (
+  /^\d+$/.test(part) ? <sub key={index}>{part}</sub> : part
+));
 
 const makeRows = (
   experimentId: ExperimentId,
@@ -89,7 +94,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
                   {row.sample.name}
                   {completed && <CheckCircle2 size={14} color="var(--teal-600)" style={{ verticalAlign: 'middle', marginLeft: '0.35rem' }} />}
                 </td>
-                <td style={{ padding: '0.7rem 0.75rem', fontFamily: 'var(--font-mono)', color: row.sample.accentColor, fontSize: '0.78rem' }}>{row.sample.formula}</td>
+                <td className="worksheet-formula" style={{ padding: '0.7rem 0.75rem' }}>{formatFormula(row.sample.formula)}</td>
                 <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem' }}>
                   {experimentId === 'percobaan_1'
                     ? categoryLabel(record?.conclusion)
@@ -175,7 +180,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
                   {selectedRow.experimentId === 'percobaan_1' ? 'Percobaan 1' : 'Percobaan 2'}
                 </div>
                 <h2 style={{ color: 'var(--navy-900)', fontSize: '1.2rem', fontWeight: 800, marginTop: '0.15rem' }}>
-                  {selectedRow.sample.name} <span style={{ fontFamily: 'var(--font-mono)', color: selectedRow.sample.accentColor }}>{selectedRow.sample.formula}</span>
+                  {selectedRow.sample.name} <span className="worksheet-formula">{formatFormula(selectedRow.sample.formula)}</span>
                 </h2>
               </div>
               <button type="button" className="btn btn-secondary" aria-label="Tutup detail" onClick={() => setSelectedRow(null)} style={{ padding: '0.45rem' }}><X size={16} /></button>
