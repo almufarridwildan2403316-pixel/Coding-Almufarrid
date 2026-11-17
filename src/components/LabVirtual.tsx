@@ -44,6 +44,30 @@ const bubbleOptions: { value: LabSample['expectedBubbles']; label: string }[] = 
   { value: 'not_expected', label: 'Tidak ada' },
 ];
 
+const experimentProcedures: Record<ExperimentId, { title: string; steps: string[] }> = {
+  percobaan_1: {
+    title: 'Prosedur Percobaan 1 · Sampel larutan baku',
+    steps: [
+      'Pilih satu sampel baku pada daftar, lalu baca nama, rumus, dan kondisi sampelnya.',
+      'Tekan Saklar OFF hingga berubah menjadi ON. Amati terang, redup, atau matinya lampu serta jumlah gelembung di sekitar elektroda.',
+      'Pada bagian Catat Pengamatan, pilih nyala lampu dan jumlah gelembung yang kamu amati.',
+      'Pilih kesimpulan jenis larutan berdasarkan hasil pengamatan: elektrolit kuat, elektrolit lemah, atau nonelektrolit.',
+      'Tekan Periksa Jawaban. Baca umpan balik dan persamaan reaksinya; hasil dan skor tersimpan otomatis di Lembar Kerja.',
+    ],
+  },
+  percobaan_2: {
+    title: 'Prosedur Percobaan 2 · Larutan sehari-hari',
+    steps: [
+      'Pilih satu sampel larutan sehari-hari, lalu baca komposisi asumsi dan kondisi simulasi yang ditampilkan.',
+      'Pilih prediksi awal jenis larutan sebelum melihat hasil simulasi, lalu tekan Kunci Prediksi. Prediksi yang dikunci tidak dapat diubah.',
+      'Setelah prediksi terkunci, tekan Saklar OFF hingga berubah menjadi ON. Amati nyala lampu dan gelembung di sekitar elektroda.',
+      'Pilih nyala lampu dan jumlah gelembung yang kamu amati pada bagian Catat Pengamatan.',
+      'Tekan Periksa Jawaban. Bandingkan prediksi dan pengamatanmu dengan kategori acuan, lalu pelajari persamaan reaksi serta penjelasannya.',
+      'Skor berdasarkan prediksi, lampu, dan gelembung akan tersimpan otomatis di Lembar Kerja.',
+    ],
+  },
+};
+
 const categoryLabel = (category: SolutionCategory): string =>
   categoryOptions.find((option) => option.value === category)?.label ?? category;
 
@@ -256,6 +280,33 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
             </button>
           ))}
         </div>
+
+        <section
+          aria-labelledby="experiment-procedure-title"
+          style={{
+            marginBottom: '1.25rem',
+            padding: '1rem 1.2rem',
+            border: '1px solid var(--teal-200)',
+            borderLeft: '4px solid var(--teal-600)',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #ffffff, var(--teal-50))',
+          }}
+        >
+          <h2 id="experiment-procedure-title" style={{ color: 'var(--navy-900)', fontSize: '0.98rem', fontWeight: 800 }}>
+            {experimentProcedures[experimentId].title}
+          </h2>
+          <ol style={{
+            display: 'grid',
+            gap: '0.45rem',
+            margin: '0.7rem 0 0',
+            paddingLeft: '1.35rem',
+            color: 'var(--slate-700)',
+            fontSize: '0.82rem',
+            lineHeight: 1.6,
+          }}>
+            {experimentProcedures[experimentId].steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </section>
 
         <div className="lab-layout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 0.8fr) minmax(390px, 1.45fr) minmax(260px, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
           <section className="card" style={{ padding: '1.25rem' }}>

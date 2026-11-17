@@ -129,8 +129,8 @@ const allIds = [...experiment1Data, ...experiment2Data].map((sample) => sample.i
 if (new Set(allIds).size !== allIds.length) {
   throw new Error('ID sampel pada dataset larutan harus unik di kedua percobaan.');
 }
-if (experiment1Data.length !== 30 || experiment2Data.length !== 9) {
-  throw new Error('Dataset harus memuat 30 sampel Percobaan 1 dan 9 sampel Percobaan 2.');
+if (experiment1Data.length !== 30 || experiment2Data.length !== 10) {
+  throw new Error('Dataset harus memuat 30 sampel Percobaan 1 dan 10 sampel Percobaan 2.');
 }
 const categoryCounts = experiment1Data.reduce<Record<DatasetSample['kategori_acuan'], number>>(
   (counts, sample) => {
