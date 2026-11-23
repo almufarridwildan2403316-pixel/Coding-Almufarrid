@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import type { LearningProgress, QuizSubmission } from '../types/chemistry';
+import type { QuizSubmission } from '../types/chemistry';
 import { BookOpenCheck, CheckCircle2, FileText, Save, UserRound } from 'lucide-react';
 
 interface TeacherDashboardProps {
-  progress: LearningProgress;
-  onSaveReview: (submissionId: string, updates: Partial<QuizSubmission>) => void;
+  submissions: QuizSubmission[];
+  isLoading: boolean;
+  loadError: string;
+  onSaveReview: (
+    submission: QuizSubmission,
+    updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
+  ) => Promise<void>;
 }
 
 const formatDate = (value: string) => new Date(value).toLocaleString('id-ID', {
@@ -12,14 +17,19 @@ const formatDate = (value: string) => new Date(value).toLocaleString('id-ID', {
   timeStyle: 'short',
 });
 
-export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, onSaveReview }) => {
-  const submissions = progress.quizSubmissions ?? [];
-  const [draftScores, setDraftScores] = useState<Record<string, number>>(() =>
-    Object.fromEntries(submissions.map((submission) => [submission.id, submission.manualEssayScore ?? 0]))
-  );
-  const [draftNotes, setDraftNotes] = useState<Record<string, string>>(() =>
-    Object.fromEntries(submissions.map((submission) => [submission.id, submission.teacherNotes ?? '']))
-  );
+const submissionKey = (submission: QuizSubmission) => `${submission.userId ?? 'unknown'}:${submission.id}`;
+
+export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
+  submissions: accountSubmissions,
+  isLoading,
+  loadError,
+  onSaveReview,
+}) => {
+  const submissions = accountSubmissions;
+  const [draftScores, setDraftScores] = useState<Record<string, number>>({});
+  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
+  const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null);
+  const [reviewMessage, setReviewMessage] = useState('');
 
   const averageScore = submissions.length
     ? Math.round(submissions.reduce((total, submission) => total + submission.score, 0) / submissions.length)
@@ -29,11 +39,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
     return count + submission.answers.filter((answer) => answer.questionType === 'essay' && (answer.essayText ?? '').trim().length > 0).length;
   }, 0);
 
-  const handleSaveReview = (submission: QuizSubmission) => {
-    onSaveReview(submission.id, {
-      manualEssayScore: draftScores[submission.id] ?? 0,
-      teacherNotes: draftNotes[submission.id] ?? '',
-    });
+  const handleSaveReview = async (submission: QuizSubmission) => {
+    const key = submissionKey(submission);
+    setSavingSubmissionId(key);
+    setReviewMessage('');
+    try {
+      await onSaveReview(submission, {
+        manualEssayScore: draftScores[key] ?? 0,
+        teacherNotes: draftNotes[key] ?? '',
+      });
+      setReviewMessage(`Review percobaan #${submission.attemptNumber ?? '—'} berhasil disimpan.`);
+    } catch (error) {
+      setReviewMessage(error instanceof Error
+        ? `Review gagal disimpan: ${error.message}`
+        : 'Review gagal disimpan.');
+    } finally {
+      setSavingSubmissionId(null);
+    }
   };
 
   return (
@@ -79,9 +101,25 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
           </div>
         </div>
 
+        {isLoading && (
+          <div className="card" role="status" style={{ padding: '1rem', marginBottom: '1rem' }}>
+            Memuat riwayat kuis siswa dari Firebase…
+          </div>
+        )}
+        {loadError && (
+          <div className="card" role="alert" style={{ padding: '1rem', marginBottom: '1rem', color: '#b91c1c' }}>
+            {loadError}
+          </div>
+        )}
+        {reviewMessage && (
+          <div className="card" role="status" aria-live="polite" style={{ padding: '1rem', marginBottom: '1rem' }}>
+            {reviewMessage}
+          </div>
+        )}
+
         {submissions.length === 0 ? (
           <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate-600)' }}>
-            Belum ada hasil kuis siswa yang dikirim. Siswa akan muncul di dashboard ini setelah menyelesaikan evaluasi.
+            {isLoading ? 'Riwayat sedang dimuat.' : 'Belum ada hasil kuis siswa yang dikirim.'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -91,7 +129,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
               );
 
               return (
-                <div key={submission.id} className="card" style={{ padding: '1.5rem' }}>
+                <div key={submissionKey(submission)} className="card" style={{ padding: '1.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#ecfeff', color: '#0f766e' }}>
@@ -99,7 +137,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
                       </div>
                       <div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--navy-900)' }}>{submission.studentName}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>Kelas {submission.studentClass} · {formatDate(submission.submittedAt)}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
+                          Kelas {submission.studentClass} · Percobaan #{submission.attemptNumber ?? '—'} · {formatDate(submission.submittedAt)}
+                        </div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -162,10 +202,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
                             type="number"
                             min={0}
                             max={100}
-                            value={draftScores[submission.id] ?? submission.manualEssayScore ?? 0}
+                            value={draftScores[submissionKey(submission)] ?? submission.manualEssayScore ?? 0}
                             onChange={(event) => {
                               const nextValue = Number(event.target.value) || 0;
-                              setDraftScores((prev) => ({ ...prev, [submission.id]: nextValue }));
+                              setDraftScores((prev) => ({ ...prev, [submissionKey(submission)]: nextValue }));
                             }}
                             style={{
                               width: '100%',
@@ -184,10 +224,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
                           Catatan Guru
                           <textarea
                             rows={4}
-                            value={draftNotes[submission.id] ?? submission.teacherNotes ?? ''}
+                            value={draftNotes[submissionKey(submission)] ?? submission.teacherNotes ?? ''}
                             onChange={(event) => {
                               const nextValue = event.target.value;
-                              setDraftNotes((prev) => ({ ...prev, [submission.id]: nextValue }));
+                              setDraftNotes((prev) => ({ ...prev, [submissionKey(submission)]: nextValue }));
                             }}
                             placeholder="Tambahkan catatan atau penjelasan evaluasi..."
                             style={{
@@ -206,12 +246,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ progress, on
                         </label>
 
                         <button
-                          onClick={() => handleSaveReview(submission)}
+                          onClick={() => void handleSaveReview(submission)}
+                          disabled={savingSubmissionId === submissionKey(submission)}
                           className="btn btn-primary"
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: '0.3rem' }}
                         >
                           <Save size={16} />
-                          <span>Simpan Review</span>
+                          <span>{savingSubmissionId === submissionKey(submission) ? 'Menyimpan…' : 'Simpan Review'}</span>
                         </button>
                       </div>
                     </div>

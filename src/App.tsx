@@ -13,10 +13,15 @@ import {
   saveHomePromptResponse,
   markSolutionTested, 
   saveQuizResult, 
+  saveAccountQuizAttempt,
+  setQuizSubmissionAttemptNumber,
   saveActiveStudent,
   saveAccountProgress,
   saveStoredProgress,
   updateQuizSubmission,
+  updateAccountQuizAttempt,
+  loadTeacherQuizAttempts,
+  deleteAccountQuizAttempts,
   resetAllProgress 
 } from './utils/storage';
 import { firebaseAuth, firestore, isFirebaseConfigured } from './utils/firebase';
@@ -86,6 +91,7 @@ export function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const authUserId = useRef<string | null>(null);
   const progressLoadRef = useRef<{ userId: string; initial: LearningProgress; hasLocalChanges: boolean } | null>(null);
+  const skipNextAccountSyncRef = useRef<{ userId: string; progress: LearningProgress } | null>(null);
   const [student, setStudent] = useState<StudentIdentity | null>(
     () => isFirebaseConfigured ? null : createGuestStudent(),
   );
@@ -100,9 +106,18 @@ export function App() {
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressLoadError, setProgressLoadError] = useState('');
   const [progressSyncError, setProgressSyncError] = useState('');
+  const [teacherHistory, setTeacherHistory] = useState<{
+    userId: string;
+    attempts: QuizSubmission[];
+    error: string;
+  } | null>(null);
   const [roleProfileWarning, setRoleProfileWarning] = useState('');
   const [canSyncProgress, setCanSyncProgress] = useState(false);
   const isTeacher = student?.role === 'teacher';
+  const isLoadedTeacherHistory = Boolean(teacherHistory && teacherHistory.userId === authUser?.uid);
+  const teacherQuizAttempts = isLoadedTeacherHistory ? teacherHistory?.attempts ?? [] : [];
+  const teacherHistoryLoading = Boolean(isTeacher && authUser && teacherHistory?.userId !== authUser.uid);
+  const teacherHistoryError = isLoadedTeacherHistory ? teacherHistory?.error ?? '' : '';
   const renderedPage = activePage === 'guru' && !isTeacher ? 'beranda' : activePage;
 
   const handleSetActivePage = (page: ActivePage) => {
@@ -120,6 +135,7 @@ export function App() {
 
       if (accountChanged) {
         setAuthUser(nextUser);
+        setTeacherHistory(null);
         setRoleProfileWarning('');
       }
       setIsAuthLoading(false);
@@ -187,6 +203,7 @@ export function App() {
             ? `Data akun/progres belum dapat dimuat: ${error.message}`
             : 'Data akun/progres belum dapat dimuat.',
         );
+        setCanSyncProgress(true);
         setIsProgressLoading(false);
       }
     };
@@ -198,6 +215,32 @@ export function App() {
     };
   }, [authUser]);
 
+  useEffect(() => {
+    if (!isTeacher || !authUser) {
+      return;
+    }
+
+    let active = true;
+    loadTeacherQuizAttempts()
+      .then((attempts) => {
+        if (active) setTeacherHistory({ userId: authUser.uid, attempts, error: '' });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setTeacherHistory({
+          userId: authUser.uid,
+          attempts: [],
+          error: error instanceof Error
+            ? `Riwayat kuis siswa gagal dimuat: ${error.message}`
+            : 'Riwayat kuis siswa gagal dimuat.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authUser, isTeacher]);
+
   const markProgressChanged = (identity: StudentIdentity) => {
     const pendingLoad = progressLoadRef.current;
     if (pendingLoad && pendingLoad.userId === identity.id) pendingLoad.hasLocalChanges = true;
@@ -207,6 +250,14 @@ export function App() {
     if (!authUser || !student || !canSyncProgress) return;
 
     saveStoredProgress(progress, student);
+    const alreadySynced = skipNextAccountSyncRef.current;
+    if (alreadySynced) {
+      skipNextAccountSyncRef.current = null;
+      if (alreadySynced.userId === authUser.uid && JSON.stringify(alreadySynced.progress) === JSON.stringify(progress)) {
+        return;
+      }
+    }
+
     const timeoutId = window.setTimeout(() => {
       saveAccountProgress(progress, student)
         .then(() => setProgressSyncError(''))
@@ -266,11 +317,36 @@ export function App() {
     setProgress(updated);
   };
 
-  const handleSaveQuizResult = (result: QuizResult) => {
-    if (!student) return;
-    const updated = saveQuizResult({ ...result, studentName: student.name, studentClass: student.className }, student);
+  const handleSaveQuizResult = async (result: QuizResult): Promise<void> => {
+    if (!student) throw new Error('Identitas siswa belum siap. Jawaban belum dikirim.');
+
+    let updated = saveQuizResult({ ...result, studentName: student.name, studentClass: student.className }, student);
+    const storedProgress = getStoredProgress(student);
+    const nextProgress = storedProgress.quizResult?.id === result.id ? storedProgress : updated;
+    skipNextAccountSyncRef.current = authUser && JSON.stringify(nextProgress) === JSON.stringify(updated)
+      ? { userId: authUser.uid, progress: nextProgress }
+      : null;
     markProgressChanged(student);
-    setProgress(updated);
+    setProgress(nextProgress);
+
+    if (authUser) {
+      void (async () => {
+        try {
+          const submission = nextProgress.quizSubmissions.find((item) => item.id === result.id);
+          if (!submission) throw new Error('Data percobaan kuis tidak ditemukan setelah disimpan.');
+          const savedAttempt = await saveAccountQuizAttempt(submission, student);
+          if (savedAttempt.attemptNumber && savedAttempt.attemptNumber !== submission.attemptNumber) {
+            updated = setQuizSubmissionAttemptNumber(savedAttempt.id, savedAttempt.attemptNumber, student);
+            setProgress(updated);
+          }
+          await saveAccountProgress(updated, student);
+          setProgressSyncError('');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Kesalahan Firebase tidak diketahui.';
+          setProgressSyncError(`Hasil kuis tersimpan di perangkat, tetapi belum sinkron ke akun: ${message}`);
+        }
+      })();
+    }
   };
 
   const handleSaveWorksheetConclusion = (text: string) => {
@@ -292,19 +368,49 @@ export function App() {
     setProgress(updated);
   };
 
-  const handleSaveTeacherReview = (submissionId: string, updates: Partial<QuizSubmission>) => {
-    if (!student) return;
-    const updated = updateQuizSubmission(submissionId, updates, student);
+  const handleSaveTeacherReview = async (
+    submission: QuizSubmission,
+    updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
+  ): Promise<void> => {
+    if (authUser && isTeacher) {
+      await updateAccountQuizAttempt(submission, updates);
+      setTeacherHistory((current) => current?.userId === authUser.uid
+        ? {
+          ...current,
+          attempts: current.attempts.map((item) =>
+            item.id === submission.id && item.userId === submission.userId ? { ...item, ...updates } : item,
+          ),
+        }
+        : current);
+      return;
+    }
+    if (!student) throw new Error('Identitas guru belum siap.');
+    const updated = updateQuizSubmission(submission.id, updates, student);
     markProgressChanged(student);
     setProgress(updated);
   };
 
-  const handleResetProgress = () => {
+  const handleResetProgress = async () => {
     if (!student) return;
     if (window.confirm('Apakah Anda yakin ingin menghapus seluruh progres belajar, termasuk jawaban pemantik? Progres akan dimulai ulang dari awal.')) {
+      const emptyProgress = { ...DEFAULT_PROGRESS, student };
+      if (authUser) {
+        try {
+          await saveAccountProgress(emptyProgress, student);
+          await deleteAccountQuizAttempts(student);
+        } catch (error) {
+          setProgressSyncError(error instanceof Error
+            ? `Riwayat kuis belum dapat dihapus: ${error.message}`
+            : 'Riwayat kuis belum dapat dihapus dari akun.');
+          window.alert('Progres tidak direset karena riwayat akun gagal dihapus.');
+          return;
+        }
+      }
       const reset = resetAllProgress(student);
+      if (authUser) skipNextAccountSyncRef.current = { userId: authUser.uid, progress: reset };
       markProgressChanged(student);
       setProgress(reset);
+      setProgressSyncError('');
       alert('Progres belajar telah berhasil diatur ulang.');
     }
   };
@@ -417,7 +523,9 @@ export function App() {
 
         {renderedPage === 'guru' && isTeacher && (
           <TeacherDashboard
-            progress={progress}
+            submissions={teacherQuizAttempts}
+            isLoading={teacherHistoryLoading}
+            loadError={teacherHistoryError}
             onSaveReview={handleSaveTeacherReview}
           />
         )}

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { QuizAnswer, QuizQuestion, QuizResult, StudentIdentity } from '../types/chemistry';
 import { Award, RotateCcw, ArrowRight, FileText } from 'lucide-react';
-import { clearQuizDraft, getQuizDraft, saveQuizDraft } from '../utils/storage';
+import { clearQuizDraft, EVALUATION_QUIZ_ID, getQuizDraft, saveQuizDraft } from '../utils/storage';
 
 const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
@@ -38,16 +38,25 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 3,
     type: 'multiple-choice',
     category: 'Interpretasi Data',
-    question: 'Pada suatu uji daya hantar listrik, larutan X menghasilkan lampu menyala redup dan sedikit gelembung gas di sekitar elektroda. Kesimpulan yang tepat mengenai larutan X adalah...',
+    context: 'Dalam suatu percobaan uji daya hantar listrik, seorang siswa menguji tiga larutan, yaitu larutan NaCl, larutan glukosa, dan larutan X. Ketiga larutan memiliki konsentrasi dan volume yang sama. Pengujian dilakukan menggunakan alat yang sama, dengan tegangan listrik, jenis elektroda, dan jarak antar-elektroda yang dikondisikan tetap. Hasil pengamatan ditunjukkan pada tabel berikut.',
+    comparisonTable: {
+      headers: ['Larutan', 'Nyala lampu', 'Gelembung gas'],
+      rows: [
+        ['NaCl', 'Terang', 'Banyak'],
+        ['Glukosa', 'Tidak menyala', 'Tidak ada'],
+        ['X', 'Redup', 'Sedikit'],
+      ],
+    },
+    question: 'Berdasarkan perbandingan hasil pengamatan tersebut, analisis yang paling tepat mengenai karakteristik larutan X adalah...',
     options: [
-      'Larutan X adalah non-elektrolit',
-      'Larutan X adalah elektrolit kuat dengan derajat ionisasi α = 1',
-      'Larutan X adalah elektrolit lemah karena hanya terionisasi sebagian (0 < α < 1)',
-      'Larutan X merupakan senyawa kovalen nonpolar',
-      'Larutan X adalah larutan koloid yang tidak memecah menjadi ion',
+      'Larutan X termasuk non-elektrolit karena tidak mampu menghasilkan nyala lampu yang terang.',
+      'Larutan X termasuk elektrolit kuat karena terbentuk gelembung gas pada permukaan elektroda.',
+      'Larutan X termasuk elektrolit lemah karena hanya sebagian zat terionisasi menjadi ion-ion yang dapat bergerak bebas dalam larutan.',
+      'Larutan X termasuk elektrolit kuat karena seluruh zat terionisasi sempurna, tetapi tidak menghasilkan daya hantar listrik yang optimal.',
+      'Larutan X termasuk non-elektrolit karena sebagian besar zat terlarut tetap berada dalam bentuk molekul netral.',
     ],
     correctIndex: 2,
-    explanation: 'Nyala lampu redup dan timbulnya sedikit gelembung gas merupakan ciri khas larutan elektrolit lemah yang hanya menghasilkan sedikit ion bebas dalam air.',
+    explanation: 'NaCl menunjukkan karakteristik elektrolit kuat karena lampu menyala terang dan terbentuk banyak gelembung. Glukosa merupakan non-elektrolit karena lampu tidak menyala dan tidak terbentuk gelembung. Pada kondisi pengujian yang sama, larutan X menghasilkan lampu redup dan sedikit gelembung, sehingga dikategorikan sebagai elektrolit lemah: hanya sebagian zat terionisasi menjadi ion yang dapat bergerak bebas dan menghantarkan arus. Derajat ionisasinya berada pada rentang 0 < α < 1.',
   },
   {
     id: 4,
@@ -182,24 +191,28 @@ const buildSubmissionMap = (savedResult: QuizResult | null): Record<number, Quiz
 };
 
 const createQuizAttemptId = (): string =>
-  `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? `attempt-${crypto.randomUUID()}`
+    : `attempt-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 const createInitialQuizState = (savedResult: QuizResult | null, student: StudentIdentity) => {
   try {
-    const draft = getQuizDraft(student);
+    const draft = getQuizDraft(student, EVALUATION_QUIZ_ID);
     if (draft) {
       return {
         submissionData: draft.answers,
         attemptId: draft.attemptId,
+        lastQuestionId: draft.lastQuestionId,
         submitted: false,
         currentScore: 0,
-        draftMessage: 'Percobaan kuis sebelumnya dipulihkan.',
+        draftMessage: 'Draf jawaban dipulihkan dari perangkat ini.',
       };
     }
   } catch (error) {
     return {
       submissionData: buildSubmissionMap(savedResult),
       attemptId: savedResult?.id ?? createQuizAttemptId(),
+      lastQuestionId: null,
       submitted: savedResult !== null,
       currentScore: savedResult?.score ?? 0,
       draftMessage: error instanceof Error
@@ -211,6 +224,7 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
   return {
     submissionData: buildSubmissionMap(savedResult),
     attemptId: savedResult?.id ?? createQuizAttemptId(),
+    lastQuestionId: null,
     submitted: savedResult !== null,
     currentScore: savedResult?.score ?? 0,
     draftMessage: '',
@@ -218,7 +232,7 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
 };
 
 interface EvaluasiProps {
-  onSaveQuizResult: (result: QuizResult) => void;
+  onSaveQuizResult: (result: QuizResult) => Promise<void>;
   savedResult: QuizResult | null;
   student: StudentIdentity;
 }
@@ -231,16 +245,41 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
   const [currentScore, setCurrentScore] = useState(initialState.currentScore);
   const [draftMessage, setDraftMessage] = useState(initialState.draftMessage);
   const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localSaveFailed, setLocalSaveFailed] = useState(false);
+  const [pendingResult, setPendingResult] = useState<QuizResult | null>(null);
+  const submissionInFlightRef = useRef(false);
+  const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const questionIdToRestore = initialState.lastQuestionId;
 
-  const updateDraft = (draft: Record<number, QuizAnswer>) => {
+  useEffect(() => {
+    if (questionIdToRestore === null) return;
+    const frameId = window.requestAnimationFrame(() => {
+      questionRefs.current[questionIdToRestore]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [questionIdToRestore]);
+
+  const updateDraft = (draft: Record<number, QuizAnswer>, questionId: number) => {
     setSubmissionData(draft);
     try {
-      saveQuizDraft(student, { attemptId, answers: draft });
-      setDraftMessage('Draf kuis tersimpan otomatis di perangkat ini.');
+      saveQuizDraft(student, {
+        userId: student.id ?? 'guest',
+        quizId: EVALUATION_QUIZ_ID,
+        attemptId,
+        answers: draft,
+        lastQuestionId: questionId,
+        status: 'draft',
+        updatedAt: new Date().toISOString(),
+      });
+      setDraftMessage('Jawaban tersimpan di perangkat ini.');
     } catch (error) {
       setDraftMessage(error instanceof Error
-        ? `Draf kuis gagal disimpan: ${error.message}`
-        : 'Draf kuis gagal disimpan di perangkat ini.');
+        ? `Gagal menyimpan jawaban: ${error.message}`
+        : 'Gagal menyimpan jawaban. Silakan coba lagi.');
     }
   };
 
@@ -254,7 +293,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
         questionType: 'multiple-choice',
         selectedOption: optionIndex,
       },
-    });
+    }, questionId);
   };
 
   const handleEssayChange = (questionId: number, value: string) => {
@@ -267,7 +306,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
         questionType: 'essay',
         essayText: value,
       },
-    });
+    }, questionId);
   };
 
   const isQuestionAnswered = (question: QuizQuestion): boolean => {
@@ -280,7 +319,32 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
     return typeof answer?.essayText === 'string' && answer.essayText.trim().length > 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitted || submissionInFlightRef.current || answeredCount < QUIZ_QUESTIONS.length) return;
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError('');
+    setDraftMessage('Sedang menyimpan jawaban...');
+
+    let draftWasSaved = true;
+    try {
+      saveQuizDraft(student, {
+        userId: student.id ?? 'guest',
+        quizId: EVALUATION_QUIZ_ID,
+        attemptId,
+        answers: submissionData,
+        lastQuestionId: null,
+        status: 'draft',
+        updatedAt: new Date().toISOString(),
+      });
+      setDraftMessage('Jawaban tersimpan di perangkat ini.');
+    } catch (error) {
+      draftWasSaved = false;
+      setDraftMessage(error instanceof Error
+        ? `Gagal menyimpan draf lokal: ${error.message}`
+        : 'Gagal menyimpan draf lokal. Periksa penyimpanan browser.');
+    }
+
     let score = 0;
     let correctCount = 0;
 
@@ -310,6 +374,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
 
     const result: QuizResult = {
       id: attemptId,
+      quizId: EVALUATION_QUIZ_ID,
       studentName: student.name,
       studentClass: student.className,
       score,
@@ -323,22 +388,33 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
           .map((answer) => [answer.questionId, answer.essayText ?? ''])
       ),
     };
+    setPendingResult(result);
 
     try {
-      onSaveQuizResult(result);
+      await onSaveQuizResult(result);
+      setLocalSaveFailed(false);
+      setPendingResult(null);
     } catch (error) {
-      setSubmitError(error instanceof Error
-        ? `Jawaban belum berhasil dikirim: ${error.message}`
-        : 'Jawaban belum berhasil dikirim. Silakan coba lagi.');
+      setSubmitError('Jawaban belum berhasil dikirim. Silakan coba lagi.');
+      const localSaveError = !draftWasSaved || /lokal|localStorage|perangkat|ruang penyimpanan/i.test(
+        error instanceof Error ? error.message : '',
+      );
+      setLocalSaveFailed(localSaveError);
+      setDraftMessage(localSaveError
+        ? 'Jawaban belum berhasil disimpan. Jawaban Anda masih tersedia di halaman ini. Silakan coba simpan kembali.'
+        : 'Jawaban berhasil disimpan secara lokal, tetapi sinkronisasi akun belum berhasil.');
       return;
+    } finally {
+      submissionInFlightRef.current = false;
+      setIsSubmitting(false);
     }
 
     setCurrentScore(score);
     setSubmitted(true);
     setSubmitError('');
     try {
-      clearQuizDraft(student);
-      setDraftMessage('');
+      clearQuizDraft(student, EVALUATION_QUIZ_ID);
+      setDraftMessage('Jawaban berhasil disimpan.');
     } catch (error) {
       setDraftMessage(error instanceof Error
         ? `Hasil tersimpan, tetapi draf lokal belum dapat dihapus: ${error.message}`
@@ -347,11 +423,45 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleRetrySave = async () => {
+    if (!pendingResult || isSubmitting) return;
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError('');
+    setDraftMessage('Sedang menyimpan jawaban...');
+
+    try {
+      await onSaveQuizResult(pendingResult);
+      setLocalSaveFailed(false);
+      setPendingResult(null);
+      setCurrentScore(pendingResult.score);
+      setSubmitted(true);
+      setDraftMessage('Jawaban berhasil disimpan.');
+      clearQuizDraft(student, EVALUATION_QUIZ_ID);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setLocalSaveFailed(true);
+      setSubmitError('');
+      setDraftMessage('Jawaban belum berhasil disimpan. Jawaban Anda masih tersedia di halaman ini. Silakan coba simpan kembali.');
+    } finally {
+      submissionInFlightRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRetake = () => {
     const nextAttemptId = createQuizAttemptId();
     setAttemptId(nextAttemptId);
     try {
-      saveQuizDraft(student, { attemptId: nextAttemptId, answers: {} });
+      saveQuizDraft(student, {
+        userId: student.id ?? 'guest',
+        quizId: EVALUATION_QUIZ_ID,
+        attemptId: nextAttemptId,
+        answers: {},
+        lastQuestionId: null,
+        status: 'draft',
+        updatedAt: new Date().toISOString(),
+      });
       setDraftMessage('Percobaan baru dimulai dan tersimpan di perangkat ini.');
     } catch (error) {
       setDraftMessage(error instanceof Error
@@ -366,6 +476,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
   };
 
   const answeredCount = QUIZ_QUESTIONS.filter((q) => isQuestionAnswered(q)).length;
+  const hasDraftError = /gagal|tidak dapat|belum tersimpan/i.test(draftMessage);
 
   return (
     <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
@@ -395,10 +506,10 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
           </p>
           {draftMessage && (
             <p
-              role={draftMessage.includes('gagal') || draftMessage.includes('tidak dapat') ? 'alert' : 'status'}
+              role={hasDraftError ? 'alert' : 'status'}
               aria-live="polite"
               style={{
-                color: draftMessage.includes('gagal') || draftMessage.includes('tidak dapat')
+                color: hasDraftError
                   ? '#b91c1c'
                   : 'var(--teal-800)',
                 fontSize: '0.85rem',
@@ -450,6 +561,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
             return (
               <div
                 key={q.id}
+                ref={(element) => { questionRefs.current[q.id] = element; }}
                 className="card"
                 style={{
                   padding: '1.75rem',
@@ -466,6 +578,68 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
                     {q.type === 'multiple-choice' ? '10 Poin' : 'Nilai Manual'}
                   </span>
                 </div>
+
+                {q.context && (
+                  <p style={{ color: 'var(--slate-700)', fontSize: '0.95rem', lineHeight: 1.65, margin: '0 0 1rem' }}>
+                    {q.context}
+                  </p>
+                )}
+
+                {q.comparisonTable && (
+                  <div style={{ overflowX: 'auto', marginBottom: '1.25rem' }}>
+                    <table
+                      aria-label="Hasil pengamatan uji daya hantar listrik"
+                      style={{ width: '100%', minWidth: '420px', borderCollapse: 'collapse', color: 'var(--slate-800)' }}
+                    >
+                      <caption style={{ textAlign: 'left', padding: '0 0 0.6rem', fontWeight: 700, color: 'var(--navy-900)' }}>
+                        Hasil pengamatan
+                      </caption>
+                      <thead>
+                        <tr>
+                          {q.comparisonTable.headers.map((header) => (
+                            <th
+                              key={header}
+                              scope="col"
+                              style={{
+                                padding: '0.75rem',
+                                border: '1px solid var(--slate-200)',
+                                backgroundColor: 'var(--teal-50)',
+                                color: 'var(--navy-900)',
+                                fontSize: '0.9rem',
+                                textAlign: 'left',
+                              }}
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {q.comparisonTable.rows.map(([solution, lamp, bubbles]) => (
+                          <tr key={solution}>
+                            <th
+                              scope="row"
+                              style={{
+                                padding: '0.75rem',
+                                border: '1px solid var(--slate-200)',
+                                fontSize: '0.9rem',
+                                textAlign: 'left',
+                              }}
+                            >
+                              {solution}
+                            </th>
+                            <td style={{ padding: '0.75rem', border: '1px solid var(--slate-200)', fontSize: '0.9rem' }}>
+                              {lamp}
+                            </td>
+                            <td style={{ padding: '0.75rem', border: '1px solid var(--slate-200)', fontSize: '0.9rem' }}>
+                              {bubbles}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-900)', marginBottom: '1.2rem', lineHeight: 1.5 }}>
                   {q.question}
@@ -615,19 +789,33 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
                 {submitError}
               </p>
             )}
+            {localSaveFailed && pendingResult && (
+              <button
+                onClick={handleRetrySave}
+                disabled={isSubmitting}
+                className="btn btn-secondary"
+                style={{
+                  marginRight: '0.75rem',
+                  padding: '0.85rem 1.5rem',
+                  opacity: isSubmitting ? 0.6 : 1,
+                }}
+              >
+                {isSubmitting ? 'Sedang menyimpan...' : 'Coba Simpan Kembali'}
+              </button>
+            )}
             <button
               onClick={handleSubmit}
-              disabled={answeredCount < QUIZ_QUESTIONS.length}
+              disabled={isSubmitting || answeredCount < QUIZ_QUESTIONS.length}
               className="btn btn-primary"
               style={{
                 padding: '0.85rem 2.2rem',
                 fontSize: '1rem',
-                opacity: answeredCount === QUIZ_QUESTIONS.length ? 1 : 0.6,
-                cursor: answeredCount === QUIZ_QUESTIONS.length ? 'pointer' : 'not-allowed'
+                opacity: answeredCount === QUIZ_QUESTIONS.length && !isSubmitting ? 1 : 0.6,
+                cursor: answeredCount === QUIZ_QUESTIONS.length && !isSubmitting ? 'pointer' : 'not-allowed'
               }}
             >
-              <span>Kirim Jawaban ({answeredCount}/{QUIZ_QUESTIONS.length} Terjawab)</span>
-              <ArrowRight size={18} />
+              <span>{isSubmitting ? 'Mengirim Jawaban…' : `Kirim Jawaban (${answeredCount}/${QUIZ_QUESTIONS.length} Terjawab)`}</span>
+              {!isSubmitting && <ArrowRight size={18} />}
             </button>
             {answeredCount < QUIZ_QUESTIONS.length && (
               <p style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: '0.6rem' }}>

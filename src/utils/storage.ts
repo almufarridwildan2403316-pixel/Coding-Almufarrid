@@ -1,11 +1,27 @@
 import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizAnswer, QuizDraft, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  doc,
+  type Firestore,
+  getDoc,
+  getDocs,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { firestore } from './firebase';
 import { getExperimentRecordKey } from './experimentRecords';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
 const QUIZ_DRAFT_STORAGE_KEY = 'kimialab_quiz_draft_v1';
+export const EVALUATION_QUIZ_ID = 'electrolyte-evaluation-v1';
+const QUIZ_ATTEMPTS_COLLECTION = 'quizAttempts';
+const QUIZ_ATTEMPT_COUNTERS_COLLECTION = 'quizAttemptCounters';
 
 export const DEFAULT_PROGRESS: LearningProgress = {
   student: null,
@@ -31,8 +47,13 @@ const getProgressKey = (student: StudentIdentity): string =>
     ? `${STORAGE_KEY}:account:${encodeURIComponent(student.id)}`
     : `${STORAGE_KEY}:${getGuestStorageScope(student)}`;
 
-const getQuizDraftKey = (student: StudentIdentity): string =>
+const getQuizDraftKey = (student: StudentIdentity, quizId: string): string =>
+  `${QUIZ_DRAFT_STORAGE_KEY}:${getStudentStorageScope(student)}:${encodeURIComponent(quizId)}`;
+
+const getLegacyQuizDraftKey = (student: StudentIdentity): string =>
   `${QUIZ_DRAFT_STORAGE_KEY}:${getStudentStorageScope(student)}`;
+
+const getQuizUserId = (student: StudentIdentity): string => student.id ?? 'guest';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -52,6 +73,93 @@ const isQuizAnswer = (value: unknown): value is QuizAnswer => {
   return value.questionType === 'essay' && typeof value.essayText === 'string';
 };
 
+const isQuizSubmission = (value: unknown): value is QuizSubmission => {
+  if (!isRecord(value)) return false;
+  return typeof value.id === 'string'
+    && typeof value.studentName === 'string'
+    && typeof value.studentClass === 'string'
+    && typeof value.submittedAt === 'string'
+    && Number.isFinite(Date.parse(value.submittedAt))
+    && Number.isFinite(value.score)
+    && Number.isFinite(value.totalQuestions)
+    && Number.isFinite(value.correctAnswers)
+    && Array.isArray(value.answers)
+    && value.answers.every(isQuizAnswer);
+};
+
+const parseQuizSubmission = (value: unknown, documentId: string, userId?: string): QuizSubmission => {
+  if (!isRecord(value)) {
+    throw new Error(`Format riwayat kuis ${documentId} tidak valid.`);
+  }
+  const submittedAtValue = value.submittedAt;
+  const submittedAt = typeof submittedAtValue === 'string'
+    ? submittedAtValue
+    : submittedAtValue instanceof Timestamp
+      ? typeof value.clientSubmittedAt === 'string'
+        ? value.clientSubmittedAt
+        : submittedAtValue.toDate().toISOString()
+      : '';
+  const normalized = { ...value, submittedAt };
+  if (!isQuizSubmission(normalized)) {
+    throw new Error(`Format riwayat kuis ${documentId} tidak valid.`);
+  }
+  return {
+    ...normalized,
+    id: documentId,
+    userId: typeof normalized.userId === 'string' ? normalized.userId : userId,
+    quizId: typeof normalized.quizId === 'string' ? normalized.quizId : EVALUATION_QUIZ_ID,
+    attemptNumber: Number.isSafeInteger(normalized.attemptNumber) && Number(normalized.attemptNumber) > 0
+      ? Number(normalized.attemptNumber)
+      : undefined,
+    status: 'submitted',
+    manualEssayScore: Number.isFinite(normalized.manualEssayScore) ? Number(normalized.manualEssayScore) : 0,
+    teacherNotes: typeof normalized.teacherNotes === 'string' ? normalized.teacherNotes : '',
+  };
+};
+
+const mergeQuizSubmissions = (...groups: QuizSubmission[][]): QuizSubmission[] =>
+  [...new Map(groups.flat().map((submission) => [submission.id, submission])).values()]
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+
+const getLatestQuizResult = (
+  currentResult: QuizResult | null,
+  submissions: QuizSubmission[],
+): QuizResult | null => {
+  const latestSubmission = submissions.find((submission) => submission.quizId === EVALUATION_QUIZ_ID);
+  if (!latestSubmission) return currentResult;
+  if (currentResult && Date.parse(currentResult.completedAt) > Date.parse(latestSubmission.submittedAt)) {
+    return currentResult;
+  }
+  return {
+    id: latestSubmission.id,
+    quizId: latestSubmission.quizId,
+    attemptNumber: latestSubmission.attemptNumber,
+    studentName: latestSubmission.studentName,
+    studentClass: latestSubmission.studentClass,
+    score: latestSubmission.score,
+    totalQuestions: latestSubmission.totalQuestions,
+    correctAnswers: latestSubmission.correctAnswers,
+    completedAt: latestSubmission.submittedAt,
+    submissionData: latestSubmission.answers,
+    essayAnswers: Object.fromEntries(
+      latestSubmission.answers
+        .filter((answer) => answer.questionType === 'essay')
+        .map((answer) => [answer.questionId, answer.essayText ?? '']),
+    ),
+    manualEssayScore: latestSubmission.manualEssayScore,
+    teacherNotes: latestSubmission.teacherNotes,
+  };
+};
+
+const getAccountQuizAttemptsRef = (database: Firestore, studentId: string) =>
+  collection(doc(database, 'studentProgress', studentId), QUIZ_ATTEMPTS_COLLECTION);
+
+const getAccountQuizAttemptRef = (database: Firestore, studentId: string, attemptId: string) =>
+  doc(getAccountQuizAttemptsRef(database, studentId), encodeURIComponent(attemptId));
+
+const getAccountQuizAttemptCounterRef = (database: Firestore, studentId: string, quizId: string) =>
+  doc(collection(doc(database, 'studentProgress', studentId), QUIZ_ATTEMPT_COUNTERS_COLLECTION), encodeURIComponent(quizId));
+
 const isLearningProgress = (value: unknown): value is LearningProgress => {
   if (!isRecord(value)) return false;
   return (
@@ -64,7 +172,7 @@ const isLearningProgress = (value: unknown): value is LearningProgress => {
         typeof value.homePromptResponse.text === 'string' &&
         typeof value.homePromptResponse.submittedAt === 'string')) &&
     (value.quizResult === null || isRecord(value.quizResult)) &&
-    Array.isArray(value.quizSubmissions) &&
+    (value.quizSubmissions === undefined || Array.isArray(value.quizSubmissions)) &&
     Array.isArray(value.readMaterials)
   );
 };
@@ -73,6 +181,98 @@ const createDefaultProgress = (student: StudentIdentity): LearningProgress => ({
   ...DEFAULT_PROGRESS,
   student,
 });
+
+const loadAccountQuizAttempts = async (studentId: string): Promise<QuizSubmission[]> => {
+  if (!firestore) throw new Error('Firestore belum dikonfigurasi untuk memuat riwayat kuis.');
+  const snapshot = await getDocs(getAccountQuizAttemptsRef(firestore, studentId));
+  return snapshot.docs.map((attempt) => parseQuizSubmission(attempt.data(), attempt.data().id ?? attempt.id, studentId));
+};
+
+const migrateLegacyQuizAttempts = async (
+  student: StudentIdentity,
+  legacySubmissions: QuizSubmission[],
+): Promise<void> => {
+  if (!firestore || !student.id || legacySubmissions.length === 0) return;
+  const database = firestore;
+  const studentId = student.id;
+
+  const submissions = legacySubmissions
+    .map((submission) => parseQuizSubmission(submission, submission.id, studentId))
+    .filter((submission) => submission.quizId === EVALUATION_QUIZ_ID)
+    .sort((left, right) => left.submittedAt.localeCompare(right.submittedAt));
+
+  await Promise.all(submissions.map(async (submission, index) => {
+    const attemptRef = getAccountQuizAttemptRef(database, studentId, submission.id);
+    await runTransaction(database, async (transaction) => {
+      const existing = await transaction.get(attemptRef);
+      if (existing.exists()) return;
+      transaction.set(attemptRef, {
+        ...submission,
+        userId: studentId,
+        quizId: EVALUATION_QUIZ_ID,
+        attemptNumber: submission.attemptNumber ?? index + 1,
+        status: 'submitted',
+        clientSubmittedAt: submission.submittedAt,
+        submittedAt: serverTimestamp(),
+        migratedAt: serverTimestamp(),
+      });
+    });
+  }));
+
+  const counterRef = getAccountQuizAttemptCounterRef(database, studentId, EVALUATION_QUIZ_ID);
+  const highestAttempt = Math.max(
+    submissions.length,
+    ...submissions.map((submission, index) => submission.attemptNumber ?? index + 1),
+  );
+  await runTransaction(database, async (transaction) => {
+    const counter = await transaction.get(counterRef);
+    const currentCount = counter.exists() && Number.isSafeInteger(counter.data().attemptCount)
+      ? Number(counter.data().attemptCount)
+      : 0;
+    if (currentCount < highestAttempt) {
+      transaction.set(counterRef, {
+        quizId: EVALUATION_QUIZ_ID,
+        attemptCount: highestAttempt,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  });
+};
+
+export const loadTeacherQuizAttempts = async (): Promise<QuizSubmission[]> => {
+  if (!firestore) throw new Error('Firestore belum dikonfigurasi untuk memuat riwayat kuis guru.');
+  const snapshot = await getDocs(collectionGroup(firestore, QUIZ_ATTEMPTS_COLLECTION));
+  return snapshot.docs.map((attempt) => {
+    const userId = attempt.ref.parent.parent?.id;
+    return parseQuizSubmission(attempt.data(), attempt.data().id ?? attempt.id, userId);
+  }).sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+};
+
+export const updateAccountQuizAttempt = async (
+  submission: QuizSubmission,
+  updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
+): Promise<void> => {
+  if (!firestore || !submission.userId) {
+    throw new Error('Identitas akun pemilik hasil kuis tidak tersedia.');
+  }
+  await updateDoc(getAccountQuizAttemptRef(firestore, submission.userId, submission.id), updates);
+};
+
+export const deleteAccountQuizAttempts = async (student: StudentIdentity): Promise<void> => {
+  if (!firestore || !student.id) {
+    throw new Error('Firebase belum dikonfigurasi untuk menghapus riwayat kuis akun.');
+  }
+  const [attempts, counters] = await Promise.all([
+    getDocs(getAccountQuizAttemptsRef(firestore, student.id)),
+    getDocs(collection(doc(firestore, 'studentProgress', student.id), QUIZ_ATTEMPT_COUNTERS_COLLECTION)),
+  ]);
+  const refs = [...attempts.docs, ...counters.docs].map((snapshot) => snapshot.ref);
+  for (let offset = 0; offset < refs.length; offset += 450) {
+    const batch = writeBatch(firestore);
+    refs.slice(offset, offset + 450).forEach((reference) => batch.delete(reference));
+    await batch.commit();
+  }
+};
 
 export const getActiveStudent = (): StudentIdentity | null => {
   try {
@@ -136,13 +336,39 @@ export const loadAccountProgress = async (student: StudentIdentity): Promise<Lea
   const progressRef = doc(firestore, 'studentProgress', student.id);
   const snapshot = await getDoc(progressRef);
 
-  if (!snapshot.exists()) return getStoredProgress(student);
+  if (!snapshot.exists()) {
+    const attempts = await loadAccountQuizAttempts(student.id);
+    const storedProgress = getStoredProgress(student);
+    const quizSubmissions = mergeQuizSubmissions(storedProgress.quizSubmissions, attempts);
+    return {
+      ...storedProgress,
+      quizResult: getLatestQuizResult(storedProgress.quizResult, quizSubmissions),
+      quizSubmissions,
+    };
+  }
   const remoteProgress: unknown = snapshot.data().progress;
   if (!isLearningProgress(remoteProgress)) {
     throw new Error('Format progres akun tidak valid. Data lokal tidak akan menimpa data tersebut.');
   }
 
-  return { ...remoteProgress, homePromptResponse: remoteProgress.homePromptResponse ?? null, student };
+  const legacySubmissions = Array.isArray(remoteProgress.quizSubmissions)
+    ? remoteProgress.quizSubmissions.map((submission) => {
+      if (!isRecord(submission) || typeof submission.id !== 'string') {
+        throw new Error('Format riwayat kuis lama tidak valid.');
+      }
+      return parseQuizSubmission(submission, submission.id, student.id);
+    })
+    : [];
+  await migrateLegacyQuizAttempts(student, legacySubmissions);
+  const attempts = await loadAccountQuizAttempts(student.id);
+  const quizSubmissions = mergeQuizSubmissions(legacySubmissions, attempts);
+  return {
+    ...remoteProgress,
+    quizResult: getLatestQuizResult(remoteProgress.quizResult, quizSubmissions),
+    homePromptResponse: remoteProgress.homePromptResponse ?? null,
+    quizSubmissions,
+    student,
+  };
 };
 
 export const saveAccountProgress = async (
@@ -159,15 +385,26 @@ export const saveAccountProgress = async (
   });
 };
 
-export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): boolean => {
+export interface LocalStorageSaveResult {
+  success: boolean;
+  error?: Error;
+}
+
+export const trySaveStoredProgress = (progress: LearningProgress, student: StudentIdentity): LocalStorageSaveResult => {
   try {
     localStorage.setItem(getProgressKey(student), JSON.stringify({ ...progress, student }));
-    return true;
+    return { success: true };
   } catch (e) {
     console.error('Error saving progress to localStorage:', e);
-    return false;
+    return {
+      success: false,
+      error: e instanceof Error ? e : new Error('Penyimpanan browser mengalami kesalahan.'),
+    };
   }
 };
+
+export const saveStoredProgress = (progress: LearningProgress, student: StudentIdentity): boolean =>
+  trySaveStoredProgress(progress, student).success;
 
 const parseQuizAnswers = (value: unknown): Record<number, QuizAnswer> => {
   if (!isRecord(value)) throw new Error('Format jawaban draf kuis tidak valid.');
@@ -183,32 +420,99 @@ const parseQuizAnswers = (value: unknown): Record<number, QuizAnswer> => {
   return answers;
 };
 
-export const getQuizDraft = (student: StudentIdentity): QuizDraft | null => {
-  const raw = localStorage.getItem(getQuizDraftKey(student));
+export const getQuizDraft = (student: StudentIdentity, quizId = EVALUATION_QUIZ_ID): QuizDraft | null => {
+  const storageKey = getQuizDraftKey(student, quizId);
+  let raw = localStorage.getItem(storageKey);
+  let needsMigration = false;
+  if (!raw) {
+    raw = localStorage.getItem(getLegacyQuizDraftKey(student));
+    needsMigration = Boolean(raw);
+  }
   if (!raw) return null;
 
   const parsed: unknown = JSON.parse(raw);
   if (!isRecord(parsed)) throw new Error('Format draf kuis tidak valid.');
 
-  if (typeof parsed.attemptId === 'string' && isRecord(parsed.answers)) {
-    return {
+  const answers = 'answers' in parsed ? parseQuizAnswers(parsed.answers) : parseQuizAnswers(parsed);
+  const isNewFormat = 'userId' in parsed || 'quizId' in parsed || 'lastQuestionId' in parsed
+    || 'status' in parsed || 'updatedAt' in parsed;
+  const inferredLastQuestionId = Object.keys(answers)
+    .map(Number)
+    .filter(Number.isSafeInteger)
+    .reduce<number | null>((latest, questionId) => latest === null ? questionId : Math.max(latest, questionId), null);
+  let draft: QuizDraft;
+  if (isNewFormat) {
+    if (
+      typeof parsed.userId !== 'string'
+      || typeof parsed.quizId !== 'string'
+      || typeof parsed.attemptId !== 'string'
+      || typeof parsed.updatedAt !== 'string'
+      || parsed.status !== 'draft'
+      || (parsed.lastQuestionId !== null && (
+        typeof parsed.lastQuestionId !== 'number'
+        || !Number.isSafeInteger(parsed.lastQuestionId)
+        || parsed.lastQuestionId < 1
+      ))
+    ) {
+      throw new Error('Format draf kuis tidak lengkap.');
+    }
+    draft = {
+      userId: parsed.userId,
+      quizId: parsed.quizId,
       attemptId: parsed.attemptId,
-      answers: parseQuizAnswers(parsed.answers),
+      answers,
+      lastQuestionId: parsed.lastQuestionId,
+      status: 'draft',
+      updatedAt: parsed.updatedAt,
+    };
+  } else {
+    draft = {
+      userId: getQuizUserId(student),
+      quizId,
+      attemptId: typeof parsed.attemptId === 'string' && parsed.attemptId
+        ? parsed.attemptId
+        : `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      answers,
+      lastQuestionId: inferredLastQuestionId,
+      status: 'draft',
+      updatedAt: new Date().toISOString(),
     };
   }
 
-  return {
-    attemptId: `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    answers: parseQuizAnswers(parsed),
-  };
+  if (
+    draft.userId !== getQuizUserId(student)
+    || draft.quizId !== quizId
+    || !draft.attemptId
+    || draft.status !== 'draft'
+    || !Number.isFinite(Date.parse(draft.updatedAt))
+  ) {
+    throw new Error('Draf kuis tidak cocok dengan pengguna atau kuis ini.');
+  }
+
+  if (needsMigration || !isNewFormat) {
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+    if (needsMigration) localStorage.removeItem(getLegacyQuizDraftKey(student));
+  }
+  return draft;
 };
 
 export const saveQuizDraft = (student: StudentIdentity, draft: QuizDraft): void => {
-  localStorage.setItem(getQuizDraftKey(student), JSON.stringify(draft));
+  if (
+    draft.userId !== getQuizUserId(student)
+    || !draft.quizId
+    || !draft.attemptId
+    || draft.status !== 'draft'
+    || !Number.isFinite(Date.parse(draft.updatedAt))
+    || (draft.lastQuestionId !== null && (!Number.isSafeInteger(draft.lastQuestionId) || draft.lastQuestionId < 1))
+  ) {
+    throw new Error('Draf kuis tidak cocok dengan pengguna atau statusnya.');
+  }
+  localStorage.setItem(getQuizDraftKey(student, draft.quizId), JSON.stringify(draft));
 };
 
-export const clearQuizDraft = (student: StudentIdentity): void => {
-  localStorage.removeItem(getQuizDraftKey(student));
+export const clearQuizDraft = (student: StudentIdentity, quizId = EVALUATION_QUIZ_ID): void => {
+  localStorage.removeItem(getLegacyQuizDraftKey(student));
+  localStorage.removeItem(getQuizDraftKey(student, quizId));
 };
 
 export const markSolutionTested = (solutionId: string, student: StudentIdentity): LearningProgress => {
@@ -256,24 +560,133 @@ export const saveHomePromptResponse = (response: HomePromptResponse, student: St
   return updated;
 };
 
+export const saveAccountQuizAttempt = async (
+  submission: QuizSubmission,
+  student: StudentIdentity,
+): Promise<QuizSubmission> => {
+  if (!firestore || !student.id) {
+    throw new Error('Firebase belum dikonfigurasi untuk menyimpan percobaan kuis akun.');
+  }
+
+  const studentId = student.id;
+  const quizId = submission.quizId ?? EVALUATION_QUIZ_ID;
+  const attemptRef = getAccountQuizAttemptRef(firestore, studentId, submission.id);
+  const counterRef = getAccountQuizAttemptCounterRef(firestore, studentId, quizId);
+  const progressRef = doc(firestore, 'studentProgress', studentId);
+
+  return runTransaction(firestore, async (transaction) => {
+    const [existingAttempt, counter, progressSnapshot] = await Promise.all([
+      transaction.get(attemptRef),
+      transaction.get(counterRef),
+      transaction.get(progressRef),
+    ]);
+
+    if (existingAttempt.exists()) {
+      const saved = parseQuizSubmission(existingAttempt.data(), submission.id, studentId);
+      if (saved.userId !== studentId || saved.quizId !== quizId) {
+        throw new Error('ID percobaan ini sudah digunakan untuk data kuis lain.');
+      }
+      return saved;
+    }
+
+    const embeddedAttempts: unknown = progressSnapshot.exists()
+      ? progressSnapshot.data().progress?.quizSubmissions
+      : [];
+    const legacyAttemptCount = Array.isArray(embeddedAttempts)
+      ? embeddedAttempts.filter((item) =>
+        isRecord(item) && (item.quizId === undefined || item.quizId === quizId),
+      ).length
+      : 0;
+    const currentCount = counter.exists() && Number.isSafeInteger(counter.data().attemptCount)
+      ? Number(counter.data().attemptCount)
+      : 0;
+    const attemptNumber = Math.max(currentCount, legacyAttemptCount) + 1;
+    const savedSubmission: QuizSubmission = {
+      ...submission,
+      userId: studentId,
+      quizId,
+      attemptNumber,
+      status: 'submitted',
+    };
+
+    transaction.set(attemptRef, {
+      ...savedSubmission,
+      clientSubmittedAt: submission.submittedAt,
+      submittedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    });
+    transaction.set(counterRef, {
+      quizId,
+      attemptCount: attemptNumber,
+      updatedAt: serverTimestamp(),
+    });
+    return savedSubmission;
+  });
+};
+
+export const setQuizSubmissionAttemptNumber = (
+  submissionId: string,
+  attemptNumber: number,
+  student: StudentIdentity,
+): LearningProgress => {
+  if (!Number.isSafeInteger(attemptNumber) || attemptNumber < 1) {
+    throw new Error('Nomor percobaan kuis tidak valid.');
+  }
+  const current = getStoredProgress(student);
+  const updatedSubmissions = current.quizSubmissions.map((submission) =>
+    submission.id === submissionId ? { ...submission, attemptNumber } : submission,
+  );
+  const updated: LearningProgress = {
+    ...current,
+    quizResult: current.quizResult?.id === submissionId
+      ? { ...current.quizResult, attemptNumber }
+      : current.quizResult,
+    quizSubmissions: updatedSubmissions,
+  };
+  if (!saveStoredProgress(updated, student)) {
+    throw new Error('Nomor percobaan gagal disimpan di perangkat.');
+  }
+  return updated;
+};
+
 export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity): LearningProgress => {
   const current = getStoredProgress(student);
+  const quizId = quizResult.quizId ?? EVALUATION_QUIZ_ID;
+  const submissionId = quizResult.id ?? `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const existingSubmission = current.quizSubmissions.find((item) => item.id === submissionId);
+  const previousAttempts = current.quizSubmissions.filter((item) =>
+    item.quizId === undefined || item.quizId === quizId,
+  );
+  const attemptNumber = existingSubmission?.attemptNumber ?? Math.max(
+    previousAttempts.length,
+    ...previousAttempts.map((item) => item.attemptNumber ?? 0),
+  ) + 1;
+  const resultWithAttempt: QuizResult = {
+    ...quizResult,
+    id: submissionId,
+    quizId,
+    attemptNumber,
+  };
   const submission: QuizSubmission = {
-    id: quizResult.id ?? `submission-${Date.now()}`,
+    id: submissionId,
+    userId: student.id ?? 'guest',
+    quizId,
+    attemptNumber,
+    status: 'submitted',
     studentName: student.name,
     studentClass: student.className,
-    submittedAt: quizResult.completedAt,
-    answers: quizResult.submissionData ?? [],
-    score: quizResult.score,
-    totalQuestions: quizResult.totalQuestions,
-    correctAnswers: quizResult.correctAnswers,
-    manualEssayScore: quizResult.manualEssayScore ?? 0,
-    teacherNotes: quizResult.teacherNotes ?? '',
+    submittedAt: resultWithAttempt.completedAt,
+    answers: resultWithAttempt.submissionData ?? [],
+    score: resultWithAttempt.score,
+    totalQuestions: resultWithAttempt.totalQuestions,
+    correctAnswers: resultWithAttempt.correctAnswers,
+    manualEssayScore: resultWithAttempt.manualEssayScore ?? 0,
+    teacherNotes: resultWithAttempt.teacherNotes ?? '',
   };
 
   const updated: LearningProgress = {
     ...current,
-    quizResult,
+    quizResult: resultWithAttempt,
     quizSubmissions: [submission, ...current.quizSubmissions.filter((item) => item.id !== submission.id)],
   };
 

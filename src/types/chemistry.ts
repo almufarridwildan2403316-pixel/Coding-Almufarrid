@@ -74,14 +74,24 @@ export interface QuizAnswer {
 }
 
 export interface QuizDraft {
+  userId: string;
+  quizId: string;
   attemptId: string;
   answers: Record<number, QuizAnswer>;
+  lastQuestionId: number | null;
+  status: 'draft';
+  updatedAt: string;
 }
 
 export interface QuizQuestion {
   id: number;
   type: QuizQuestionType;
   question: string;
+  context?: string;
+  comparisonTable?: {
+    headers: [string, string, string];
+    rows: Array<[string, string, string]>;
+  };
   options?: string[];
   correctIndex?: number;
   category: 'Konsep' | 'Klasifikasi' | 'Interpretasi Data' | 'Persamaan Reaksi' | 'Penalaran';
@@ -90,6 +100,8 @@ export interface QuizQuestion {
 
 export interface QuizResult {
   id?: string;
+  quizId?: string;
+  attemptNumber?: number;
   studentName?: string;
   studentClass?: string;
   score: number;
@@ -104,6 +116,10 @@ export interface QuizResult {
 
 export interface QuizSubmission {
   id: string;
+  userId?: string;
+  quizId?: string;
+  attemptNumber?: number;
+  status?: 'submitted';
   studentName: string;
   studentClass: string;
   submittedAt: string;

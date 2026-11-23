@@ -58,6 +58,14 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
   const completedRows = allRows.filter((row) => row.record?.completed);
   const unfinishedCount = allRows.length - completedRows.length;
   const quizScore = progress.quizResult?.score ?? null;
+  const quizAttempts = [...(progress.quizSubmissions ?? [])]
+    .filter((submission) => !submission.quizId || submission.quizId === 'electrolyte-evaluation-v1')
+    .sort((left, right) => left.submittedAt.localeCompare(right.submittedAt))
+    .map((submission, index) => ({
+      ...submission,
+      attemptNumber: submission.attemptNumber ?? index + 1,
+    }))
+    .reverse();
 
   const getExperimentSummary = (rows: ProgressRow[]) => {
     const completed = rows.filter((row) => row.record?.completed);
@@ -156,6 +164,48 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
               <p style={{ color: 'var(--slate-600)', fontSize: '0.75rem' }}>{item.note}</p>
             </div>
           ))}
+        </section>
+
+        <section aria-label="Riwayat percobaan kuis" style={{ marginBottom: '2rem' }}>
+          <h2 style={{ color: 'var(--navy-900)', fontSize: '1.15rem', fontWeight: 800, margin: '1.4rem 0 0.75rem' }}>
+            Riwayat Percobaan Evaluasi
+          </h2>
+          {quizAttempts.length === 0 ? (
+            <div className="card" style={{ padding: '1.25rem', color: 'var(--slate-600)' }}>
+              Belum ada percobaan evaluasi yang dikirim.
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '1rem', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '520px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
+                    {['Percobaan', 'Waktu dikirim', 'Nilai', 'Jawaban benar'].map((heading) => (
+                      <th key={heading} style={{ padding: '0.75rem', color: 'var(--navy-900)', fontSize: '0.76rem', fontWeight: 800 }}>{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {quizAttempts.map((attempt) => (
+                    <tr key={attempt.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
+                      <td style={{ padding: '0.75rem', color: 'var(--navy-900)', fontWeight: 700 }}>
+                        Percobaan #{attempt.attemptNumber}
+                        {attempt.id === progress.quizResult?.id && (
+                          <span className="badge badge-teal" style={{ marginLeft: '0.5rem' }}>Terbaru</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--slate-600)', whiteSpace: 'nowrap' }}>
+                        {new Date(attempt.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--teal-700)', fontWeight: 800 }}>{attempt.score}</td>
+                      <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
+                        {attempt.correctAnswers}/{attempt.totalQuestions}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section aria-label="Progres setiap percobaan" className="grid-2" style={{ marginBottom: '1.75rem' }}>
