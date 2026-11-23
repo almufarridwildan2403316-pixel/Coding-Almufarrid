@@ -4,10 +4,11 @@ import { FlaskConical, RotateCcw, ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   setActivePage: (page: ActivePage) => void;
+  isTeacher: boolean;
   onResetProgress: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ setActivePage, onResetProgress }) => {
+export const Footer: React.FC<FooterProps> = ({ setActivePage, isTeacher, onResetProgress }) => {
   return (
     <footer style={{
       backgroundColor: 'var(--navy-950)',
@@ -63,7 +64,7 @@ export const Footer: React.FC<FooterProps> = ({ setActivePage, onResetProgress }
                 { label: 'Laboratorium Virtual', page: 'lab' as ActivePage },
                 { label: 'Lembar Kerja Praktikum', page: 'lembar-kerja' as ActivePage },
                 { label: 'Evaluasi & Kuis (10 Pilihan Ganda + 2 Esai)', page: 'evaluasi' as ActivePage },
-                { label: 'Akses Guru / Teacher Dashboard', page: 'guru' as ActivePage },
+                ...(isTeacher ? [{ label: 'Akses Guru / Teacher Dashboard', page: 'guru' as ActivePage }] : []),
                 { label: 'Ringkasan Hasil Belajar', page: 'hasil' as ActivePage },
               ].map((link) => (
                 <li key={link.page}>

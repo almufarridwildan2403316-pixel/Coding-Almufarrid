@@ -42,3 +42,14 @@ Login email/kata sandi, Google, pemulihan kata sandi, dan sinkronisasi progres m
 5. Untuk pengembangan lokal, gunakan `http://localhost:5173`, lalu jalankan `npm run dev`.
 
 Progres disimpan lokal sebagai cache dan disinkronkan ke dokumen `studentProgress/{uid}`. Aturan Firestore membatasi akses dokumen hanya kepada pemilik akun. Jika sinkronisasi gagal, aplikasi menampilkan peringatan dan tetap mempertahankan cache lokal.
+
+### Memberikan akses guru
+
+Akun yang dibuat di Firebase Authentication otomatis memiliki peran siswa. Untuk memberikan akses guru, lakukan langkah berikut untuk **setiap akun** yang menjadi guru:
+
+1. Buka Firebase Console → Authentication → Users, lalu salin UID akun.
+2. Buka Firestore Database dan buat dokumen pada koleksi `users` dengan Document ID persis UID tersebut.
+3. Tambahkan field `role` bertipe **string** dengan nilai `teacher` (huruf kecil).
+4. Keluar lalu masuk kembali dengan akun tersebut.
+
+Menu **Akses Guru** hanya ditampilkan jika dokumen `users/{uid}` dapat dibaca dan nilai `role` tepat `teacher`. Dua akun guru memerlukan dua dokumen terpisah. Jangan memberikan peran guru hanya berdasarkan email di sisi aplikasi; tetapkan dari Firebase Console agar pengguna tidak dapat menaikkan perannya sendiri. Aturan pada `firebase/firestore.rules` mengizinkan akun membaca dokumen profilnya sendiri, tetapi tidak mengizinkan pengguna mengubah peran.

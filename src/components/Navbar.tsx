@@ -29,7 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
   const testedCount = progress.testedSolutions.length;
   const progressPercent = Math.round((testedCount / 6) * 100);
 
-  const navItems: { id: ActivePage; label: string; icon: React.ReactNode }[] = [
+  const allNavItems: { id: ActivePage; label: string; icon: React.ReactNode }[] = [
     { id: 'beranda', label: 'Beranda', icon: <FlaskConical size={18} /> },
     { id: 'materi', label: 'Materi Konsep', icon: <BookOpen size={18} /> },
     { id: 'lab', label: 'Laboratorium Virtual', icon: <Atom size={18} /> },
@@ -38,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage, setActivePage, progr
     { id: 'guru', label: 'Akses Guru', icon: <ShieldCheck size={18} /> },
     { id: 'hasil', label: 'Hasil Belajar', icon: <BarChart3 size={18} /> },
   ];
+  const navItems = allNavItems.filter((item) => item.id !== 'guru' || student.role === 'teacher');
 
   const handleNavClick = (page: ActivePage) => {
     setActivePage(page);

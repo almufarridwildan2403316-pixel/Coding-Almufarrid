@@ -105,6 +105,7 @@ export interface StudentIdentity {
   email?: string;
   name: string;
   className: string;
+  role?: 'student' | 'teacher';
 }
 
 export interface WorksheetConclusion {

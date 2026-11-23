@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
@@ -17,7 +18,7 @@ import {
   updateQuizSubmission,
   resetAllProgress 
 } from './utils/storage';
-import { firebaseAuth, isFirebaseConfigured } from './utils/firebase';
+import { firebaseAuth, firestore, isFirebaseConfigured } from './utils/firebase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Beranda } from './components/Beranda';
@@ -50,7 +51,15 @@ export function App() {
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressLoadError, setProgressLoadError] = useState('');
   const [progressSyncError, setProgressSyncError] = useState('');
+  const [roleProfileWarning, setRoleProfileWarning] = useState('');
   const [canSyncProgress, setCanSyncProgress] = useState(false);
+  const isTeacher = student?.role === 'teacher';
+  const renderedPage = activePage === 'guru' && !isTeacher ? 'beranda' : activePage;
+
+  const handleSetActivePage = (page: ActivePage) => {
+    if (page === 'guru' && !isTeacher) return;
+    setActivePage(page);
+  };
 
   useEffect(() => {
     if (!firebaseAuth) return;
@@ -60,7 +69,10 @@ export function App() {
       const accountChanged = authUserId.current !== nextUserId;
       authUserId.current = nextUserId;
 
-      if (accountChanged) setAuthUser(nextUser);
+      if (accountChanged) {
+        setAuthUser(nextUser);
+        setRoleProfileWarning('');
+      }
       setIsAuthLoading(false);
 
       if (accountChanged && nextUser) {
@@ -92,10 +104,21 @@ export function App() {
       email,
       name: authUser.displayName?.trim() || email.split('@')[0] || 'Siswa',
       className: '',
+      role: 'student',
     };
 
-    loadAccountProgress(identity)
-      .then((accountProgress) => {
+    const loadUserData = async () => {
+      try {
+        if (!firestore) throw new Error('Firestore belum dikonfigurasi.');
+        const userSnapshot = await getDoc(doc(firestore, 'users', authUser.uid));
+        if (!active) return;
+        setRoleProfileWarning(
+          userSnapshot.exists()
+            ? ''
+            : `Profil Firestore users/${authUser.uid} belum ada. Jika akun ini perlu akses guru, buat dokumen tersebut dan isi field role dengan string "teacher".`,
+        );
+        identity.role = userSnapshot.data()?.role === 'teacher' ? 'teacher' : 'student';
+        const accountProgress = await loadAccountProgress(identity);
         if (!active) return;
         saveActiveStudent(identity);
         saveStoredProgress(accountProgress, identity);
@@ -103,18 +126,20 @@ export function App() {
         setProgress(accountProgress);
         setCanSyncProgress(true);
         setIsProgressLoading(false);
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!active) return;
         setStudent(identity);
         setProgress(getStoredProgress(identity));
         setProgressLoadError(
           error instanceof Error
-            ? `Progres akun belum dapat dimuat dari Firebase: ${error.message}`
-            : 'Progres akun belum dapat dimuat dari Firebase.',
+            ? `Data akun/progres belum dapat dimuat: ${error.message}`
+            : 'Data akun/progres belum dapat dimuat.',
         );
         setIsProgressLoading(false);
-      });
+      }
+    };
+
+    void loadUserData();
 
     return () => {
       active = false;
@@ -248,15 +273,15 @@ export function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {(progressLoadError || progressSyncError) && (
+      {(roleProfileWarning || progressLoadError || progressSyncError) && (
         <div className="progress-sync-warning" role="alert">
-          {progressLoadError || progressSyncError}
+          {roleProfileWarning || progressLoadError || progressSyncError}
         </div>
       )}
       {/* Top Sticky Navigation */}
       <Navbar 
-        activePage={activePage} 
-        setActivePage={setActivePage} 
+        activePage={renderedPage}
+        setActivePage={handleSetActivePage}
         progress={progress} 
         student={student}
         onLogout={handleLogout}
@@ -264,7 +289,7 @@ export function App() {
 
       {/* Main Content View Switcher */}
       <main style={{ flex: 1 }}>
-        {activePage === 'beranda' && (
+        {renderedPage === 'beranda' && (
           <Beranda 
             setActivePage={setActivePage} 
             progress={progress} 
@@ -272,7 +297,7 @@ export function App() {
           />
         )}
 
-        {activePage === 'materi' && (
+        {renderedPage === 'materi' && (
           <Materi 
             onStartLab={() => {
               setActivePage('lab');
@@ -281,7 +306,7 @@ export function App() {
           />
         )}
 
-        {activePage === 'lab' && (
+        {renderedPage === 'lab' && (
           <LabVirtual 
             initialSampleId={selectedSampleId} 
             progress={progress} 
@@ -293,7 +318,7 @@ export function App() {
           />
         )}
 
-        {activePage === 'lembar-kerja' && (
+        {renderedPage === 'lembar-kerja' && (
           <LembarKerja 
             progress={progress} 
             setActivePage={setActivePage} 
@@ -302,7 +327,7 @@ export function App() {
           />
         )}
 
-        {activePage === 'evaluasi' && (
+        {renderedPage === 'evaluasi' && (
           <Evaluasi 
             onSaveQuizResult={handleSaveQuizResult} 
             savedResult={progress.quizResult} 
@@ -310,14 +335,14 @@ export function App() {
           />
         )}
 
-        {activePage === 'guru' && (
+        {renderedPage === 'guru' && isTeacher && (
           <TeacherDashboard
             progress={progress}
             onSaveReview={handleSaveTeacherReview}
           />
         )}
 
-        {activePage === 'hasil' && (
+        {renderedPage === 'hasil' && (
           <HasilBelajar 
             progress={progress} 
             setActivePage={setActivePage} 
@@ -328,7 +353,8 @@ export function App() {
 
       {/* Modern Footer */}
       <Footer 
-        setActivePage={setActivePage} 
+        setActivePage={handleSetActivePage}
+        isTeacher={isTeacher}
         onResetProgress={handleResetProgress} 
       />
     </div>
