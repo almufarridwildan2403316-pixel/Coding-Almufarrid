@@ -73,6 +73,11 @@ export interface QuizAnswer {
   essayText?: string;
 }
 
+export interface QuizDraft {
+  attemptId: string;
+  answers: Record<number, QuizAnswer>;
+}
+
 export interface QuizQuestion {
   id: number;
   type: QuizQuestionType;

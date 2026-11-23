@@ -1,10 +1,11 @@
-import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
+import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizAnswer, QuizDraft, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { firestore } from './firebase';
 import { getExperimentRecordKey } from './experimentRecords';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
+const QUIZ_DRAFT_STORAGE_KEY = 'kimialab_quiz_draft_v1';
 
 export const DEFAULT_PROGRESS: LearningProgress = {
   student: null,
@@ -17,14 +18,39 @@ export const DEFAULT_PROGRESS: LearningProgress = {
   readMaterials: [],
 };
 
-const getProgressKey = (student: StudentIdentity): string => {
-  if (student.id) return `${STORAGE_KEY}:account:${encodeURIComponent(student.id)}`;
+const getGuestStorageScope = (student: StudentIdentity): string => {
   const normalize = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
-  return `${STORAGE_KEY}:${encodeURIComponent(`${normalize(student.name)}|${normalize(student.className)}`)}`;
+  return encodeURIComponent(`${normalize(student.name)}|${normalize(student.className)}`);
 };
+
+const getStudentStorageScope = (student: StudentIdentity): string =>
+  student.id ? `account:${encodeURIComponent(student.id)}` : `guest:${getGuestStorageScope(student)}`;
+
+const getProgressKey = (student: StudentIdentity): string =>
+  student.id
+    ? `${STORAGE_KEY}:account:${encodeURIComponent(student.id)}`
+    : `${STORAGE_KEY}:${getGuestStorageScope(student)}`;
+
+const getQuizDraftKey = (student: StudentIdentity): string =>
+  `${QUIZ_DRAFT_STORAGE_KEY}:${getStudentStorageScope(student)}`;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isQuizAnswer = (value: unknown): value is QuizAnswer => {
+  if (
+    !isRecord(value)
+    || typeof value.questionId !== 'number'
+    || !Number.isSafeInteger(value.questionId)
+    || value.questionId < 1
+  ) return false;
+  if (value.questionType === 'multiple-choice') {
+    return typeof value.selectedOption === 'number'
+      && Number.isSafeInteger(value.selectedOption)
+      && value.selectedOption >= 0;
+  }
+  return value.questionType === 'essay' && typeof value.essayText === 'string';
+};
 
 const isLearningProgress = (value: unknown): value is LearningProgress => {
   if (!isRecord(value)) return false;
@@ -143,6 +169,48 @@ export const saveStoredProgress = (progress: LearningProgress, student: StudentI
   }
 };
 
+const parseQuizAnswers = (value: unknown): Record<number, QuizAnswer> => {
+  if (!isRecord(value)) throw new Error('Format jawaban draf kuis tidak valid.');
+
+  const answers: Record<number, QuizAnswer> = {};
+  for (const [key, answer] of Object.entries(value)) {
+    const questionId = Number(key);
+    if (!Number.isSafeInteger(questionId) || !isQuizAnswer(answer) || answer.questionId !== questionId) {
+      throw new Error('Isi jawaban draf kuis tidak valid.');
+    }
+    answers[questionId] = answer;
+  }
+  return answers;
+};
+
+export const getQuizDraft = (student: StudentIdentity): QuizDraft | null => {
+  const raw = localStorage.getItem(getQuizDraftKey(student));
+  if (!raw) return null;
+
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed)) throw new Error('Format draf kuis tidak valid.');
+
+  if (typeof parsed.attemptId === 'string' && isRecord(parsed.answers)) {
+    return {
+      attemptId: parsed.attemptId,
+      answers: parseQuizAnswers(parsed.answers),
+    };
+  }
+
+  return {
+    attemptId: `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    answers: parseQuizAnswers(parsed),
+  };
+};
+
+export const saveQuizDraft = (student: StudentIdentity, draft: QuizDraft): void => {
+  localStorage.setItem(getQuizDraftKey(student), JSON.stringify(draft));
+};
+
+export const clearQuizDraft = (student: StudentIdentity): void => {
+  localStorage.removeItem(getQuizDraftKey(student));
+};
+
 export const markSolutionTested = (solutionId: string, student: StudentIdentity): LearningProgress => {
   const current = getStoredProgress(student);
   if (!current.testedSolutions.includes(solutionId)) {
@@ -209,7 +277,9 @@ export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity)
     quizSubmissions: [submission, ...current.quizSubmissions.filter((item) => item.id !== submission.id)],
   };
 
-  saveStoredProgress(updated, student);
+  if (!saveStoredProgress(updated, student)) {
+    throw new Error('Hasil kuis gagal disimpan di perangkat. Periksa ruang penyimpanan browser lalu coba lagi.');
+  }
   return updated;
 };
 
@@ -235,6 +305,7 @@ export const updateQuizSubmission = (submissionId: string, updates: Partial<Quiz
 export const resetAllProgress = (student: StudentIdentity): LearningProgress => {
   try {
     localStorage.removeItem(getProgressKey(student));
+    clearQuizDraft(student);
   } catch (e) {
     console.error('Error clearing storage:', e);
   }

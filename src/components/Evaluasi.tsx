@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { QuizAnswer, QuizQuestion, QuizResult, StudentIdentity } from '../types/chemistry';
 import { Award, RotateCcw, ArrowRight, FileText } from 'lucide-react';
+import { clearQuizDraft, getQuizDraft, saveQuizDraft } from '../utils/storage';
 
 const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
@@ -180,6 +181,42 @@ const buildSubmissionMap = (savedResult: QuizResult | null): Record<number, Quiz
   }, {} as Record<number, QuizAnswer>);
 };
 
+const createQuizAttemptId = (): string =>
+  `submission-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const createInitialQuizState = (savedResult: QuizResult | null, student: StudentIdentity) => {
+  try {
+    const draft = getQuizDraft(student);
+    if (draft) {
+      return {
+        submissionData: draft.answers,
+        attemptId: draft.attemptId,
+        submitted: false,
+        currentScore: 0,
+        draftMessage: 'Percobaan kuis sebelumnya dipulihkan.',
+      };
+    }
+  } catch (error) {
+    return {
+      submissionData: buildSubmissionMap(savedResult),
+      attemptId: savedResult?.id ?? createQuizAttemptId(),
+      submitted: savedResult !== null,
+      currentScore: savedResult?.score ?? 0,
+      draftMessage: error instanceof Error
+        ? `Percobaan kuis tidak dapat dipulihkan: ${error.message}`
+        : 'Percobaan kuis tidak dapat dipulihkan.',
+    };
+  }
+
+  return {
+    submissionData: buildSubmissionMap(savedResult),
+    attemptId: savedResult?.id ?? createQuizAttemptId(),
+    submitted: savedResult !== null,
+    currentScore: savedResult?.score ?? 0,
+    draftMessage: '',
+  };
+};
+
 interface EvaluasiProps {
   onSaveQuizResult: (result: QuizResult) => void;
   savedResult: QuizResult | null;
@@ -187,32 +224,50 @@ interface EvaluasiProps {
 }
 
 export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResult, student }) => {
-  const [submissionData, setSubmissionData] = useState<Record<number, QuizAnswer>>(() => buildSubmissionMap(savedResult));
-  const [submitted, setSubmitted] = useState<boolean>(savedResult !== null);
-  const [currentScore, setCurrentScore] = useState<number>(savedResult ? savedResult.score : 0);
+  const [initialState] = useState(() => createInitialQuizState(savedResult, student));
+  const [submissionData, setSubmissionData] = useState<Record<number, QuizAnswer>>(initialState.submissionData);
+  const [attemptId, setAttemptId] = useState(initialState.attemptId);
+  const [submitted, setSubmitted] = useState(initialState.submitted);
+  const [currentScore, setCurrentScore] = useState(initialState.currentScore);
+  const [draftMessage, setDraftMessage] = useState(initialState.draftMessage);
+  const [submitError, setSubmitError] = useState('');
+
+  const updateDraft = (draft: Record<number, QuizAnswer>) => {
+    setSubmissionData(draft);
+    try {
+      saveQuizDraft(student, { attemptId, answers: draft });
+      setDraftMessage('Draf kuis tersimpan otomatis di perangkat ini.');
+    } catch (error) {
+      setDraftMessage(error instanceof Error
+        ? `Draf kuis gagal disimpan: ${error.message}`
+        : 'Draf kuis gagal disimpan di perangkat ini.');
+    }
+  };
 
   const handleSelectOption = (questionId: number, optionIndex: number) => {
     if (submitted) return;
-    setSubmissionData((prev) => ({
-      ...prev,
+    setSubmitError('');
+    updateDraft({
+      ...submissionData,
       [questionId]: {
         questionId,
         questionType: 'multiple-choice',
         selectedOption: optionIndex,
       },
-    }));
+    });
   };
 
   const handleEssayChange = (questionId: number, value: string) => {
     if (submitted) return;
-    setSubmissionData((prev) => ({
-      ...prev,
+    setSubmitError('');
+    updateDraft({
+      ...submissionData,
       [questionId]: {
         questionId,
         questionType: 'essay',
         essayText: value,
       },
-    }));
+    });
   };
 
   const isQuestionAnswered = (question: QuizQuestion): boolean => {
@@ -253,11 +308,8 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
       };
     });
 
-    setCurrentScore(score);
-    setSubmitted(true);
-
     const result: QuizResult = {
-      id: savedResult?.id ?? `submission-${Date.now()}`,
+      id: attemptId,
       studentName: student.name,
       studentClass: student.className,
       score,
@@ -272,14 +324,44 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
       ),
     };
 
-    onSaveQuizResult(result);
+    try {
+      onSaveQuizResult(result);
+    } catch (error) {
+      setSubmitError(error instanceof Error
+        ? `Jawaban belum berhasil dikirim: ${error.message}`
+        : 'Jawaban belum berhasil dikirim. Silakan coba lagi.');
+      return;
+    }
+
+    setCurrentScore(score);
+    setSubmitted(true);
+    setSubmitError('');
+    try {
+      clearQuizDraft(student);
+      setDraftMessage('');
+    } catch (error) {
+      setDraftMessage(error instanceof Error
+        ? `Hasil tersimpan, tetapi draf lokal belum dapat dihapus: ${error.message}`
+        : 'Hasil tersimpan, tetapi draf lokal belum dapat dihapus.');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRetake = () => {
+    const nextAttemptId = createQuizAttemptId();
+    setAttemptId(nextAttemptId);
+    try {
+      saveQuizDraft(student, { attemptId: nextAttemptId, answers: {} });
+      setDraftMessage('Percobaan baru dimulai dan tersimpan di perangkat ini.');
+    } catch (error) {
+      setDraftMessage(error instanceof Error
+        ? `Percobaan baru gagal disimpan: ${error.message}`
+        : 'Percobaan baru gagal disimpan di perangkat ini.');
+    }
     setSubmissionData({});
     setSubmitted(false);
     setCurrentScore(0);
+    setSubmitError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -311,6 +393,21 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
           <p style={{ color: 'var(--slate-600)', fontSize: '1rem', lineHeight: 1.6 }}>
             Soal pilihan ganda otomatis dinilai. Soal esai akan disimpan dan ditampilkan di dashboard guru untuk penilaian manual.
           </p>
+          {draftMessage && (
+            <p
+              role={draftMessage.includes('gagal') || draftMessage.includes('tidak dapat') ? 'alert' : 'status'}
+              aria-live="polite"
+              style={{
+                color: draftMessage.includes('gagal') || draftMessage.includes('tidak dapat')
+                  ? '#b91c1c'
+                  : 'var(--teal-800)',
+                fontSize: '0.85rem',
+                marginTop: '0.75rem',
+              }}
+            >
+              {draftMessage}
+            </p>
+          )}
         </div>
 
         {submitted && (
@@ -513,6 +610,11 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
 
         {!submitted && (
           <div style={{ textAlign: 'center' }}>
+            {submitError && (
+              <p role="alert" style={{ color: '#b91c1c', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+                {submitError}
+              </p>
+            )}
             <button
               onClick={handleSubmit}
               disabled={answeredCount < QUIZ_QUESTIONS.length}

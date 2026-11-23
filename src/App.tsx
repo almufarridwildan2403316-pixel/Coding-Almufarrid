@@ -408,6 +408,7 @@ export function App() {
 
         {renderedPage === 'evaluasi' && (
           <Evaluasi 
+            key={student.id ?? `${student.name}:${student.className}`}
             onSaveQuizResult={handleSaveQuizResult} 
             savedResult={progress.quizResult} 
             student={student}
