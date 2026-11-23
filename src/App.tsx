@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import type { ActivePage, LearningProgress, ExperimentRecord, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
+import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
   DEFAULT_PROGRESS,
@@ -10,6 +10,7 @@ import {
   loadAccountProgress,
   saveWorksheetRecord, 
   saveWorksheetConclusion,
+  saveHomePromptResponse,
   markSolutionTested, 
   saveQuizResult, 
   saveActiveStudent,
@@ -31,12 +32,60 @@ import { HasilBelajar } from './components/HasilBelajar';
 import { Login } from './components/Login';
 
 const createGuestStudent = (): StudentIdentity => ({ name: 'Tamu', className: '' });
+const createAccountStudent = (user: User): StudentIdentity => {
+  const email = user.email ?? '';
+  return {
+    id: user.uid,
+    email,
+    name: user.displayName?.trim() || email.split('@')[0] || 'Siswa',
+    className: '',
+  };
+};
+
+const mergeProgressChanges = (
+  initial: LearningProgress,
+  remote: LearningProgress,
+  local: LearningProgress,
+): LearningProgress => {
+  const changed = <T,>(before: T, after: T) => JSON.stringify(before) !== JSON.stringify(after);
+  const mergeList = (before: string[], remoteItems: string[], localItems: string[]) => {
+    if (!changed(before, localItems)) return remoteItems;
+    return localItems.length === 0 ? [] : [...new Set([...remoteItems, ...localItems])];
+  };
+  const recordsChanged = changed(initial.worksheetRecords, local.worksheetRecords);
+  const submissionsChanged = changed(initial.quizSubmissions, local.quizSubmissions);
+
+  return {
+    student: local.student,
+    testedSolutions: mergeList(initial.testedSolutions, remote.testedSolutions, local.testedSolutions),
+    worksheetRecords: recordsChanged
+      ? Object.keys(local.worksheetRecords).length === 0
+        ? {}
+        : { ...remote.worksheetRecords, ...local.worksheetRecords }
+      : remote.worksheetRecords,
+    worksheetConclusion: changed(initial.worksheetConclusion, local.worksheetConclusion)
+      ? local.worksheetConclusion
+      : remote.worksheetConclusion,
+    homePromptResponse: changed(initial.homePromptResponse, local.homePromptResponse)
+      ? local.homePromptResponse ?? null
+      : remote.homePromptResponse ?? null,
+    quizResult: changed(initial.quizResult, local.quizResult) ? local.quizResult : remote.quizResult,
+    quizSubmissions: submissionsChanged
+      ? local.quizSubmissions.length === 0
+        ? []
+        : [...new Map([...remote.quizSubmissions, ...local.quizSubmissions].map((item) => [item.id, item])).values()]
+      : remote.quizSubmissions,
+    readMaterials: mergeList(initial.readMaterials, remote.readMaterials, local.readMaterials),
+  };
+};
 
 export function App() {
   const [activePage, setActivePage] = useState<ActivePage>('beranda');
-  const [selectedSampleId, setSelectedSampleId] = useState<string>('S01');
+  const [selectedSampleId, setSelectedSampleId] = useState<string>('K01');
+  const [selectedExperimentId, setSelectedExperimentId] = useState<ExperimentId>('percobaan_1');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const authUserId = useRef<string | null>(null);
+  const progressLoadRef = useRef<{ userId: string; initial: LearningProgress; hasLocalChanges: boolean } | null>(null);
   const [student, setStudent] = useState<StudentIdentity | null>(
     () => isFirebaseConfigured ? null : createGuestStudent(),
   );
@@ -76,11 +125,18 @@ export function App() {
       setIsAuthLoading(false);
 
       if (accountChanged && nextUser) {
+        const identity = createAccountStudent(nextUser);
+        const initialProgress = getStoredProgress(identity);
+        progressLoadRef.current = { userId: nextUser.uid, initial: initialProgress, hasLocalChanges: false };
+        saveActiveStudent(identity);
+        setStudent(identity);
+        setProgress(initialProgress);
         setIsProgressLoading(true);
         setCanSyncProgress(false);
         setProgressLoadError('');
         setProgressSyncError('');
       } else if (accountChanged) {
+        progressLoadRef.current = null;
         setStudent(null);
         setProgress(DEFAULT_PROGRESS);
         setIsProgressLoading(false);
@@ -98,14 +154,7 @@ export function App() {
     if (!authUser) return;
 
     let active = true;
-    const email = authUser.email ?? '';
-    const identity: StudentIdentity = {
-      id: authUser.uid,
-      email,
-      name: authUser.displayName?.trim() || email.split('@')[0] || 'Siswa',
-      className: '',
-      role: 'student',
-    };
+    const identity = createAccountStudent(authUser);
 
     const loadUserData = async () => {
       try {
@@ -118,18 +167,21 @@ export function App() {
             : `Profil Firestore users/${authUser.uid} belum ada. Jika akun ini perlu akses guru, buat dokumen tersebut dan isi field role dengan string "teacher".`,
         );
         identity.role = userSnapshot.data()?.role === 'teacher' ? 'teacher' : 'student';
+        setStudent(identity);
         const accountProgress = await loadAccountProgress(identity);
         if (!active) return;
-        saveActiveStudent(identity);
-        saveStoredProgress(accountProgress, identity);
-        setStudent(identity);
-        setProgress(accountProgress);
+        const pendingLoad = progressLoadRef.current;
+        const resolvedProgress = pendingLoad && pendingLoad.userId === authUser.uid && pendingLoad.hasLocalChanges
+          ? mergeProgressChanges(pendingLoad.initial, accountProgress, getStoredProgress(identity))
+          : accountProgress;
+        progressLoadRef.current = null;
+        saveStoredProgress(resolvedProgress, identity);
+        setProgress(resolvedProgress);
         setCanSyncProgress(true);
         setIsProgressLoading(false);
       } catch (error: unknown) {
         if (!active) return;
-        setStudent(identity);
-        setProgress(getStoredProgress(identity));
+        progressLoadRef.current = null;
         setProgressLoadError(
           error instanceof Error
             ? `Data akun/progres belum dapat dimuat: ${error.message}`
@@ -145,6 +197,11 @@ export function App() {
       active = false;
     };
   }, [authUser]);
+
+  const markProgressChanged = (identity: StudentIdentity) => {
+    const pendingLoad = progressLoadRef.current;
+    if (pendingLoad && pendingLoad.userId === identity.id) pendingLoad.hasLocalChanges = true;
+  };
 
   useEffect(() => {
     if (!authUser || !student || !canSyncProgress) return;
@@ -199,15 +256,20 @@ export function App() {
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
     if (!student) return;
     if (record.sampleType !== 'mystery') {
-      markSolutionTested(record.solutionId, student);
+      markSolutionTested(
+        record.experimentId ? `${record.experimentId}:${record.solutionId}` : record.solutionId,
+        student,
+      );
     }
     const updated = saveWorksheetRecord({ ...record, studentName: student.name, studentClass: student.className }, student);
+    markProgressChanged(student);
     setProgress(updated);
   };
 
   const handleSaveQuizResult = (result: QuizResult) => {
     if (!student) return;
     const updated = saveQuizResult({ ...result, studentName: student.name, studentClass: student.className }, student);
+    markProgressChanged(student);
     setProgress(updated);
   };
 
@@ -219,26 +281,37 @@ export function App() {
       studentClass: student.className,
       submittedAt: new Date().toISOString(),
     }, student);
+    markProgressChanged(student);
+    setProgress(updated);
+  };
+
+  const handleSaveHomePromptResponse = (response: HomePromptResponse) => {
+    if (!student) return;
+    const updated = saveHomePromptResponse(response, student);
+    markProgressChanged(student);
     setProgress(updated);
   };
 
   const handleSaveTeacherReview = (submissionId: string, updates: Partial<QuizSubmission>) => {
     if (!student) return;
     const updated = updateQuizSubmission(submissionId, updates, student);
+    markProgressChanged(student);
     setProgress(updated);
   };
 
   const handleResetProgress = () => {
     if (!student) return;
-    if (window.confirm('Apakah Anda yakin ingin menghapus seluruh riwayat pengujian dan kuis? Progres akan dimulai ulang dari awal.')) {
+    if (window.confirm('Apakah Anda yakin ingin menghapus seluruh progres belajar, termasuk jawaban pemantik? Progres akan dimulai ulang dari awal.')) {
       const reset = resetAllProgress(student);
+      markProgressChanged(student);
       setProgress(reset);
       alert('Progres belajar telah berhasil diatur ulang.');
     }
   };
 
-  const handleOpenLabWithSample = (sampleId: string) => {
+  const handleOpenLabWithSample = (sampleId: string, experimentId: ExperimentId) => {
     setSelectedSampleId(sampleId);
+    setSelectedExperimentId(experimentId);
     setActivePage('lab');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -267,33 +340,37 @@ export function App() {
     );
   }
 
-  if (!student || isProgressLoading) {
+  if (!student) {
     return <main className="auth-loading" role="status">Memuat progres belajar akun…</main>;
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {(roleProfileWarning || progressLoadError || progressSyncError) && (
-        <div className="progress-sync-warning" role="alert">
-          {roleProfileWarning || progressLoadError || progressSyncError}
-        </div>
-      )}
-      {/* Top Sticky Navigation */}
-      <Navbar 
+    <div className="app-shell">
+      <Navbar
         activePage={renderedPage}
         setActivePage={handleSetActivePage}
-        progress={progress} 
+        progress={progress}
         student={student}
         onLogout={handleLogout}
       />
-
-      {/* Main Content View Switcher */}
-      <main style={{ flex: 1 }}>
+      <div className="app-content">
+        {(roleProfileWarning || progressLoadError || progressSyncError) && (
+          <div className="progress-sync-warning" role="alert">
+            {roleProfileWarning || progressLoadError || progressSyncError}
+          </div>
+        )}
+        {isProgressLoading && (
+          <div className="progress-sync-status" role="status" aria-live="polite">
+            Progres akun sedang disinkronkan. Anda tetap dapat menggunakan aplikasi.
+          </div>
+        )}
+        <main className="app-main">
         {renderedPage === 'beranda' && (
-          <Beranda 
-            setActivePage={setActivePage} 
-            progress={progress} 
-            onSelectSample={handleOpenLabWithSample} 
+          <Beranda
+            key={`${student.id ?? `${student.name}:${student.className}`}:${progress.homePromptResponse?.submittedAt ?? 'unsaved'}`}
+            progress={progress}
+            setActivePage={handleSetActivePage}
+            onSaveHomePromptResponse={handleSaveHomePromptResponse}
           />
         )}
 
@@ -309,8 +386,10 @@ export function App() {
         {renderedPage === 'lab' && (
           <LabVirtual 
             initialSampleId={selectedSampleId} 
+            initialExperimentId={selectedExperimentId}
             progress={progress} 
             onSaveRecord={handleSaveExperimentRecord} 
+            setActivePage={setActivePage}
             onOpenWorksheet={() => {
               setActivePage('lembar-kerja');
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -349,14 +428,16 @@ export function App() {
             onResetProgress={handleResetProgress} 
           />
         )}
-      </main>
+        </main>
 
-      {/* Modern Footer */}
-      <Footer 
-        setActivePage={handleSetActivePage}
-        isTeacher={isTeacher}
-        onResetProgress={handleResetProgress} 
-      />
+        {renderedPage !== 'beranda' && (
+          <Footer
+            setActivePage={handleSetActivePage}
+            isTeacher={isTeacher}
+            onResetProgress={handleResetProgress}
+          />
+        )}
+      </div>
     </div>
   );
 }

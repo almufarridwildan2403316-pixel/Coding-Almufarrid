@@ -1,0 +1,13 @@
+.worksheet-formula {
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: .9rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.worksheet-formula sub {
+  font-size: .72em;
+  line-height: 0;
+  vertical-align: sub;
+}

@@ -1,720 +1,563 @@
 import React, { useState } from 'react';
-import type { Solution, SolutionCategory, LampStatus, LearningProgress, ExperimentRecord } from '../types/chemistry';
-import { SOLUTIONS } from '../data/solutionsData';
-import { 
-  FlaskConical, 
-  Power, 
-  RotateCcw, 
-  Save, 
-  CheckCircle2, 
-  Eye, 
+import type {
+  ActivePage,
+  ExperimentId,
+  ExperimentRecord,
+  LearningProgress,
+  SolutionCategory,
+} from '../types/chemistry';
+import { EXPERIMENT_SAMPLES, getExperimentSample, type LabSample } from '../data/larutanData';
+import { getExperimentRecordKey, scoreExperiment1, scoreExperiment2 } from '../utils/experimentRecords';
+import {
+  ArrowRight,
+  CheckCircle2,
   ClipboardList,
-  Sparkles
+  FlaskConical,
+  Power,
+  RotateCcw,
 } from 'lucide-react';
-
-const createMysterySolution = (
-  id: string,
-  name: string,
-  category: SolutionCategory,
-): Solution => {
-  const profiles: Record<SolutionCategory, Pick<Solution, 'categoryLabel' | 'expectedLamp' | 'expectedBubbles' | 'degreeOfIonization' | 'particleModel' | 'equation' | 'ions' | 'explanation'>> = {
-    strong_electrolyte: {
-      categoryLabel: 'Elektrolit Kuat',
-      expectedLamp: 'bright',
-      expectedBubbles: 'visible',
-      degreeOfIonization: 'Ionisasi hampir sempurna',
-      particleModel: 'Model menunjukkan banyak ion positif dan negatif yang dapat bergerak bebas sebagai pembawa muatan.',
-      equation: 'Zat terlarut → ion positif + ion negatif',
-      ions: { positive: 'K⁺', negative: 'A⁻' },
-      explanation: 'Lampu terang dan banyak gelembung menunjukkan banyak ion bergerak bebas di dalam larutan.',
-    },
-    weak_electrolyte: {
-      categoryLabel: 'Elektrolit Lemah',
-      expectedLamp: 'dim',
-      expectedBubbles: 'possible',
-      degreeOfIonization: 'Ionisasi sebagian',
-      particleModel: 'Model menunjukkan sebagian besar partikel tetap sebagai molekul netral dan hanya sedikit yang menjadi ion.',
-      equation: 'Molekul ⇌ ion positif + ion negatif',
-      ions: { positive: 'K⁺', negative: 'A⁻', neutral: 'Molekul' },
-      explanation: 'Lampu redup dan sedikit gelembung menunjukkan hanya sebagian kecil partikel membentuk ion.',
-    },
-    nonelectrolyte: {
-      categoryLabel: 'Non-Elektrolit',
-      expectedLamp: 'off',
-      expectedBubbles: 'not_expected',
-      degreeOfIonization: 'Tidak menghasilkan ion',
-      particleModel: 'Model menunjukkan partikel-partikel netral yang tidak membentuk ion penghantar listrik.',
-      equation: 'Molekul → molekul netral',
-      ions: { positive: '', negative: '', neutral: 'Molekul' },
-      explanation: 'Lampu padam dan tidak ada gelembung menunjukkan larutan tidak menghasilkan ion bebas.',
-    },
-  };
-
-  return {
-    id,
-    name,
-    formula: 'Larutan X (aq)',
-    category,
-    ...profiles[category],
-    liquidColor: 'rgba(20, 184, 166, 0.22)',
-    accentColor: '#0d9488',
-    description: 'Sampel simulasi tanpa identitas zat spesifik.',
-  };
-};
 
 interface LabVirtualProps {
   initialSampleId?: string;
+  initialExperimentId?: ExperimentId;
   progress: LearningProgress;
   onSaveRecord: (record: ExperimentRecord) => void;
   onOpenWorksheet: () => void;
+  setActivePage: (page: ActivePage) => void;
 }
 
+const categoryOptions: { value: SolutionCategory; label: string }[] = [
+  { value: 'strong_electrolyte', label: 'Elektrolit kuat' },
+  { value: 'weak_electrolyte', label: 'Elektrolit lemah' },
+  { value: 'nonelectrolyte', label: 'Nonelektrolit' },
+];
+
+const lampOptions: { value: LabSample['expectedLamp']; label: string }[] = [
+  { value: 'bright', label: 'Terang' },
+  { value: 'dim', label: 'Redup' },
+  { value: 'off', label: 'Mati' },
+];
+
+const bubbleOptions: { value: LabSample['expectedBubbles']; label: string }[] = [
+  { value: 'visible', label: 'Banyak' },
+  { value: 'possible', label: 'Sedikit' },
+  { value: 'not_expected', label: 'Tidak ada' },
+];
+
+const experimentProcedures: Record<ExperimentId, { title: string; steps: string[] }> = {
+  percobaan_1: {
+    title: 'Prosedur Percobaan 1 · Sampel larutan baku',
+    steps: [
+      'Pilih satu sampel baku pada daftar, lalu baca nama, rumus, dan kondisi sampelnya.',
+      'Tekan Saklar OFF hingga berubah menjadi ON. Amati terang, redup, atau matinya lampu serta jumlah gelembung di sekitar elektroda.',
+      'Pada bagian Catat Pengamatan, pilih nyala lampu dan jumlah gelembung yang kamu amati.',
+      'Pilih kesimpulan jenis larutan berdasarkan hasil pengamatan: elektrolit kuat, elektrolit lemah, atau nonelektrolit.',
+      'Tekan Periksa Jawaban. Baca umpan balik dan persamaan reaksinya; hasil dan skor tersimpan otomatis di Lembar Kerja.',
+    ],
+  },
+  percobaan_2: {
+    title: 'Prosedur Percobaan 2 · Larutan sehari-hari',
+    steps: [
+      'Pilih satu sampel larutan sehari-hari, lalu baca komposisi asumsi dan kondisi simulasi yang ditampilkan.',
+      'Pilih prediksi awal jenis larutan sebelum melihat hasil simulasi, lalu tekan Kunci Prediksi. Prediksi yang dikunci tidak dapat diubah.',
+      'Setelah prediksi terkunci, tekan Saklar OFF hingga berubah menjadi ON. Amati nyala lampu dan gelembung di sekitar elektroda.',
+      'Pilih nyala lampu dan jumlah gelembung yang kamu amati pada bagian Catat Pengamatan.',
+      'Tekan Periksa Jawaban. Bandingkan prediksi dan pengamatanmu dengan kategori acuan, lalu pelajari persamaan reaksi serta penjelasannya.',
+      'Skor berdasarkan prediksi, lampu, dan gelembung akan tersimpan otomatis di Lembar Kerja.',
+    ],
+  },
+};
+
+const categoryLabel = (category: SolutionCategory): string =>
+  categoryOptions.find((option) => option.value === category)?.label ?? category;
+
+const lampLabel = (lamp: LabSample['expectedLamp']): string =>
+  lampOptions.find((option) => option.value === lamp)?.label ?? lamp;
+
+const recordFor = (
+  progress: LearningProgress,
+  experimentId: ExperimentId,
+  sampleId: string,
+): ExperimentRecord | undefined =>
+  progress.worksheetRecords[getExperimentRecordKey(experimentId, sampleId)];
+
+const bubblePositions = Array.from({ length: 14 }, (_, index) => ({
+  x: [174, 214, 306, 346][index % 4],
+  y: 420 - Math.floor(index / 4) * 35 - (index % 2) * 8,
+}));
+
 export const LabVirtual: React.FC<LabVirtualProps> = ({
-  initialSampleId = 'S01',
+  initialSampleId = EXPERIMENT_SAMPLES.percobaan_1[0].id,
+  initialExperimentId = 'percobaan_1',
   progress,
   onSaveRecord,
   onOpenWorksheet,
+  setActivePage,
 }) => {
-  const initialRecord = progress.worksheetRecords[initialSampleId];
-  const initialMystery = initialRecord?.sampleType === 'mystery' && initialRecord.conclusion
-    ? createMysterySolution(
-      initialRecord.solutionId,
-      initialRecord.sampleName ?? 'Sampel Misteri',
-      initialRecord.conclusion,
-    )
-    : null;
-  const [selectedSolutionId, setSelectedSolutionId] = useState<string>(initialSampleId);
-  const [sampleMode, setSampleMode] = useState<'prepared' | 'mystery'>(initialMystery ? 'mystery' : 'prepared');
-  const [mysterySolution, setMysterySolution] = useState<Solution | null>(initialMystery);
-  const [mysteryName, setMysteryName] = useState('');
-  const [mysteryIndex, setMysteryIndex] = useState(
-    () => Object.values(progress.worksheetRecords).filter((record) => record.sampleType === 'mystery').length + 1,
-  );
-  const [isSwitchClosed, setIsSwitchClosed] = useState<boolean>(Boolean(initialMystery));
-  const [hasTested, setHasTested] = useState<boolean>(Boolean(initialMystery));
+  const firstSample = getExperimentSample(initialExperimentId, initialSampleId)
+    ?? EXPERIMENT_SAMPLES[initialExperimentId][0];
+  const initialRecord = recordFor(progress, initialExperimentId, firstSample.id);
+  const [experimentId, setExperimentId] = useState<ExperimentId>(initialExperimentId);
+  const [selectedSampleId, setSelectedSampleId] = useState(firstSample.id);
+  const [isSwitchOn, setIsSwitchOn] = useState(false);
+  const [hasTested, setHasTested] = useState(false);
   const [prediction, setPrediction] = useState<SolutionCategory | ''>(initialRecord?.prediction ?? '');
-  const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [predictionLocked, setPredictionLocked] = useState(Boolean(initialRecord?.predictionLocked));
+  const [lampObservation, setLampObservation] = useState<LabSample['expectedLamp'] | ''>(
+    initialRecord?.lampObservation ?? '',
+  );
+  const [bubbleObservation, setBubbleObservation] = useState<LabSample['expectedBubbles'] | ''>(
+    initialRecord?.bubbleObservation ?? '',
+  );
+  const [classification, setClassification] = useState<SolutionCategory | ''>(
+    initialRecord?.conclusion ?? '',
+  );
+  const [score, setScore] = useState(initialRecord?.score ?? null);
+  const [checked, setChecked] = useState(Boolean(initialRecord?.completed));
+  const [validationMessage, setValidationMessage] = useState('');
 
-  const currentSolution: Solution = SOLUTIONS.find((s) => s.id === selectedSolutionId) || SOLUTIONS[0];
-  const activeSolution = mysterySolution ?? currentSolution;
-  const isMystery = sampleMode === 'mystery';
+  const samples = EXPERIMENT_SAMPLES[experimentId];
+  const sample = getExperimentSample(experimentId, selectedSampleId) ?? samples[0];
+  const experiment2 = experimentId === 'percobaan_2';
+  const bubbleCount = !isSwitchOn
+    ? 0
+    : sample.expectedBubbles === 'visible'
+      ? 14
+      : sample.expectedBubbles === 'possible'
+        ? 4
+        : 0;
+  const lampColor = !isSwitchOn
+    ? '#64748b'
+    : sample.expectedLamp === 'bright'
+      ? '#fde047'
+      : sample.expectedLamp === 'dim'
+        ? '#fef08a'
+        : '#cbd5e1';
 
-  const handleSelectSolution = (id: string) => {
-    setSampleMode('prepared');
-    setMysterySolution(null);
-    setSelectedSolutionId(id);
-    setIsSwitchClosed(false);
+  const loadSample = (nextExperiment: ExperimentId, sampleId: string) => {
+    const savedRecord = recordFor(progress, nextExperiment, sampleId);
+    setExperimentId(nextExperiment);
+    setSelectedSampleId(sampleId);
+    setIsSwitchOn(false);
     setHasTested(false);
-    setSavedSuccess(false);
-
-    const existing = progress.worksheetRecords[id];
-    if (existing) {
-      setPrediction(existing.prediction);
-    } else {
-      setPrediction('');
-    }
+    setPrediction(savedRecord?.prediction ?? '');
+    setPredictionLocked(Boolean(savedRecord?.predictionLocked));
+    setLampObservation(savedRecord?.lampObservation ?? '');
+    setBubbleObservation(savedRecord?.bubbleObservation ?? '');
+    setClassification(savedRecord?.conclusion ?? '');
+    setScore(savedRecord?.score ?? null);
+    setChecked(Boolean(savedRecord?.completed));
+    setValidationMessage('');
   };
 
-  const handleCreateMysterySample = () => {
-    const categories: SolutionCategory[] = ['strong_electrolyte', 'weak_electrolyte', 'nonelectrolyte'];
-    const category = categories[Math.floor(Math.random() * categories.length)];
-    const id = `M-${Date.now()}-${mysteryIndex}`;
-    const name = mysteryName.trim() || `Sampel Misteri ${mysteryIndex}`;
-    const solution = createMysterySolution(id, name, category);
+  const handleLockPrediction = () => {
+    if (!experiment2 || !prediction || predictionLocked) return;
 
-    setMysteryIndex((index) => index + 1);
-    setMysterySolution(solution);
-    setSampleMode('mystery');
-    setSelectedSolutionId(id);
-    setIsSwitchClosed(false);
-    setHasTested(false);
-    setSavedSuccess(false);
-    setPrediction('');
-  };
-
-  const handleToggleSwitch = () => {
-    const newState = !isSwitchClosed;
-    if (newState && !prediction) return;
-    setIsSwitchClosed(newState);
-    if (newState) {
-      setHasTested(true);
-    }
-  };
-
-  const handleReset = () => {
-    setIsSwitchClosed(false);
-    setHasTested(false);
-    setSavedSuccess(false);
-  };
-
-  const handleSaveToWorksheet = () => {
-    if (!hasTested) return;
-
-    const record: ExperimentRecord = {
-      solutionId: activeSolution.id,
-      sampleType: isMystery ? 'mystery' : 'prepared',
-      sampleName: isMystery ? activeSolution.name : undefined,
-      sampleFormula: isMystery ? activeSolution.formula : undefined,
+    setPredictionLocked(true);
+    setValidationMessage('');
+    onSaveRecord({
+      solutionId: sample.id,
+      experimentId,
+      sampleType: 'prepared',
+      sampleName: sample.name,
+      sampleFormula: sample.formula,
+      sampleCondition: sample.condition,
       studentName: progress.student?.name ?? '',
       studentClass: progress.student?.className ?? '',
       prediction,
-      lampObservation: activeSolution.expectedLamp,
-      bubbleObservation: activeSolution.expectedBubbles,
-      conclusion: activeSolution.category,
+      predictionLocked: true,
+      lampObservation: '',
+      bubbleObservation: '',
+      conclusion: '',
+      referenceCategory: sample.category,
+      referenceLamp: sample.expectedLamp,
+      referenceBubbles: sample.expectedBubbles,
+      referenceEquation: sample.equation,
+      referenceExplanation: sample.explanation,
+      safetyNote: sample.safetyNote,
+      completed: false,
+    });
+  };
+
+  const handleCheckAnswer = () => {
+    if (!hasTested || (experiment2 && !predictionLocked)) {
+      setValidationMessage(experiment2
+        ? 'Kunci prediksi dan jalankan simulasi sebelum memeriksa jawaban.'
+        : 'Jalankan simulasi sebelum memeriksa jawaban.');
+      return;
+    }
+    if (!lampObservation || !bubbleObservation || (!experiment2 && !classification)) {
+      setValidationMessage('Lengkapi pilihan pengamatan dan kesimpulan yang diminta.');
+      return;
+    }
+
+    const nextScore = experiment2
+      ? scoreExperiment2(sample, { prediction, lamp: lampObservation, bubbles: bubbleObservation })
+      : scoreExperiment1(sample, {
+        lamp: lampObservation,
+        bubbles: bubbleObservation,
+        classification,
+      });
+
+    const record: ExperimentRecord = {
+      solutionId: sample.id,
+      experimentId,
+      sampleType: 'prepared',
+      sampleName: sample.name,
+      sampleFormula: sample.formula,
+      sampleCondition: sample.condition,
+      studentName: progress.student?.name ?? '',
+      studentClass: progress.student?.className ?? '',
+      prediction: experiment2 ? prediction : '',
+      predictionLocked: experiment2 ? predictionLocked : false,
+      lampObservation,
+      bubbleObservation,
+      conclusion: experiment2 ? '' : classification,
+      referenceCategory: sample.category,
+      referenceLamp: sample.expectedLamp,
+      referenceBubbles: sample.expectedBubbles,
+      referenceEquation: sample.equation,
+      referenceExplanation: sample.explanation,
+      safetyNote: sample.safetyNote,
+      score: nextScore,
       completed: true,
       completedAt: new Date().toISOString(),
     };
 
     onSaveRecord(record);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setScore(nextScore);
+    setChecked(true);
+    setValidationMessage('');
   };
 
-  const lampStatus: LampStatus = isSwitchClosed ? activeSolution.expectedLamp : 'off';
-  const hasBubbles: boolean = isSwitchClosed && activeSolution.expectedBubbles !== 'not_expected';
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.72rem 0.8rem',
+    borderRadius: '9px',
+    border: '1px solid var(--slate-300)',
+    background: '#ffffff',
+    color: 'var(--navy-900)',
+    font: 'inherit',
+  };
 
   return (
-    <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
+    <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem' }}>
       <div className="container">
-        
-        {/* Lab Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           <div>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.3rem 0.75rem',
-              borderRadius: '999px',
-              backgroundColor: 'var(--teal-50)',
-              border: '1px solid var(--teal-200)',
-              color: 'var(--teal-800)',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              marginBottom: '0.5rem'
-            }}>
-              <FlaskConical size={15} color="var(--teal-600)" />
-              <span>Laboratorium Virtual Uji Daya Hantar Listrik</span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: 'var(--teal-800)', fontWeight: 700, fontSize: '0.82rem' }}>
+              <FlaskConical size={16} />
+              Laboratorium Virtual
             </div>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.02em' }}>
-              Peralatan Uji Daya Hantar Larutan
+            <h1 style={{ color: 'var(--navy-950)', fontSize: 'clamp(1.7rem, 3vw, 2.25rem)', fontWeight: 800, lineHeight: 1.2, marginTop: '0.4rem' }}>
+              Uji Daya Hantar Listrik Larutan
             </h1>
           </div>
-
-          <button
-            onClick={onOpenWorksheet}
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <ClipboardList size={17} color="var(--teal-700)" />
-            <span>Buka Lembar Kerja Siswa</span>
+          <button onClick={onOpenWorksheet} className="btn btn-secondary">
+            <ClipboardList size={17} />
+            Lembar Kerja
           </button>
         </div>
 
-        {/* Main 3-Column / Grid Layout per PRD Section 7.1 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '300px 1fr 340px',
-          gap: '1.5rem',
-          alignItems: 'start'
-        }} className="lab-layout-grid">
-          
-          {/* PANEL B: Panel Kontrol (Kiri) */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--navy-900)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FlaskConical size={18} color="var(--teal-600)" />
-              <span>1. Pilih Sampel Larutan</span>
-            </h3>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '1.25rem' }} aria-label="Pilih percobaan">
+          {([
+            ['percobaan_1', 'Percobaan 1 · Sampel baku'],
+            ['percobaan_2', 'Percobaan 2 · Larutan sehari-hari'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => loadSample(id, EXPERIMENT_SAMPLES[id][0].id)}
+              className="btn"
+              aria-pressed={experimentId === id}
+              style={{
+                background: experimentId === id ? 'var(--teal-700)' : '#ffffff',
+                color: experimentId === id ? '#ffffff' : 'var(--navy-900)',
+                border: `1px solid ${experimentId === id ? 'var(--teal-700)' : 'var(--slate-300)'}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
-              <button
-                onClick={() => handleSelectSolution(
-                  SOLUTIONS.some((solution) => solution.id === selectedSolutionId) ? selectedSolutionId : SOLUTIONS[0].id,
-                )}
-                className="btn"
-                style={{
-                  backgroundColor: sampleMode === 'prepared' ? 'var(--teal-700)' : 'var(--slate-100)',
-                  color: sampleMode === 'prepared' ? '#ffffff' : 'var(--navy-900)',
-                  fontSize: '0.78rem',
-                  padding: '0.6rem 0.4rem',
-                }}
-              >
-                Sampel Siap Uji
-              </button>
-              <button
-                onClick={() => {
-                  if (mysterySolution) setSampleMode('mystery');
-                  else handleCreateMysterySample();
-                }}
-                className="btn"
-                style={{
-                  backgroundColor: sampleMode === 'mystery' ? 'var(--teal-700)' : 'var(--slate-100)',
-                  color: sampleMode === 'mystery' ? '#ffffff' : 'var(--navy-900)',
-                  fontSize: '0.78rem',
-                  padding: '0.6rem 0.4rem',
-                }}
-              >
-                Sampel Misteri
-              </button>
+        <section
+          aria-labelledby="experiment-procedure-title"
+          style={{
+            marginBottom: '1.25rem',
+            padding: '1rem 1.2rem',
+            border: '1px solid var(--teal-200)',
+            borderLeft: '4px solid var(--teal-600)',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #ffffff, var(--teal-50))',
+          }}
+        >
+          <h2 id="experiment-procedure-title" style={{ color: 'var(--navy-900)', fontSize: '0.98rem', fontWeight: 800 }}>
+            {experimentProcedures[experimentId].title}
+          </h2>
+          <ol style={{
+            display: 'grid',
+            gap: '0.45rem',
+            margin: '0.7rem 0 0',
+            paddingLeft: '1.35rem',
+            color: 'var(--slate-700)',
+            fontSize: '0.82rem',
+            lineHeight: 1.6,
+          }}>
+            {experimentProcedures[experimentId].steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </section>
+
+        <div className="lab-layout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 0.8fr) minmax(390px, 1.45fr) minmax(260px, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
+          <section className="card" style={{ padding: '1.25rem' }}>
+            <h2 style={{ fontSize: '1.05rem', color: 'var(--navy-900)', marginBottom: '0.8rem' }}>1. Pilih sampel</h2>
+            <label htmlFor="sample-select" style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.4rem' }}>
+              {experiment2 ? 'Larutan sehari-hari' : 'Sampel larutan baku'}
+            </label>
+            <select
+              id="sample-select"
+              value={selectedSampleId}
+              onChange={(event) => loadSample(experimentId, event.target.value)}
+              style={selectStyle}
+            >
+              {samples.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name} — {entry.formula}</option>
+              ))}
+            </select>
+
+            <div style={{ marginTop: '1rem', padding: '0.85rem', borderRadius: '10px', background: 'var(--slate-50)', border: '1px solid var(--slate-200)' }}>
+              <div style={{ color: 'var(--slate-500)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Sampel</div>
+              <div style={{ color: 'var(--navy-900)', fontWeight: 800, marginTop: '0.2rem' }}>{sample.name}</div>
+              <div style={{ color: 'var(--text-main)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', fontWeight: 500, lineHeight: 1.5, marginTop: '0.1rem' }}>{sample.formula}</div>
+              <div style={{ color: 'var(--slate-600)', fontSize: '0.8rem', lineHeight: 1.5, marginTop: '0.55rem' }}>{sample.condition}</div>
             </div>
 
-            {sampleMode === 'prepared' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1.5rem' }}>
-                {SOLUTIONS.map((sol) => {
-                  const isSelected = sol.id === selectedSolutionId;
-                  const isTested = progress.testedSolutions.includes(sol.id);
-                  return (
-                    <button
-                      key={sol.id}
-                      onClick={() => handleSelectSolution(sol.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.7rem 0.85rem',
-                        borderRadius: '10px',
-                        backgroundColor: isSelected ? 'var(--teal-50)' : '#ffffff',
-                        border: isSelected ? '2px solid var(--teal-600)' : '1px solid var(--slate-200)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: isSelected ? 'var(--teal-900)' : 'var(--navy-900)' }}>
-                          {sol.name}
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--slate-500)' }}>
-                          {sol.formula}
-                        </div>
-                      </div>
-                      {isTested && (
-                        <span title="Sudah dicatat ke lembar kerja">
-                          <CheckCircle2 size={16} color="var(--teal-600)" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+            {experiment2 ? (
+              <div style={{ borderTop: '1px solid var(--slate-200)', marginTop: '1rem', paddingTop: '1rem' }}>
+                <label htmlFor="prediction-select" style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.4rem' }}>
+                  2. Prediksi sebelum menguji
+                </label>
+                <select
+                  id="prediction-select"
+                  value={prediction}
+                  onChange={(event) => setPrediction(event.target.value as SolutionCategory | '')}
+                  disabled={predictionLocked}
+                  style={selectStyle}
+                >
+                  <option value="">Pilih prediksi</option>
+                  {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleLockPrediction}
+                  disabled={!prediction || predictionLocked}
+                  style={{ width: '100%', marginTop: '0.6rem', opacity: !prediction || predictionLocked ? 0.6 : 1 }}
+                >
+                  {predictionLocked ? <><CheckCircle2 size={16} /> Prediksi terkunci</> : 'Kunci Prediksi'}
+                </button>
+                {predictionLocked && (
+                  <p role="status" style={{ color: 'var(--teal-800)', fontSize: '0.78rem', marginTop: '0.45rem' }}>
+                    Prediksi awal tersimpan dan tidak dapat diubah.
+                  </p>
+                )}
               </div>
             ) : (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="mystery-sample-name" style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-900)', marginBottom: '0.4rem' }}>
-                  Nama sampel (opsional)
-                </label>
-                <input
-                  id="mystery-sample-name"
-                  value={mysteryName}
-                  onChange={(event) => setMysteryName(event.target.value)}
-                  placeholder="Contoh: Sampel A"
-                  maxLength={40}
-                  style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid var(--slate-300)', marginBottom: '0.6rem' }}
-                />
+              <div style={{ marginTop: '1rem', padding: '0.8rem', background: 'var(--teal-50)', borderRadius: '9px', color: 'var(--teal-900)', fontSize: '0.8rem' }}>
+                Setelah simulasi, pilih hasil pengamatan dan kesimpulan jenis larutan.
+              </div>
+            )}
+          </section>
+
+          <section className="card" style={{ padding: '1rem', background: '#0a142f', color: '#ffffff', border: '1px solid rgba(255,255,255,0.12)', boxShadow: 'var(--shadow-xl)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.35rem 0.4rem 0.8rem', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+              <div>
+                <div style={{ color: '#99f6e4', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Simulasi visual · 6 V DC</div>
+                <div style={{ fontWeight: 800, marginTop: '0.15rem' }}>{sample.name}</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
                 <button
-                  onClick={handleCreateMysterySample}
-                  className="btn btn-primary"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.65rem' }}
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    if (!isSwitchOn && experiment2 && !predictionLocked) return;
+                    setIsSwitchOn((current) => !current);
+                    if (!isSwitchOn) setHasTested(true);
+                  }}
+                  disabled={!isSwitchOn && experiment2 && !predictionLocked}
+                  aria-pressed={isSwitchOn}
+                  style={{ background: isSwitchOn ? '#059669' : '#dc2626', color: '#fff', padding: '0.55rem 0.8rem', opacity: !isSwitchOn && experiment2 && !predictionLocked ? 0.55 : 1 }}
                 >
-                  <Sparkles size={16} />
-                  Sampel Misteri Baru
+                  <Power size={16} />
+                  Saklar {isSwitchOn ? 'ON' : 'OFF'}
                 </button>
-                <p style={{ fontSize: '0.75rem', color: 'var(--slate-500)', lineHeight: 1.5, marginTop: '0.6rem' }}>
-                  Karakteristik daya hantar diacak dari tiga kategori. Nama zat dan kategorinya tidak ditampilkan sebelum pengujian.
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => { setIsSwitchOn(false); setHasTested(false); }}
+                  aria-label="Reset simulasi"
+                  title="Reset simulasi"
+                  style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', padding: '0.55rem' }}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', height: 'clamp(390px, 48vw, 520px)', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+              <svg viewBox="0 0 520 520" role="img" aria-label={`Simulasi alat uji larutan ${sample.name}`} style={{ width: '100%', height: '100%', maxWidth: '650px' }}>
+                <defs>
+                  <linearGradient id="beaker-liquid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={sample.accentColor} stopOpacity="0.48" />
+                    <stop offset="100%" stopColor={sample.accentColor} stopOpacity="0.82" />
+                  </linearGradient>
+                  <radialGradient id="bulb-glow">
+                    <stop offset="0%" stopColor={lampColor} stopOpacity={sample.expectedLamp === 'bright' ? 0.75 : 0.35} />
+                    <stop offset="100%" stopColor={lampColor} stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <path d="M75 82 H212 M308 82 H435 V190 H365" fill="none" stroke={isSwitchOn ? '#38bdf8' : '#475569'} strokeWidth="7" strokeLinecap="round" className={isSwitchOn ? 'wire-animated' : ''} />
+                <path d="M75 82 V190 H155 M365 190 V258 M155 190 V258" fill="none" stroke={isSwitchOn ? '#38bdf8' : '#475569'} strokeWidth="7" strokeLinecap="round" className={isSwitchOn ? 'wire-animated' : ''} />
+                <g transform="translate(48 48)">
+                  <rect x="0" y="0" width="56" height="66" rx="8" fill="#1e293b" stroke="#64748b" strokeWidth="3" />
+                  <text x="28" y="39" fill="#e2e8f0" fontSize="16" fontWeight="bold" textAnchor="middle">6 V</text>
+                  <text x="2" y="17" fill="#f87171" fontSize="16" fontWeight="bold">−</text>
+                  <text x="45" y="17" fill="#38bdf8" fontSize="16" fontWeight="bold">+</text>
+                </g>
+                <g transform="translate(260 72)">
+                  {isSwitchOn && sample.expectedLamp !== 'off' && <circle cx="0" cy="6" r={sample.expectedLamp === 'bright' ? 86 : 56} fill="url(#bulb-glow)" className="anim-bulb-glow" />}
+                  <path d="M-26 8 C-26-12-12-27 0-27 C12-27 26-12 26 8 C26 22 17 30 12 35 V48 H-12 V35 C-17 30-26 22-26 8 Z" fill={isSwitchOn ? lampColor : '#94a3b8'} stroke={isSwitchOn && sample.expectedLamp !== 'off' ? '#f59e0b' : '#64748b'} strokeWidth="4" />
+                  <path d="M-9 12 L-5 0 H5 L9 12" fill="none" stroke="#fff" strokeWidth="3" />
+                  <rect x="-13" y="48" width="26" height="10" rx="3" fill="#64748b" />
+                </g>
+                <text x="260" y="153" fill="#cbd5e1" fontSize="16" textAnchor="middle">
+                  {isSwitchOn ? `Lampu ${lampLabel(sample.expectedLamp).toLowerCase()}` : 'Lampu menunggu saklar'}
+                </text>
+                <path d="M130 218 L130 444 Q130 466 152 466 H368 Q390 466 390 444 L390 218" fill="rgba(255,255,255,0.08)" stroke="#cbd5e1" strokeWidth="5" />
+                <path d="M125 218 H395" stroke="#e2e8f0" strokeWidth="7" strokeLinecap="round" />
+                <path d="M136 292 Q260 284 384 292 V443 Q384 460 367 460 H153 Q136 460 136 443 Z" fill="url(#beaker-liquid)" />
+                <path d="M136 292 Q198 299 260 292 Q322 285 384 292" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="3" />
+                <rect x="183" y="238" width="22" height="162" rx="5" fill="#334155" stroke="#64748b" strokeWidth="2" />
+                <rect x="315" y="238" width="22" height="162" rx="5" fill="#334155" stroke="#64748b" strokeWidth="2" />
+                <text x="194" y="207" fill="#e2e8f0" fontSize="14" textAnchor="middle">Katoda (−)</text>
+                <text x="326" y="207" fill="#e2e8f0" fontSize="14" textAnchor="middle">Anoda (+)</text>
+                {bubblePositions.slice(0, bubbleCount).map((position, index) => (
+                  <circle
+                    key={index}
+                    cx={position.x}
+                    cy={position.y}
+                    r={sample.expectedBubbles === 'visible' ? 6 + (index % 3) : 5}
+                    fill="rgba(255,255,255,0.94)"
+                    stroke="rgba(14,116,144,0.7)"
+                    strokeWidth="1.5"
+                    className="anim-bubble"
+                    style={{ animationDelay: `${index * 0.16}s`, animationDuration: `${1.6 + (index % 4) * 0.2}s` }}
+                  />
+                ))}
+                <rect x="164" y="474" width="192" height="28" rx="6" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.22)" />
+                <text x="260" y="493" fill="#99f6e4" fontSize="14" fontWeight="bold" textAnchor="middle">
+                  {sample.formula}
+                </text>
+              </svg>
+            </div>
+            <div style={{ padding: '0.7rem 0.8rem', borderRadius: '9px', background: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.78rem', lineHeight: 1.5 }}>
+              Parameter model: 6 V DC · 10 detik · 100 mL · 25 °C · elektroda inert berjarak 2 cm. Nilai ini hanya asumsi simulasi digital.
+            </div>
+          </section>
+
+          <section className="card" style={{ padding: '1.25rem' }}>
+            <h2 style={{ fontSize: '1.05rem', color: 'var(--navy-900)', marginBottom: '0.8rem' }}>
+              {experiment2 ? '3. Catat pengamatan' : '2. Catat hasil uji'}
+            </h2>
+            {!hasTested && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--slate-500)', lineHeight: 1.5, marginBottom: '0.8rem' }}>
+                {experiment2 && !predictionLocked
+                  ? 'Kunci prediksi terlebih dahulu, lalu nyalakan saklar untuk mengamati simulasi.'
+                  : 'Nyalakan saklar, amati lampu dan gelembung, lalu pilih hasil pengamatan Anda.'}
+              </p>
+            )}
+            <label htmlFor="lamp-observation" style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.35rem' }}>Nyala lampu</label>
+            <select id="lamp-observation" value={lampObservation} onChange={(event) => { setLampObservation(event.target.value as LabSample['expectedLamp'] | ''); setChecked(false); }} disabled={!hasTested} style={{ ...selectStyle, marginBottom: '0.8rem' }}>
+              <option value="">Pilih pengamatan lampu</option>
+              {lampOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <label htmlFor="bubble-observation" style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.35rem' }}>Gelembung</label>
+            <select id="bubble-observation" value={bubbleObservation} onChange={(event) => { setBubbleObservation(event.target.value as LabSample['expectedBubbles'] | ''); setChecked(false); }} disabled={!hasTested} style={{ ...selectStyle, marginBottom: '0.8rem' }}>
+              <option value="">Pilih pengamatan gelembung</option>
+              {bubbleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            {!experiment2 && (
+              <>
+                <label htmlFor="classification-select" style={{ display: 'block', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.35rem' }}>Kesimpulan jenis larutan</label>
+                <select id="classification-select" value={classification} onChange={(event) => { setClassification(event.target.value as SolutionCategory | ''); setChecked(false); }} disabled={!hasTested} style={{ ...selectStyle, marginBottom: '0.8rem' }}>
+                  <option value="">Pilih kesimpulan</option>
+                  {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleCheckAnswer}
+              disabled={!hasTested || (experiment2 && !predictionLocked)}
+              style={{ width: '100%', opacity: !hasTested || (experiment2 && !predictionLocked) ? 0.6 : 1 }}
+            >
+              Periksa Jawaban
+            </button>
+            {validationMessage && <p role="alert" style={{ color: '#b45309', fontSize: '0.78rem', marginTop: '0.6rem' }}>{validationMessage}</p>}
+
+            {checked && score && (
+              <div style={{ marginTop: '1rem', padding: '0.9rem', borderRadius: '10px', background: 'var(--teal-50)', border: '1px solid var(--teal-200)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center', color: 'var(--teal-900)', fontWeight: 800 }}>
+                  <span>Skor percobaan</span>
+                  <span>{score.total}/{score.maximum}</span>
+                </div>
+                {experiment2 && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--slate-700)', marginTop: '0.55rem' }}>
+                    Prediksi awal: {prediction ? categoryLabel(prediction) : 'Belum ada'} — {score.prediction ? 'Benar' : 'Belum tepat'}
+                  </p>
+                )}
+                <p style={{ fontSize: '0.8rem', color: 'var(--slate-700)', marginTop: '0.4rem' }}>
+                  Kategori acuan: <strong>{sample.categoryLabel}</strong>
+                </p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--slate-700)', lineHeight: 1.5, marginTop: '0.4rem' }}>
+                  <strong>Persamaan:</strong> {sample.equation}
+                </p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--slate-700)', lineHeight: 1.5, marginTop: '0.35rem' }}>
+                  {sample.explanation}
+                </p>
+                {sample.safetyNote && (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--slate-600)', lineHeight: 1.45, marginTop: '0.4rem' }}>
+                    Catatan: {sample.safetyNote}
+                  </p>
+                )}
+                <p role="status" style={{ fontSize: '0.73rem', color: 'var(--teal-800)', fontWeight: 700, marginTop: '0.55rem' }}>
+                  <CheckCircle2 size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />
+                  Jawaban tersimpan otomatis di Lembar Kerja.
                 </p>
               </div>
             )}
-
-            {/* Prediksi Siswa */}
-            <div style={{ borderTop: '1px solid var(--slate-200)', paddingTop: '1.25rem' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-900)', marginBottom: '0.5rem' }}>
-                2. Buat Prediksi Anda:
-              </div>
-              <p style={{ fontSize: '0.78rem', color: 'var(--slate-500)', marginBottom: '0.75rem' }}>
-                Sebelum saklar dinyalakan, menurut Anda apa kategori larutan ini?
-              </p>
-              <select
-                value={prediction}
-                onChange={(e) => setPrediction(e.target.value as SolutionCategory | '')}
-                disabled={hasTested}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.75rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--slate-300)',
-                  backgroundColor: '#ffffff',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  color: 'var(--navy-900)',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">-- Pilih Prediksi --</option>
-                <option value="strong_electrolyte">Elektrolit Kuat</option>
-                <option value="weak_electrolyte">Elektrolit Lemah</option>
-                <option value="nonelectrolyte">Non-Elektrolit</option>
-              </select>
-              {!prediction && (
-                <p style={{ fontSize: '0.74rem', color: 'var(--amber-700, #b45309)', marginTop: '0.45rem' }}>
-                  Pilih prediksi sebelum menyalakan saklar.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* PANEL A: Panel Eksperimen Alat Uji (Tengah) */}
-          <div className="card" style={{
-            padding: '1.75rem',
-            backgroundColor: '#0a142f',
-            color: '#ffffff',
-            boxShadow: 'var(--shadow-xl)',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            {/* Top Toolbar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem' }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#99f6e4', fontWeight: 700 }}>
-                  Alat Uji Virtual:
-                </span>
-                <span style={{ marginLeft: '0.5rem', fontWeight: 800, fontSize: '1rem', color: '#ffffff' }}>
-                  {activeSolution.name} ({activeSolution.formula})
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={handleToggleSwitch}
-                  disabled={!isSwitchClosed && !prediction}
-                  className="btn"
-                  style={{
-                    backgroundColor: isSwitchClosed ? '#10b981' : '#ef4444',
-                    color: '#ffffff',
-                    padding: '0.45rem 0.9rem',
-                    fontSize: '0.82rem',
-                    boxShadow: isSwitchClosed ? '0 0 14px rgba(16, 185, 129, 0.5)' : 'none',
-                    opacity: !isSwitchClosed && !prediction ? 0.55 : 1,
-                    cursor: !isSwitchClosed && !prediction ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  <Power size={14} />
-                  <span>{isSwitchClosed ? 'Saklar ON' : 'Saklar OFF'}</span>
-                </button>
-
-                <button
-                  onClick={handleReset}
-                  className="btn"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: '#cbd5e1',
-                    padding: '0.45rem 0.75rem',
-                    fontSize: '0.82rem'
-                  }}
-                  title="Reset simulasi alat"
-                >
-                  <RotateCcw size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* SVG Apparatus */}
-            <div style={{ height: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 460 300" style={{ width: '100%', height: '100%' }}>
-                <defs>
-                  <linearGradient id="labLiquid" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeSolution.accentColor} stopOpacity="0.45" />
-                    <stop offset="100%" stopColor={activeSolution.accentColor} stopOpacity="0.8" />
-                  </linearGradient>
-                  <linearGradient id="beakerGlassFull" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
-                    <stop offset="15%" stopColor="rgba(255,255,255,0.04)" />
-                    <stop offset="85%" stopColor="rgba(255,255,255,0.04)" />
-                    <stop offset="100%" stopColor="rgba(255,255,255,0.25)" />
-                  </linearGradient>
-                </defs>
-
-                {/* Circuit Wires */}
-                <path
-                  d="M 120 50 L 230 50"
-                  stroke={isSwitchClosed && lampStatus !== 'off' ? '#38bdf8' : '#475569'}
-                  strokeWidth="4"
-                  fill="none"
-                  className={isSwitchClosed && lampStatus !== 'off' ? 'wire-animated' : ''}
-                />
-                <path
-                  d="M 230 65 L 230 80 L 195 80 L 195 150"
-                  stroke={isSwitchClosed && lampStatus !== 'off' ? '#38bdf8' : '#475569'}
-                  strokeWidth="4"
-                  fill="none"
-                  className={isSwitchClosed && lampStatus !== 'off' ? 'wire-animated' : ''}
-                />
-                <path
-                  d="M 80 50 L 50 50 L 50 80 L 125 80 L 125 150"
-                  stroke={isSwitchClosed && lampStatus !== 'off' ? '#38bdf8' : '#475569'}
-                  strokeWidth="4"
-                  fill="none"
-                  className={isSwitchClosed && lampStatus !== 'off' ? 'wire-animated' : ''}
-                />
-
-                {/* DC Battery 9V */}
-                <g transform="translate(75, 30)">
-                  <rect x="0" y="0" width="50" height="34" rx="4" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-                  <rect x="4" y="6" width="42" height="22" rx="2" fill="#0f172a" />
-                  <rect x="-4" y="11" width="4" height="12" fill="#ef4444" rx="1" />
-                  <rect x="50" y="11" width="4" height="12" fill="#38bdf8" rx="1" />
-                  <text x="25" y="21" fill="#94a3b8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">9V DC</text>
-                  <text x="-2" y="8" fill="#f87171" fontSize="10" fontWeight="bold">-</text>
-                  <text x="46" y="8" fill="#38bdf8" fontSize="10" fontWeight="bold">+</text>
-                </g>
-
-                {/* Light Bulb */}
-                <g transform="translate(230, 25)">
-                  {lampStatus !== 'off' && (
-                    <circle
-                      cx="0"
-                      cy="20"
-                      r={lampStatus === 'bright' ? '50' : '28'}
-                      fill="#fde047"
-                      opacity={lampStatus === 'bright' ? '0.6' : '0.35'}
-                      className="anim-bulb-glow"
-                    />
-                  )}
-                  {/* Bulb Glass */}
-                  <path
-                    d="M -16 18 C -16 8 -8 0 0 0 C 8 0 16 8 16 18 C 16 23 12 28 9 30 L 9 36 L -9 36 L -9 30 C -12 28 -16 23 -16 18 Z"
-                    fill={lampStatus === 'bright' ? '#fde047' : lampStatus === 'dim' ? '#fef08a' : '#cbd5e1'}
-                    stroke={lampStatus !== 'off' ? '#f59e0b' : '#64748b'}
-                    strokeWidth="2"
-                  />
-                  {/* Filament */}
-                  <path
-                    d="M -5 24 L -3 15 L 3 15 L 5 24"
-                    fill="none"
-                    stroke={lampStatus !== 'off' ? '#ffffff' : '#475569'}
-                    strokeWidth="2"
-                  />
-                  <rect x="-8" y="36" width="16" height="8" fill="#94a3b8" rx="2" />
-                </g>
-
-                {/* Beaker with solution */}
-                <g transform="translate(160, 130)">
-                  {/* Beaker Outline */}
-                  <path
-                    d="M -70 0 L -70 140 Q -70 155 -55 155 L 55 155 Q 70 155 70 140 L 70 0"
-                    fill="url(#beakerGlassFull)"
-                    stroke="#94a3b8"
-                    strokeWidth="3"
-                  />
-                  <path d="M -75 0 L 75 0" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
-
-                  {/* Liquid */}
-                  <path
-                    d="M -67 45 Q 0 40 67 45 L 67 140 Q 67 152 55 152 L -55 152 Q -67 152 -67 140 Z"
-                    fill="url(#labLiquid)"
-                  />
-                  <path d="M -67 45 Q -33 48 0 45 Q 33 42 67 45" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" />
-
-                  {/* Carbon Electrodes */}
-                  {/* Cathode (-) left */}
-                  <rect x="-45" y="10" width="16" height="125" rx="3" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
-                  <text x="-37" y="5" fill="#cbd5e1" fontSize="10" fontWeight="bold" textAnchor="middle">Katoda (-)</text>
-
-                  {/* Anode (+) right */}
-                  <rect x="29" y="10" width="16" height="125" rx="3" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
-                  <text x="37" y="5" fill="#cbd5e1" fontSize="10" fontWeight="bold" textAnchor="middle">Anoda (+)</text>
-
-                  {/* Electrode Bubbles */}
-                  {hasBubbles && (
-                    <g>
-                      <circle cx="-48" cy="75" r="3" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '0s' }} />
-                      <circle cx="-42" cy="95" r="4" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '0.5s' }} />
-                      <circle cx="-47" cy="115" r="2.5" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '1s' }} />
-                      <circle cx="34" cy="80" r="3.5" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '0.3s' }} />
-                      <circle cx="42" cy="100" r="2.5" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '0.7s' }} />
-                      <circle cx="36" cy="120" r="4" fill="rgba(255,255,255,0.8)" className="anim-bubble" style={{ animationDelay: '1.2s' }} />
-                    </g>
-                  )}
-
-                  {/* Microscopic Particle overlay inside Beaker */}
-                  {(!isMystery || hasTested) && activeSolution.category === 'strong_electrolyte' && (
-                    <g>
-                      <g className="anim-particle" style={{ animationDuration: '3.5s' }}>
-                        <circle cx="-20" cy="70" r="9" fill="#0d9488" />
-                        <text x="-20" y="74" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.2s', animationDelay: '0.6s' }}>
-                        <circle cx="10" cy="80" r="10" fill="#8b5cf6" />
-                        <text x="10" y="84" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '3.8s', animationDelay: '1.2s' }}>
-                        <circle cx="-10" cy="115" r="9" fill="#0d9488" />
-                        <text x="-10" y="119" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.5s', animationDelay: '1.8s' }}>
-                        <circle cx="18" cy="125" r="10" fill="#8b5cf6" />
-                        <text x="18" y="129" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
-                      </g>
-                    </g>
-                  )}
-
-                  {(!isMystery || hasTested) && activeSolution.category === 'weak_electrolyte' && (
-                    <g>
-                      <g className="anim-particle" style={{ animationDuration: '4s' }}>
-                        <circle cx="-15" cy="75" r="8" fill="#0d9488" />
-                        <text x="-15" y="78" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{activeSolution.ions.positive}</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.5s', animationDelay: '0.8s' }}>
-                        <circle cx="15" cy="110" r="9" fill="#8b5cf6" />
-                        <text x="15" y="114" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">{activeSolution.ions.negative}</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '5s', animationDelay: '1s' }}>
-                        <rect x="-25" y="95" width="28" height="16" rx="4" fill="#f59e0b" opacity="0.85" />
-                        <text x="-11" y="107" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">Mol</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.7s', animationDelay: '2s' }}>
-                        <rect x="0" y="65" width="28" height="16" rx="4" fill="#f59e0b" opacity="0.85" />
-                        <text x="14" y="77" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">Mol</text>
-                      </g>
-                    </g>
-                  )}
-
-                  {(!isMystery || hasTested) && activeSolution.category === 'nonelectrolyte' && (
-                    <g>
-                      <g className="anim-particle" style={{ animationDuration: '4.2s' }}>
-                        <rect x="-26" y="70" width="34" height="18" rx="4" fill="#64748b" opacity="0.9" />
-                        <text x="-9" y="83" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">Netral</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.8s', animationDelay: '1s' }}>
-                        <rect x="2" y="95" width="34" height="18" rx="4" fill="#64748b" opacity="0.9" />
-                        <text x="19" y="108" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">Netral</text>
-                      </g>
-                      <g className="anim-particle" style={{ animationDuration: '4.4s', animationDelay: '1.8s' }}>
-                        <rect x="-20" y="120" width="34" height="18" rx="4" fill="#64748b" opacity="0.9" />
-                        <text x="-3" y="133" fill="#ffffff" fontSize="9" fontWeight="bold" textAnchor="middle">Netral</text>
-                      </g>
-                    </g>
-                  )}
-
-                  {/* Formula Tag on Beaker */}
-                  <rect x="-50" y="160" width="100" height="22" rx="4" fill="rgba(15, 23, 42, 0.9)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                  <text x="0" y="175" fill="#5eead4" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                    {isMystery && !hasTested ? 'Sampel X' : activeSolution.formula}
-                  </text>
-                </g>
-              </svg>
-            </div>
-
-            {/* Instruction Banner */}
-            <div style={{ textAlign: 'center', fontSize: '0.82rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-              {isSwitchClosed 
-                ? '⚡ Arus listrik mengalir. Amati kondisi lampu dan gelembung di elektroda!' 
-                : '👆 Klik tombol "Saklar ON" untuk mengalirkan arus listrik dari baterai.'}
-            </div>
-          </div>
-
-          {/* PANEL C: Panel Hasil & Catat Pengamatan (Kanan) */}
-          <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--navy-900)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Eye size={18} color="var(--teal-600)" />
-              <span>3. Hasil Pengamatan</span>
-            </h3>
-
-            {/* Observation 1: Lamp */}
-            <div style={{ padding: '0.85rem', borderRadius: '10px', backgroundColor: 'var(--slate-50)', border: '1px solid var(--slate-200)', marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--slate-500)', textTransform: 'uppercase' }}>
-                Kondisi Nyala Lampu
-              </div>
-              <div style={{ fontSize: '1rem', fontWeight: 800, color: isSwitchClosed ? (lampStatus === 'bright' ? '#ca8a04' : lampStatus === 'dim' ? '#d97706' : '#ef4444') : 'var(--slate-400)', marginTop: '0.2rem' }}>
-                {!isSwitchClosed 
-                  ? 'Menunggu saklar dinyalakan...' 
-                  : lampStatus === 'bright' 
-                  ? '💡 Menyala Terang' 
-                  : lampStatus === 'dim' 
-                  ? '🔅 Menyala Redup' 
-                  : '❌ Padam / Tidak Menyala'}
-              </div>
-            </div>
-
-            {/* Observation 2: Bubbles */}
-            <div style={{ padding: '0.85rem', borderRadius: '10px', backgroundColor: 'var(--slate-50)', border: '1px solid var(--slate-200)', marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--slate-500)', textTransform: 'uppercase' }}>
-                Gelembung Gas Elektroda
-              </div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: isSwitchClosed ? (hasBubbles ? 'var(--teal-700)' : 'var(--slate-600)') : 'var(--slate-400)', marginTop: '0.2rem' }}>
-                {!isSwitchClosed 
-                  ? 'Menunggu saklar dinyalakan...' 
-                  : activeSolution.expectedBubbles === 'visible' 
-                  ? '🫧 Banyak Gelembung Gas' 
-                  : activeSolution.expectedBubbles === 'possible' 
-                  ? '🫧 Sedikit / Halus' 
-                  : '❌ Tidak Ada Gelembung'}
-              </div>
-            </div>
-
-            {/* Observation 3: Particle model explanation */}
-            <div style={{ padding: '0.85rem', borderRadius: '10px', backgroundColor: 'var(--teal-50)', border: '1px solid var(--teal-200)', marginBottom: '1.25rem', flex: 1 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--teal-800)', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
-                Model Partikel Mikroskopis:
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--slate-700)', lineHeight: 1.5 }}>
-                {isMystery && !hasTested
-                  ? 'Model partikel akan ditampilkan setelah sampel diuji. Amati lampu dan gelembung untuk membuat kesimpulan.'
-                  : activeSolution.particleModel}
-              </p>
-              {isMystery && hasTested && (
-                <p style={{ fontSize: '0.82rem', color: 'var(--teal-900)', lineHeight: 1.5, fontWeight: 700, marginTop: '0.65rem' }}>
-                  Kesimpulan simulasi: {activeSolution.categoryLabel}
-                </p>
-              )}
-            </div>
-
-            {/* Save to worksheet action */}
-            <div>
-              <button
-                onClick={handleSaveToWorksheet}
-                disabled={!hasTested}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  fontSize: '0.9rem',
-                  opacity: hasTested ? 1 : 0.6,
-                  cursor: hasTested ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                <Save size={16} />
-                <span>Simpan ke Lembar Kerja</span>
-              </button>
-
-              {savedSuccess && (
-                <div style={{
-                  marginTop: '0.65rem',
-                  padding: '0.5rem',
-                  borderRadius: '8px',
-                  backgroundColor: '#ecfdf5',
-                  color: '#065f46',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  border: '1px solid #a7f3d0'
-                }}>
-                  ✓ Berhasil dicatat ke Lembar Kerja!
-                </div>
-              )}
-            </div>
-          </div>
+          </section>
         </div>
 
-      </div>
+        <div style={{ marginTop: '1.25rem', padding: '1rem 1.2rem', borderRadius: '12px', border: '1px solid var(--slate-200)', background: '#fff', color: 'var(--slate-700)', fontSize: '0.82rem', lineHeight: 1.6 }}>
+          <strong>Catatan model:</strong> kuat/lemah elektrolit tidak sama dengan pekat/encer. Lampu dan gelembung adalah indikator kualitatif yang mengikuti dataset. Gelembung menggambarkan gas hasil elektrolisis pada elektroda, bukan akibat ionisasi saja.
+        </div>
 
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1.25rem', padding: '1.2rem 1.5rem', borderRadius: '14px', background: '#fff', border: '1px solid var(--slate-200)' }}>
+          <div>
+            <h2 style={{ color: 'var(--navy-900)', fontSize: '1rem', fontWeight: 800 }}>Lihat semua hasil dan nilai</h2>
+            <p style={{ color: 'var(--slate-600)', fontSize: '0.82rem' }}>Jawaban tersimpan per sampel dan dapat dibuka kembali.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary" onClick={onOpenWorksheet}><ClipboardList size={16} /> Buka Lembar Kerja</button>
+            <button type="button" className="btn btn-primary" onClick={() => setActivePage('evaluasi')}>Ke Evaluasi <ArrowRight size={16} /></button>
+          </div>
+        </div>
+      </div>
       <style>{`
-        @media (max-width: 1024px) {
-          .lab-layout-grid {
-            grid-template-columns: 1fr !important;
-          }
+        @media (max-width: 1100px) {
+          .lab-layout-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

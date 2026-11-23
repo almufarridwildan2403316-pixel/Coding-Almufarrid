@@ -51,14 +51,16 @@ const listStyle: React.CSSProperties = {
 };
 
 const equationStyle: React.CSSProperties = {
-  backgroundColor: 'var(--slate-900)',
-  color: '#ffffff',
+  backgroundColor: 'var(--slate-50)',
+  color: 'var(--text-main)',
   padding: '1rem 1.1rem',
   borderRadius: '10px',
+  border: '1px solid var(--slate-200)',
   textAlign: 'center',
   fontSize: '1rem',
-  fontWeight: 700,
-  fontFamily: 'monospace',
+  fontWeight: 500,
+  fontFamily: 'var(--font-sans)',
+  lineHeight: 1.6,
   margin: '1rem 0',
   overflowX: 'auto',
 };

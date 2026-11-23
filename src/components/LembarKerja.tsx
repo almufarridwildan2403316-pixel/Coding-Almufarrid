@@ -1,14 +1,57 @@
 import React, { useState } from 'react';
-import type { ActivePage, LearningProgress } from '../types/chemistry';
-import { SOLUTIONS } from '../data/solutionsData';
-import { ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
+import type { ActivePage, ExperimentId, ExperimentRecord, LearningProgress, SolutionCategory } from '../types/chemistry';
+import { EXPERIMENT_SAMPLES, type LabSample } from '../data/larutanData';
+import { getExperimentRecordKey } from '../utils/experimentRecords';
+import { ArrowRight, CheckCircle2, ClipboardList, X } from 'lucide-react';
+import './LembarKerja.css';
 
 interface LembarKerjaProps {
   progress: LearningProgress;
   setActivePage: (page: ActivePage) => void;
-  onOpenLabSample: (sampleId: string) => void;
+  onOpenLabSample: (sampleId: string, experimentId: ExperimentId) => void;
   onSaveConclusion: (text: string) => void;
 }
+
+interface WorksheetRow {
+  experimentId: ExperimentId;
+  sample: LabSample;
+  record?: ExperimentRecord;
+}
+
+const categoryLabel = (category?: SolutionCategory | '') => {
+  if (category === 'strong_electrolyte') return 'Elektrolit kuat';
+  if (category === 'weak_electrolyte') return 'Elektrolit lemah';
+  if (category === 'nonelectrolyte') return 'Nonelektrolit';
+  return '—';
+};
+
+const lampLabel = (lamp?: string) => {
+  if (lamp === 'bright') return 'Terang';
+  if (lamp === 'dim') return 'Redup';
+  if (lamp === 'off') return 'Mati';
+  return '—';
+};
+
+const bubbleLabel = (bubbles?: string) => {
+  if (bubbles === 'visible') return 'Banyak';
+  if (bubbles === 'possible') return 'Sedikit';
+  if (bubbles === 'not_expected') return 'Tidak ada';
+  return '—';
+};
+
+const formatFormula = (formula: string) => formula.split(/(\d+)/).map((part, index) => (
+  /^\d+$/.test(part) ? <sub key={index}>{part}</sub> : part
+));
+
+const makeRows = (
+  experimentId: ExperimentId,
+  samples: LabSample[],
+  records: LearningProgress['worksheetRecords'],
+): WorksheetRow[] => samples.map((sample) => ({
+  experimentId,
+  sample,
+  record: records[getExperimentRecordKey(experimentId, sample.id)],
+}));
 
 export const LembarKerja: React.FC<LembarKerjaProps> = ({
   progress,
@@ -16,267 +59,233 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
   onOpenLabSample,
   onSaveConclusion,
 }) => {
-  const [generalConclusion, setGeneralConclusion] = useState<string>(progress.worksheetConclusion?.text ?? '');
-  const [submittedConclusion, setSubmittedConclusion] = useState<boolean>(Boolean(progress.worksheetConclusion));
+  const [generalConclusion, setGeneralConclusion] = useState(progress.worksheetConclusion?.text ?? '');
+  const [submittedConclusion, setSubmittedConclusion] = useState(Boolean(progress.worksheetConclusion));
+  const [selectedRow, setSelectedRow] = useState<WorksheetRow | null>(null);
 
-  const formatCategory = (cat?: string) => {
-    if (cat === 'strong_electrolyte') return 'Elektrolit Kuat';
-    if (cat === 'weak_electrolyte') return 'Elektrolit Lemah';
-    if (cat === 'nonelectrolyte') return 'Non-Elektrolit';
-    return '—';
-  };
+  const experiment1Rows = makeRows('percobaan_1', EXPERIMENT_SAMPLES.percobaan_1, progress.worksheetRecords);
+  const experiment2Rows = makeRows('percobaan_2', EXPERIMENT_SAMPLES.percobaan_2, progress.worksheetRecords);
+  const allRows = [...experiment1Rows, ...experiment2Rows];
+  const completedRows = allRows.filter((row) => row.record?.completed);
+  const unfinishedCount = allRows.length - completedRows.length;
+  const totalScore = completedRows.reduce((total, row) => total + (row.record?.score?.total ?? 0), 0);
+  const maximumScore = allRows.length * 3;
+  const percentage = maximumScore ? Math.round((totalScore / maximumScore) * 100) : 0;
+  const selectedRowCompleted = Boolean(selectedRow?.record?.completed);
 
-  const getLampText = (lamp?: string) => {
-    if (lamp === 'bright') return '💡 Terang';
-    if (lamp === 'dim') return '🔅 Redup';
-    if (lamp === 'off') return '❌ Padam';
-    return 'Belum diuji';
-  };
-
-  const getBubbleText = (bubble?: string) => {
-    if (bubble === 'visible') return '🫧 Banyak';
-    if (bubble === 'possible') return '🫧 Sedikit';
-    if (bubble === 'not_expected') return '❌ Tidak Ada';
-    return 'Belum diuji';
-  };
-
-  const mysteryRecords = Object.values(progress.worksheetRecords).filter((record) => record.sampleType === 'mystery');
-  const totalTested = progress.testedSolutions.length + mysteryRecords.length;
-  const experimentRows = [
-    ...SOLUTIONS.map((sol) => {
-      const record = progress.worksheetRecords[sol.id];
-      return {
-        id: sol.id,
-        name: sol.name,
-        formula: sol.formula,
-        accentColor: sol.accentColor,
-        record,
-        isTested: progress.testedSolutions.includes(sol.id),
-        lamp: record?.lampObservation || sol.expectedLamp,
-        bubbles: record?.bubbleObservation || sol.expectedBubbles,
-        category: record?.conclusion || sol.category,
-        categoryLabel: sol.categoryLabel,
-      };
-    }),
-    ...mysteryRecords.map((record) => ({
-      id: record.solutionId,
-      name: record.sampleName ?? 'Sampel Misteri',
-      formula: record.sampleFormula ?? 'Larutan X (aq)',
-      accentColor: 'var(--teal-700)',
-      record,
-      isTested: record.completed,
-      lamp: record.lampObservation,
-      bubbles: record.bubbleObservation,
-      category: record.conclusion,
-      categoryLabel: formatCategory(record.conclusion),
-    })),
-  ];
+  const renderTable = (rows: WorksheetRow[], experimentId: ExperimentId) => (
+    <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '830px' }}>
+        <thead>
+          <tr style={{ background: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
+            {['No.', 'Sampel', 'Rumus/komposisi', experimentId === 'percobaan_1' ? 'Kesimpulan siswa' : 'Prediksi awal', 'Lampu', 'Gelembung', 'Skor', 'Detail'].map((heading) => (
+              <th key={heading} style={{ padding: '0.75rem', color: 'var(--navy-900)', fontSize: '0.76rem', fontWeight: 800, whiteSpace: 'nowrap' }}>{heading}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => {
+            const record = row.record;
+            const completed = Boolean(record?.completed);
+            return (
+              <tr key={row.sample.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
+                <td style={{ padding: '0.7rem 0.75rem', color: 'var(--slate-500)', fontWeight: 700 }}>{String(index + 1).padStart(2, '0')}</td>
+                <td style={{ padding: '0.7rem 0.75rem', color: 'var(--navy-900)', fontWeight: 700, minWidth: '150px' }}>
+                  {row.sample.name}
+                  {completed && <CheckCircle2 size={14} color="var(--teal-600)" style={{ verticalAlign: 'middle', marginLeft: '0.35rem' }} />}
+                </td>
+                <td className="worksheet-formula" style={{ padding: '0.7rem 0.75rem' }}>{formatFormula(row.sample.formula)}</td>
+                <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem' }}>
+                  {experimentId === 'percobaan_1'
+                    ? categoryLabel(record?.conclusion)
+                    : categoryLabel(record?.prediction)}
+                </td>
+                <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem' }}>{completed ? lampLabel(record?.lampObservation) : '—'}</td>
+                <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem' }}>{completed ? bubbleLabel(record?.bubbleObservation) : '—'}</td>
+                <td style={{ padding: '0.7rem 0.75rem', fontWeight: 800, color: completed ? 'var(--teal-800)' : 'var(--slate-400)', whiteSpace: 'nowrap' }}>
+                  {completed ? `${record?.score?.total ?? 0}/3` : '—'}
+                </td>
+                <td style={{ padding: '0.7rem 0.75rem', whiteSpace: 'nowrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-teal-light"
+                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.74rem', marginRight: '0.35rem' }}
+                    onClick={() => setSelectedRow(row)}
+                  >
+                    Detail
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.74rem' }}
+                    onClick={() => onOpenLabSample(row.sample.id, experimentId)}
+                  >
+                    {completed ? 'Uji ulang' : 'Uji'}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
-    <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
+    <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem' }}>
       <div className="container">
-        
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           <div>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.3rem 0.75rem',
-              borderRadius: '999px',
-              backgroundColor: 'var(--teal-50)',
-              border: '1px solid var(--teal-200)',
-              color: 'var(--teal-800)',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              marginBottom: '0.5rem'
-            }}>
-              <ClipboardList size={15} color="var(--teal-600)" />
-              <span>Lembar Kerja Praktikum Siswa</span>
+            <div style={{ display: 'inline-flex', gap: '0.45rem', alignItems: 'center', color: 'var(--teal-800)', fontSize: '0.82rem', fontWeight: 700 }}>
+              <ClipboardList size={16} /> Lembar Kerja Praktikum
             </div>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.02em' }}>
-              Tabel Pengamatan & Kesimpulan
+            <h1 style={{ color: 'var(--navy-950)', fontSize: 'clamp(1.7rem, 3vw, 2.2rem)', fontWeight: 800, marginTop: '0.35rem' }}>
+              Rekap Pengamatan dan Penilaian
             </h1>
           </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            padding: '0.5rem 1rem',
-            borderRadius: '999px',
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--slate-200)',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            color: 'var(--navy-900)'
-          }}>
-            <span>Status Pengamatan:</span>
-            <strong style={{ color: totalTested >= 6 ? '#10b981' : 'var(--teal-700)' }}>{totalTested} percobaan tercatat</strong>
-          </div>
-        </div>
-
-        {/* Observation Table */}
-        <div className="card" style={{ padding: '1.5rem', marginBottom: '2.5rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '780px' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>No</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Nama Sampel</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Rumus Kimia</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--teal-800)' }}>Prediksi Awal</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Pengamatan Lampu</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Gelembung Gas</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Kesimpulan Akhir</th>
-                <th style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--navy-900)' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody style={{ fontSize: '0.88rem' }}>
-              {experimentRows.map((row, index) => {
-                return (
-                  <tr key={row.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--slate-500)' }}>
-                      {String(index + 1).padStart(2, '0')}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--navy-900)' }}>
-                      {row.name}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: row.accentColor }}>
-                      {row.formula}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', color: row.record?.prediction ? 'var(--navy-800)' : 'var(--slate-400)' }}>
-                      {formatCategory(row.record?.prediction)}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>
-                      {row.isTested ? getLampText(row.lamp) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>
-                      {row.isTested ? getBubbleText(row.bubbles) : <span style={{ color: 'var(--slate-400)' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      {row.isTested ? (
-                        <span className={`badge ${
-                          row.category === 'strong_electrolyte' ? 'badge-strong' :
-                          row.category === 'weak_electrolyte' ? 'badge-weak' : 'badge-none'
-                        }`}>
-                          {row.categoryLabel}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--slate-400)' }}>Belum diuji</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <button
-                        onClick={() => onOpenLabSample(row.id)}
-                        className="btn btn-teal-light"
-                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                      >
-                        {row.isTested ? 'Uji Ulang' : 'Uji Sekarang'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Conclusion Input Card */}
-        <div className="card" style={{ padding: '2rem', marginBottom: '2.5rem' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-900)', marginBottom: '0.5rem' }}>
-            Pertanyaan Analisis & Kesimpulan Praktikum
-          </h3>
-          <p style={{ fontSize: '0.9rem', color: 'var(--slate-600)', marginBottom: '1.5rem' }}>
-            Berdasarkan data pengamatan di atas, jawab pertanyaan analisis berikut untuk menyimpulkan percobaan:
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-900)', marginBottom: '0.5rem' }}>
-              Mengapa terdapat perbedaan kemampuan menghantarkan listrik antara larutan garam (NaCl), asam cuka (CH₃COOH), dan gula (sukrosa)?
-            </label>
-            <textarea
-              rows={4}
-              value={generalConclusion}
-              onChange={(e) => {
-                setGeneralConclusion(e.target.value);
-                setSubmittedConclusion(false);
-              }}
-              placeholder="Tuliskan analisis Anda mengenai hubungan antara ion yang bebas bergerak dengan nyala lampu..."
-              style={{
-                width: '100%',
-                padding: '0.85rem',
-                borderRadius: '8px',
-                border: '1px solid var(--slate-300)',
-                fontSize: '0.9rem',
-                fontFamily: 'inherit',
-                outline: 'none',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <button
-            onClick={() => {
-              onSaveConclusion(generalConclusion.trim());
-              setSubmittedConclusion(true);
-            }}
-            className="btn btn-primary"
-            style={{ padding: '0.7rem 1.4rem', fontSize: '0.9rem' }}
-          >
-            <span>Kirim & Periksa Kesimpulan</span>
+          <button type="button" className="btn btn-primary" onClick={() => setActivePage('lab')}>
+            Buka Laboratorium Virtual <ArrowRight size={16} />
           </button>
+        </header>
 
-          {/* Teacher / Scientific Feedback Box */}
-          {submittedConclusion && (
-            <div style={{
-              marginTop: '1.5rem',
-              padding: '1.25rem 1.5rem',
-              borderRadius: '12px',
-              backgroundColor: 'var(--teal-50)',
-              border: '1px solid var(--teal-200)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--teal-800)', fontWeight: 800, marginBottom: '0.4rem' }}>
-                <CheckCircle2 size={18} color="var(--teal-600)" />
-                <span>Umpan Balik Ilmiah (Kunci Pembahasan):</span>
+        <section aria-label="Ringkasan pengerjaan" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          {[
+            { label: 'Sampel selesai', value: `${completedRows.length}/${allRows.length}` },
+            { label: 'Belum dikerjakan', value: String(unfinishedCount) },
+            { label: 'Total skor', value: `${totalScore}/${maximumScore}` },
+            { label: 'Persentase', value: `${percentage}%` },
+          ].map((item) => (
+            <div key={item.label} className="card" style={{ padding: '1rem 1.1rem' }}>
+              <div style={{ color: 'var(--slate-500)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' }}>{item.label}</div>
+              <div style={{ color: 'var(--navy-900)', fontSize: '1.45rem', fontWeight: 800, marginTop: '0.2rem' }}>{item.value}</div>
+            </div>
+          ))}
+        </section>
+
+        <h2 style={{ color: 'var(--navy-900)', fontSize: '1.2rem', fontWeight: 800, margin: '1.4rem 0 0.75rem' }}>
+          Percobaan 1 · Sampel larutan baku ({experiment1Rows.length})
+        </h2>
+        {renderTable(experiment1Rows, 'percobaan_1')}
+
+        <h2 style={{ color: 'var(--navy-900)', fontSize: '1.2rem', fontWeight: 800, margin: '1.4rem 0 0.75rem' }}>
+          Percobaan 2 · Larutan sehari-hari ({experiment2Rows.length})
+        </h2>
+        {renderTable(experiment2Rows, 'percobaan_2')}
+
+        {selectedRow && (
+          <section className="card" aria-live="polite" style={{ padding: '1.25rem', marginBottom: '1.5rem', borderColor: 'var(--teal-200)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+              <div>
+                <div style={{ color: 'var(--teal-800)', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase' }}>
+                  {selectedRow.experimentId === 'percobaan_1' ? 'Percobaan 1' : 'Percobaan 2'}
+                </div>
+                <h2 style={{ color: 'var(--navy-900)', fontSize: '1.2rem', fontWeight: 800, marginTop: '0.15rem' }}>
+                  {selectedRow.sample.name} <span className="worksheet-formula">{formatFormula(selectedRow.sample.formula)}</span>
+                </h2>
               </div>
-              <p style={{ fontSize: '0.88rem', color: 'var(--slate-700)', lineHeight: 1.6 }}>
-                <strong>Analisis Benar:</strong> Daya hantar listrik terjadi karena <em>ion-ion bermuatan listrik yang dapat bergerak bebas</em> di dalam medium air. Larutan NaCl adalah elektrolit kuat karena 100% terdisosiasi menjadi ion Na⁺ dan Cl⁻ (lampu terang & gelembung banyak). Larutan CH₃COOH adalah elektrolit lemah karena hanya terionisasi sebagian (~1%) sehingga jumlah ion penghantar sedikit (lampu redup). Sedangkan larutan sukrosa adalah non-elektrolit karena molekulnya tidak menghasilkan ion sama sekali (lampu padam).
+              <button type="button" className="btn btn-secondary" aria-label="Tutup detail" onClick={() => setSelectedRow(null)} style={{ padding: '0.45rem' }}><X size={16} /></button>
+            </div>
+            <p style={{ color: 'var(--slate-600)', fontSize: '0.82rem', marginTop: '0.3rem' }}>{selectedRow.sample.condition}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.8rem', marginTop: '1rem' }}>
+              <div style={{ padding: '0.85rem', borderRadius: '9px', background: 'var(--slate-50)' }}>
+                <strong>Prediksi siswa</strong>
+                <p style={{ color: 'var(--slate-700)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  {selectedRow.experimentId === 'percobaan_2'
+                    ? categoryLabel(selectedRow.record?.prediction)
+                    : 'Tidak ada prediksi pada percobaan ini'}
+                  {selectedRow.experimentId === 'percobaan_2' && selectedRow.record?.predictionLocked && ' · Terkunci'}
+                </p>
+              </div>
+              <div style={{ padding: '0.85rem', borderRadius: '9px', background: 'var(--slate-50)' }}>
+                <strong>Hasil pengamatan siswa</strong>
+                <p style={{ color: 'var(--slate-700)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Lampu: {lampLabel(selectedRow.record?.lampObservation)} · Gelembung: {bubbleLabel(selectedRow.record?.bubbleObservation)}
+                </p>
+              </div>
+              <div style={{ padding: '0.85rem', borderRadius: '9px', background: selectedRowCompleted ? 'var(--teal-50)' : 'var(--slate-50)' }}>
+                <strong>Kesimpulan acuan</strong>
+                <p style={{ color: selectedRowCompleted ? 'var(--teal-900)' : 'var(--slate-500)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  {selectedRowCompleted ? selectedRow.sample.categoryLabel : 'Tersedia setelah sampel diuji'}
+                </p>
+              </div>
+            </div>
+            {selectedRow.experimentId === 'percobaan_1' && (
+              <p style={{ color: 'var(--slate-700)', fontSize: '0.85rem', marginTop: '0.8rem' }}>
+                Kesimpulan siswa: <strong>{categoryLabel(selectedRow.record?.conclusion)}</strong>
               </p>
+            )}
+            <div style={{ marginTop: '0.85rem', padding: '0.9rem', borderRadius: '9px', border: '1px solid var(--slate-200)' }}>
+              {selectedRowCompleted ? (
+                <>
+                  <p style={{ color: 'var(--navy-900)', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                    <strong>Persamaan reaksi:</strong> {selectedRow.record?.referenceEquation ?? selectedRow.sample.equation}
+                  </p>
+                  <p style={{ color: 'var(--slate-700)', fontSize: '0.85rem', lineHeight: 1.6, marginTop: '0.35rem' }}>
+                    <strong>Penjelasan:</strong> {selectedRow.record?.referenceExplanation ?? selectedRow.sample.explanation}
+                  </p>
+                </>
+              ) : (
+                <p style={{ color: 'var(--slate-600)', fontSize: '0.82rem' }}>Persamaan dan penjelasan acuan ditampilkan setelah sampel diuji.</p>
+              )}
+              {selectedRowCompleted && selectedRow.sample.safetyNote && (
+                <p style={{ color: 'var(--slate-600)', fontSize: '0.78rem', lineHeight: 1.5, marginTop: '0.35rem' }}>
+                  <strong>Catatan:</strong> {selectedRow.record?.safetyNote ?? selectedRow.sample.safetyNote}
+                </p>
+              )}
+            </div>
+            <p style={{ color: 'var(--teal-900)', fontWeight: 800, fontSize: '0.9rem', marginTop: '0.85rem' }}>
+              Skor: {selectedRowCompleted ? `${selectedRow.record?.score?.total ?? 0}/${selectedRow.record?.score?.maximum ?? 3}` : 'Belum dinilai'}
+              {selectedRow.record?.score && (
+                <span style={{ color: 'var(--slate-600)', fontWeight: 500 }}>
+                  {' '}· Lampu {selectedRow.record.score.lamp}, gelembung {selectedRow.record.score.bubbles}
+                  {selectedRow.experimentId === 'percobaan_1'
+                    ? `, kesimpulan ${selectedRow.record.score.classification ?? 0}`
+                    : `, prediksi ${selectedRow.record.score.prediction ?? 0}`}
+                </span>
+              )}
+            </p>
+          </section>
+        )}
+
+        <section className="card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+          <h2 style={{ color: 'var(--navy-900)', fontSize: '1.15rem', fontWeight: 800 }}>Analisis dan kesimpulan umum</h2>
+          <p style={{ color: 'var(--slate-600)', fontSize: '0.85rem', margin: '0.35rem 0 0.8rem' }}>
+            Bagian ini tidak menambah skor sampel. Gunakan hasil pengamatan untuk menjelaskan hubungan ion bergerak dengan daya hantar listrik.
+          </p>
+          <label htmlFor="general-conclusion" style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+            Mengapa larutan garam, cuka, dan gula memiliki daya hantar listrik yang berbeda?
+          </label>
+          <textarea
+            id="general-conclusion"
+            rows={4}
+            value={generalConclusion}
+            onChange={(event) => { setGeneralConclusion(event.target.value); setSubmittedConclusion(false); }}
+            placeholder="Jelaskan berdasarkan ion-ion yang dapat bergerak bebas di dalam larutan."
+            style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--slate-300)', font: 'inherit', resize: 'vertical' }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: '0.7rem' }}
+            onClick={() => { onSaveConclusion(generalConclusion.trim()); setSubmittedConclusion(true); }}
+            disabled={!generalConclusion.trim()}
+          >
+            Simpan kesimpulan
+          </button>
+          {submittedConclusion && (
+            <div role="status" style={{ marginTop: '0.8rem', padding: '0.85rem', borderRadius: '9px', background: 'var(--teal-50)', color: 'var(--teal-900)', fontSize: '0.85rem', lineHeight: 1.6 }}>
+              Daya hantar terjadi karena ion bermuatan dapat bergerak di dalam larutan. Elektrolit kuat menghasilkan banyak ion, elektrolit lemah hanya sebagian terionisasi, sedangkan nonelektrolit larut sebagai molekul netral. Nyala lampu dan gelembung pada simulasi merupakan indikator kualitatif.
             </div>
           )}
-        </div>
+        </section>
 
-        {/* CTA to Quiz */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: '#ffffff',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--slate-200)',
-          padding: '1.5rem 2rem',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1.25rem', padding: '1.25rem 1.5rem', borderRadius: '14px', background: '#fff', border: '1px solid var(--slate-200)' }}>
           <div>
-            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--navy-900)' }}>
-              Siap Menguji Penguasaan Konsep?
-            </h4>
-            <p style={{ fontSize: '0.9rem', color: 'var(--slate-600)' }}>
-              Kerjakan Evaluasi & Kuis (10 soal) untuk mendapatkan skor dan sertifikat kelulusan praktikum.
-            </p>
+            <h2 style={{ color: 'var(--navy-900)', fontSize: '1rem', fontWeight: 800 }}>Siap menguji pemahaman?</h2>
+            <p style={{ color: 'var(--slate-600)', fontSize: '0.82rem' }}>Lanjutkan ke evaluasi setelah menyelesaikan pengamatan.</p>
           </div>
-          <button
-            onClick={() => setActivePage('evaluasi')}
-            className="btn btn-primary"
-            style={{ padding: '0.75rem 1.4rem' }}
-          >
-            <span>Buka Kuis Evaluasi</span>
-            <ArrowRight size={17} />
-          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setActivePage('evaluasi')}>Buka Evaluasi <ArrowRight size={16} /></button>
         </div>
-
       </div>
     </div>
   );

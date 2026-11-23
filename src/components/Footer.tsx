@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ActivePage } from '../types/chemistry';
+import { EXPERIMENT_SAMPLES } from '../data/larutanData';
 import { FlaskConical, RotateCcw, ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
@@ -93,18 +94,17 @@ export const Footer: React.FC<FooterProps> = ({ setActivePage, isTeacher, onRese
             </ul>
           </div>
 
-          {/* 6 Larutan Standar */}
+          {/* Dataset overview */}
           <div>
             <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc', marginBottom: '1.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              6 Sampel Eksperimen
+              {EXPERIMENT_SAMPLES.percobaan_1.length + EXPERIMENT_SAMPLES.percobaan_2.length} Sampel Virtual
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.82rem' }}>
-              <div style={{ color: 'var(--slate-300)' }}>• NaCl(aq) (Garam)</div>
-              <div style={{ color: 'var(--slate-300)' }}>• HCl(aq) (Asam Klorida)</div>
-              <div style={{ color: 'var(--slate-300)' }}>• CH₃COOH(aq) (Cuka)</div>
-              <div style={{ color: 'var(--slate-300)' }}>• NH₃(aq) (Amonia)</div>
-              <div style={{ color: 'var(--slate-300)' }}>• Sukrosa (Gula)</div>
-              <div style={{ color: 'var(--slate-300)' }}>• Etanol (Alkohol)</div>
+            <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.82rem' }}>
+              <div style={{ color: 'var(--slate-300)' }}>• {EXPERIMENT_SAMPLES.percobaan_1.length} sampel larutan baku</div>
+              <div style={{ color: 'var(--slate-300)' }}>• {EXPERIMENT_SAMPLES.percobaan_2.length} larutan sehari-hari</div>
+              <div style={{ color: 'var(--slate-400)', lineHeight: 1.5, marginTop: '0.25rem' }}>
+                {EXPERIMENT_SAMPLES.percobaan_2.slice(0, 3).map((sample) => sample.name).join(' · ')} dan lainnya
+              </div>
             </div>
             
             <div style={{ marginTop: '1.5rem' }}>

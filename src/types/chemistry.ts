@@ -5,6 +5,16 @@ export type SolutionCategory =
 
 export type LampStatus = 'bright' | 'dim' | 'off';
 export type BubbleStatus = 'visible' | 'possible' | 'not_expected';
+export type ExperimentId = 'percobaan_1' | 'percobaan_2';
+
+export interface SampleScore {
+  prediction?: number;
+  lamp: number;
+  bubbles: number;
+  classification?: number;
+  total: number;
+  maximum: 3;
+}
 
 export interface Solution {
   id: string; // S01 - S06
@@ -30,15 +40,25 @@ export interface Solution {
 
 export interface ExperimentRecord {
   solutionId: string;
+  experimentId?: ExperimentId;
   sampleType?: 'prepared' | 'mystery';
   sampleName?: string;
   sampleFormula?: string;
+  sampleCondition?: string;
+  referenceCategory?: SolutionCategory;
+  referenceLamp?: LampStatus;
+  referenceBubbles?: BubbleStatus;
+  referenceEquation?: string;
+  referenceExplanation?: string;
+  safetyNote?: string;
   studentName: string;
   studentClass: string;
   prediction: SolutionCategory | '';
+  predictionLocked?: boolean;
   lampObservation: LampStatus | '';
   bubbleObservation: BubbleStatus | '';
   conclusion: SolutionCategory | '';
+  score?: SampleScore;
   notes?: string;
   completed: boolean;
   completedAt?: string;
@@ -90,11 +110,17 @@ export interface QuizSubmission {
   teacherNotes?: string;
 }
 
+export interface HomePromptResponse {
+  text: string;
+  submittedAt: string;
+}
+
 export interface LearningProgress {
   student: StudentIdentity | null;
   testedSolutions: string[]; // List of solution IDs tested in simulation
   worksheetRecords: Record<string, ExperimentRecord>;
   worksheetConclusion: WorksheetConclusion | null;
+  homePromptResponse?: HomePromptResponse | null;
   quizResult: QuizResult | null;
   quizSubmissions: QuizSubmission[];
   readMaterials: string[]; // IDs of materials read
