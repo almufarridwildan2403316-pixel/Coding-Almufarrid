@@ -230,6 +230,44 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
     setValidationMessage('');
   };
 
+  const handleReset = () => {
+    if (recordFor(progress, experimentId, sample.id)) {
+      onSaveRecord({
+        solutionId: sample.id,
+        experimentId,
+        sampleType: 'prepared',
+        sampleName: sample.name,
+        sampleFormula: sample.formula,
+        sampleCondition: sample.condition,
+        studentName: progress.student?.name ?? '',
+        studentClass: progress.student?.className ?? '',
+        prediction: '',
+        predictionLocked: false,
+        lampObservation: '',
+        bubbleObservation: '',
+        conclusion: '',
+        referenceCategory: sample.category,
+        referenceLamp: sample.expectedLamp,
+        referenceBubbles: sample.expectedBubbles,
+        referenceEquation: sample.equation,
+        referenceExplanation: sample.explanation,
+        safetyNote: sample.safetyNote,
+        completed: false,
+      });
+    }
+
+    setIsSwitchOn(false);
+    setHasTested(false);
+    setPrediction('');
+    setPredictionLocked(false);
+    setLampObservation('');
+    setBubbleObservation('');
+    setClassification('');
+    setScore(null);
+    setChecked(false);
+    setValidationMessage('');
+  };
+
   const selectStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.72rem 0.8rem',
@@ -394,7 +432,7 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => { setIsSwitchOn(false); setHasTested(false); }}
+                  onClick={handleReset}
                   aria-label="Reset simulasi"
                   title="Reset simulasi"
                   style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', padding: '0.55rem' }}
