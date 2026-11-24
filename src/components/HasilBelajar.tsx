@@ -97,7 +97,7 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
               <tr key={sample.id} style={{ borderBottom: '1px solid var(--slate-100)' }}>
                 <td style={{ padding: '0.7rem 0.75rem', minWidth: '210px' }}>
                   <div style={{ color: 'var(--navy-900)', fontWeight: 700 }}>{sample.name}</div>
-                  <div style={{ color: sample.accentColor, fontFamily: 'var(--font-sans)', fontSize: '0.9rem', fontWeight: 500, lineHeight: 1.5, marginTop: '0.1rem' }}>
+                  <div style={{ color: 'var(--text-main)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', fontWeight: 500, lineHeight: 1.5, marginTop: '0.1rem' }}>
                     {formatFormula(sample.formula)}
                   </div>
                 </td>
