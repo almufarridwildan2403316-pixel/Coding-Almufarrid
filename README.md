@@ -1,55 +1,67 @@
-# React + TypeScript + Vite
+# KimiaLab — Laboratorium Virtual Elektrolit
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+KimiaLab adalah media pembelajaran kimia berbahasa Indonesia untuk siswa SMA kelas X. Aplikasi membantu siswa mempelajari larutan elektrolit dan nonelektrolit melalui materi konsep, laboratorium virtual, lembar kerja, dan evaluasi.
 
-Currently, two official plugins are available:
+## Tujuan dan sasaran pengguna
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+KimiaLab mengajak siswa membuat prediksi, mengamati model nyala lampu dan gelembung, mencatat bukti, lalu menghubungkan hasil dengan ion atau molekul dalam larutan. Guru dapat meninjau kiriman evaluasi dan memberi nilai/catatan esai melalui Akses Guru.
 
-## React Compiler
+Hasil laboratorium adalah **simulasi kualitatif**, bukan pengukuran eksperimen nyata. Gelembung merupakan bagian dari model visual dan tidak dihitung sebagai hasil elektrolisis kuantitatif.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Status produk saat ini
 
-## Expanding the Oxlint configuration
+- Navigasi state-based mencakup Beranda, Materi Konsep, Laboratorium Virtual, Lembar Kerja, Evaluasi, Akses Guru, dan Hasil Belajar.
+- Laboratorium memiliki Percobaan 1 (sampel baku) dan Percobaan 2 (larutan sehari-hari). Dataset memuat 30 sampel dan 10 sampel; prediksi Percobaan 2 dikunci sebelum saklar dapat dinyalakan.
+- Evaluasi berisi 10 soal pilihan ganda dan 2 esai. Nilai otomatis adalah 10 × 10 poin untuk PG; esai memerlukan penilaian manual.
+- Tamu menyimpan progres di browser. Akun Firebase dapat menggunakan Google atau email/kata sandi dan sinkronisasi Cloud Firestore bila dikonfigurasi.
+- Catatan audit AD10-01 s.d. AD10-07 dicantumkan sebagai terbuka sesuai status audit yang diminta. Sebagian alur pada sumber saat ini tampak memiliki penanganan terkait; semua temuan harus diuji ulang sebelum statusnya ditutup atau dinyatakan masih terjadi.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Menjalankan secara lokal
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+Persyaratan: Node.js/npm yang kompatibel dengan versi Vite di project dan koneksi internet untuk mengambil dependency.
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Isi konfigurasi Firebase pada `.env.local` bila ingin menguji autentikasi dan sinkronisasi. Tanpa konfigurasi Firebase, aplikasi dapat digunakan sebagai tamu. Jangan menaruh service-account key, kredensial admin, atau token privat di frontend maupun repo.
 
-## Konfigurasi Firebase
+Server Vite biasanya menampilkan alamat lokal, umumnya `http://localhost:5173`; gunakan alamat yang benar-benar dicetak oleh perintah dev.
 
-Login email/kata sandi, Google, pemulihan kata sandi, dan sinkronisasi progres menggunakan Firebase Authentication dan Cloud Firestore:
+## Build dan preview
 
-1. Buat proyek Firebase dan daftarkan aplikasi web. Salin konfigurasi aplikasi ke `.env.local` berdasarkan nama variabel pada `.env.example`. Nilai konfigurasi web Firebase digunakan di frontend; jangan menaruh service-account key di aplikasi.
-2. Pada Firebase Console → Authentication → Sign-in method, aktifkan **Email/Password** dan **Google**.
-3. Pada Authentication → Settings → Authorized domains, pastikan domain aplikasi dan `localhost` tersedia. Template email reset kata sandi diatur dari Authentication → Templates.
-4. Buat database Cloud Firestore. Terapkan aturan dari `firebase/firestore.rules` melalui Firebase Console → Firestore Database → Rules.
-5. Untuk pengembangan lokal, gunakan `http://localhost:5173`, lalu jalankan `npm run dev`.
+```powershell
+npm run build
+npm run preview
+```
 
-Progres disimpan lokal sebagai cache dan disinkronkan ke dokumen `studentProgress/{uid}`. Aturan Firestore membatasi akses dokumen hanya kepada pemilik akun. Jika sinkronisasi gagal, aplikasi menampilkan peringatan dan tetap mempertahankan cache lokal.
+`npm run build` menjalankan pemeriksaan TypeScript (`tsc -b`) lalu membangun aset produksi ke folder `dist/`. `npm run preview` menyajikan hasil build secara lokal. Hasil uji aktual harus dicatat terpisah di [`TESTING.md`](./TESTING.md).
 
-### Memberikan akses guru
+## Variabel lingkungan Firebase
 
-Akun yang dibuat di Firebase Authentication otomatis memiliki peran siswa. Untuk memberikan akses guru, lakukan langkah berikut untuk **setiap akun** yang menjadi guru:
+Variabel yang dibaca aplikasi (nama saja; nilai disediakan oleh pengelola Firebase):
 
-1. Buka Firebase Console → Authentication → Users, lalu salin UID akun.
-2. Buka Firestore Database dan buat dokumen pada koleksi `users` dengan Document ID persis UID tersebut.
-3. Tambahkan field `role` bertipe **string** dengan nilai `teacher` (huruf kecil).
-4. Keluar lalu masuk kembali dengan akun tersebut.
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
 
-Menu **Akses Guru** hanya ditampilkan jika dokumen `users/{uid}` dapat dibaca dan nilai `role` tepat `teacher`. Dua akun guru memerlukan dua dokumen terpisah. Jangan memberikan peran guru hanya berdasarkan email di sisi aplikasi; tetapkan dari Firebase Console agar pengguna tidak dapat menaikkan perannya sendiri. Aturan pada `firebase/firestore.rules` mengizinkan akun membaca dokumen profilnya sendiri, tetapi tidak mengizinkan pengguna mengubah peran.
+Firebase Auth mendukung Email/Password dan Google jika provider diaktifkan di Firebase Console. Firestore Rules yang digunakan berada di `firebase/firestore.rules`. Progres akun disimpan pada `studentProgress/{uid}` dan akun guru memerlukan dokumen `users/{uid}` dengan field `role` bernilai `teacher`. Menu aplikasi saja bukan pengganti pengamanan Rules server.
+
+## Deploy hosting SPA
+
+Navigasi internal memakai state React, bukan URL router. Hosting harus mengarahkan request halaman aplikasi kembali ke `index.html` agar SPA dapat dimuat pada akses langsung. Untuk Vercel, atur rewrite semua path aplikasi ke `/`; untuk Netlify, aturan yang umum adalah `/* /index.html 200`. Pastikan konfigurasi ini dan akses URL produksi benar-benar diuji sebelum rilis.
+
+## Keterbatasan yang masih terbuka
+
+- Data uji, reset, kuis, localStorage quota, akses Rules, dan skenario jaringan perlu dibuktikan di browser/lingkungan yang dicatat; jangan menganggap dokumentasi ini sebagai laporan PASS.
+- Menurut audit yang menjadi acuan, AD10-01 sampai AD10-07 berstatus terbuka/belum diperbaiki. Rincian dan catatan perbedaan terhadap kode workspace ada di [`docs/BACKLOG.md`](./docs/BACKLOG.md).
+- Kegagalan sinkronisasi menampilkan peringatan, tetapi rekonsiliasi perubahan pending lintas sesi tetap menjadi perhatian audit.
+- Katalog menyimpan kondisi sampel berbeda-beda; tidak semua sampel berada pada 0.050 mol/L. Lampu/gelembung hanya indikator kualitatif.
+- Video Beranda bergantung pada YouTube dan memiliki tautan langsung ke YouTube; belum ada file video lokal fallback.
+
+Untuk pemetaan komponen, penyimpanan, dan alur, lihat [`docs/DESAIN_TEKNIS.md`](./docs/DESAIN_TEKNIS.md) dan [`docs/USER_FLOW.md`](./docs/USER_FLOW.md).

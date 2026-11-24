@@ -1,0 +1,63 @@
+# Templat Log Penggunaan AI dan Bantuan
+
+Salin satu blok untuk setiap catatan pertemuan/anggota. Isi berdasarkan riwayat kerja yang benar-benar terjadi; jangan mengarang prompt, skill, file, pengujian, atau kontribusi.
+
+## Pertemuan [Nomor] — [Nama Anggota 1]
+
+- **Tanggal:** [ISI MANUAL OLEH TIM]
+- **Tugas/Issue:** [ISI MANUAL OLEH TIM]
+- **Branch / commit / PR / review:** [ISI MANUAL OLEH TIM]
+- **Agent / sumber bantuan yang digunakan:** [ISI MANUAL OLEH TIM]
+- **Skill yang digunakan dan path `SKILL.md` yang dibaca:** [ISI MANUAL OLEH TIM / tulis “Tidak ada” jika memang tidak digunakan]
+- **Ringkasan prompt/instruksi:** [ISI MANUAL OLEH TIM]
+- **Berkas yang berubah:** [ISI MANUAL OLEH TIM]
+- **Penjelasan agent yang diperiksa:** [ISI MANUAL OLEH TIM]
+- **Pemeriksaan konten kimia dan sumber rujukan:** [ISI MANUAL OLEH TIM]
+- **Langkah uji dan hasil aktual di browser:** [ISI MANUAL OLEH TIM]
+- **Jalur Git yang dipakai (branch, commit, PR, review/merge):** [ISI MANUAL OLEH TIM]
+- **Koreksi atau keputusan manusia:** [ISI MANUAL OLEH TIM]
+
+## Pertemuan [Nomor] — [Nama Anggota 2]
+
+- **Tanggal:** [ISI MANUAL OLEH TIM]
+- **Tugas/Issue:** [ISI MANUAL OLEH TIM]
+- **Branch / commit / PR / review:** [ISI MANUAL OLEH TIM]
+- **Agent / sumber bantuan yang digunakan:** [ISI MANUAL OLEH TIM]
+- **Skill yang digunakan dan path `SKILL.md` yang dibaca:** [ISI MANUAL OLEH TIM / tulis “Tidak ada” jika memang tidak digunakan]
+- **Ringkasan prompt/instruksi:** [ISI MANUAL OLEH TIM]
+- **Berkas yang berubah:** [ISI MANUAL OLEH TIM]
+- **Penjelasan agent yang diperiksa:** [ISI MANUAL OLEH TIM]
+- **Pemeriksaan konten kimia dan sumber rujukan:** [ISI MANUAL OLEH TIM]
+- **Langkah uji dan hasil aktual di browser:** [ISI MANUAL OLEH TIM]
+- **Jalur Git yang dipakai (branch, commit, PR, review/merge):** [ISI MANUAL OLEH TIM]
+- **Koreksi atau keputusan manusia:** [ISI MANUAL OLEH TIM]
+
+## Pertemuan [Nomor] — [Nama Anggota 3]
+
+- **Tanggal:** [ISI MANUAL OLEH TIM]
+- **Tugas/Issue:** [ISI MANUAL OLEH TIM]
+- **Branch / commit / PR / review:** [ISI MANUAL OLEH TIM]
+- **Agent / sumber bantuan yang digunakan:** [ISI MANUAL OLEH TIM]
+- **Skill yang digunakan dan path `SKILL.md` yang dibaca:** [ISI MANUAL OLEH TIM / tulis “Tidak ada” jika memang tidak digunakan]
+- **Ringkasan prompt/instruksi:** [ISI MANUAL OLEH TIM]
+- **Berkas yang berubah:** [ISI MANUAL OLEH TIM]
+- **Penjelasan agent yang diperiksa:** [ISI MANUAL OLEH TIM]
+- **Pemeriksaan konten kimia dan sumber rujukan:** [ISI MANUAL OLEH TIM]
+- **Langkah uji dan hasil aktual di browser:** [ISI MANUAL OLEH TIM]
+- **Jalur Git yang dipakai (branch, commit, PR, review/merge):** [ISI MANUAL OLEH TIM]
+- **Koreksi atau keputusan manusia:** [ISI MANUAL OLEH TIM]
+
+## Pertemuan [Nomor] — [Nama Anggota 4]
+
+- **Tanggal:** [ISI MANUAL OLEH TIM]
+- **Tugas/Issue:** [ISI MANUAL OLEH TIM]
+- **Branch / commit / PR / review:** [ISI MANUAL OLEH TIM]
+- **Agent / sumber bantuan yang digunakan:** [ISI MANUAL OLEH TIM]
+- **Skill yang digunakan dan path `SKILL.md` yang dibaca:** [ISI MANUAL OLEH TIM / tulis “Tidak ada” jika memang tidak digunakan]
+- **Ringkasan prompt/instruksi:** [ISI MANUAL OLEH TIM]
+- **Berkas yang berubah:** [ISI MANUAL OLEH TIM]
+- **Penjelasan agent yang diperiksa:** [ISI MANUAL OLEH TIM]
+- **Pemeriksaan konten kimia dan sumber rujukan:** [ISI MANUAL OLEH TIM]
+- **Langkah uji dan hasil aktual di browser:** [ISI MANUAL OLEH TIM]
+- **Jalur Git yang dipakai (branch, commit, PR, review/merge):** [ISI MANUAL OLEH TIM]
+- **Koreksi atau keputusan manusia:** [ISI MANUAL OLEH TIM]
