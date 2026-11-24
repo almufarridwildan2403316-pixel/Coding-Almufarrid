@@ -13,11 +13,12 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { firestore } from './firebase';
+import { firebaseAuth, firestore, isVerifiedTeacherUid } from './firebase';
 import { getExperimentRecordKey } from './experimentRecords';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
+const PENDING_SYNC_STORAGE_KEY = 'kimialab_pending_sync_v1';
 const QUIZ_DRAFT_STORAGE_KEY = 'kimialab_quiz_draft_v1';
 export const EVALUATION_QUIZ_ID = 'electrolyte-evaluation-v1';
 const QUIZ_ATTEMPTS_COLLECTION = 'quizAttempts';
@@ -181,6 +182,67 @@ const isLearningProgress = (value: unknown): value is LearningProgress => {
   );
 };
 
+export interface PendingProgressSync {
+  ownerId: string;
+  syncStatus: 'pending' | 'error' | 'sent';
+  pendingUpdatedAt: string;
+  pendingProgress: LearningProgress;
+}
+
+const getPendingSyncKey = (ownerId: string): string =>
+  `${PENDING_SYNC_STORAGE_KEY}:${encodeURIComponent(ownerId)}`;
+
+export const getPendingProgressSync = (student: StudentIdentity): PendingProgressSync | null => {
+  if (!student.id) return null;
+  try {
+    const raw = localStorage.getItem(getPendingSyncKey(student.id));
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed) ||
+      parsed.ownerId !== student.id ||
+      (parsed.syncStatus !== 'pending' && parsed.syncStatus !== 'error' && parsed.syncStatus !== 'sent') ||
+      typeof parsed.pendingUpdatedAt !== 'string' ||
+      !isLearningProgress(parsed.pendingProgress)) return null;
+    return {
+      ownerId: parsed.ownerId,
+      syncStatus: parsed.syncStatus,
+      pendingUpdatedAt: parsed.pendingUpdatedAt,
+      pendingProgress: { ...parsed.pendingProgress, student },
+    };
+  } catch (error) {
+    console.error('Error loading pending sync queue from localStorage:', error);
+    return null;
+  }
+};
+
+export const markPendingProgressSync = (
+  progress: LearningProgress,
+  student: StudentIdentity,
+  syncStatus: 'pending' | 'error' = 'pending',
+): PendingProgressSync | null => {
+  if (!student.id) return null;
+  const pending: PendingProgressSync = {
+    ownerId: student.id,
+    syncStatus,
+    pendingUpdatedAt: new Date().toISOString(),
+    pendingProgress: { ...progress, student },
+  };
+  try {
+    localStorage.setItem(getPendingSyncKey(student.id), JSON.stringify(pending));
+  } catch (error) {
+    console.error('Error saving pending sync queue to localStorage:', error);
+  }
+  return pending;
+};
+
+export const clearPendingProgressSync = (ownerId: string): void => {
+  try {
+    localStorage.removeItem(getPendingSyncKey(ownerId));
+  } catch (error) {
+    console.error('Error clearing pending sync queue from localStorage:', error);
+  }
+};
+
 const createDefaultProgress = (student: StudentIdentity): LearningProgress => ({
   ...DEFAULT_PROGRESS,
   student,
@@ -245,6 +307,10 @@ const migrateLegacyQuizAttempts = async (
 
 export const loadTeacherQuizAttempts = async (): Promise<QuizSubmission[]> => {
   if (!firestore) throw new Error('Firestore belum dikonfigurasi untuk memuat riwayat kuis guru.');
+  const uid = firebaseAuth?.currentUser?.uid;
+  if (!uid || !(await isVerifiedTeacherUid(uid))) {
+    throw new Error('Akses rekap siswa hanya tersedia untuk guru yang sah.');
+  }
   const snapshot = await getDocs(collectionGroup(firestore, QUIZ_ATTEMPTS_COLLECTION));
   return snapshot.docs.map((attempt) => {
     const userId = attempt.ref.parent.parent?.id;
@@ -259,7 +325,23 @@ export const updateAccountQuizAttempt = async (
   if (!firestore || !submission.userId) {
     throw new Error('Identitas akun pemilik hasil kuis tidak tersedia.');
   }
-  await updateDoc(getAccountQuizAttemptRef(firestore, submission.userId, submission.id), updates);
+  const uid = firebaseAuth?.currentUser?.uid;
+  if (!uid || !(await isVerifiedTeacherUid(uid))) {
+    throw new Error('Hanya guru yang sah dapat menyimpan nilai dan catatan.');
+  }
+  if (updates.manualEssayScore === undefined ||
+    !Number.isFinite(updates.manualEssayScore) ||
+    updates.manualEssayScore < 0 ||
+    updates.manualEssayScore > 100 ||
+    typeof updates.teacherNotes !== 'string') {
+    throw new Error('Nilai atau catatan guru tidak valid.');
+  }
+  await updateDoc(getAccountQuizAttemptRef(firestore, submission.userId, submission.id), {
+    manualEssayScore: updates.manualEssayScore,
+    teacherNotes: updates.teacherNotes,
+    gradedBy: uid,
+    gradedAt: serverTimestamp(),
+  });
 };
 
 export const deleteAccountQuizAttempts = async (student: StudentIdentity): Promise<void> => {
@@ -383,8 +465,33 @@ export const saveAccountProgress = async (
     throw new Error('Firebase belum dikonfigurasi untuk menyimpan progres akun.');
   }
 
+  const sanitizeSubmission = (submission: QuizSubmission): QuizSubmission => {
+    const answerOnly = { ...submission } as QuizSubmission & Record<string, unknown>;
+    delete answerOnly.manualEssayScore;
+    delete answerOnly.teacherNotes;
+    delete answerOnly.essayScore;
+    delete answerOnly.gradedBy;
+    delete answerOnly.gradedAt;
+    return answerOnly;
+  };
+  const sanitizedProgress: LearningProgress = {
+    ...progress,
+    quizSubmissions: progress.quizSubmissions.map(sanitizeSubmission),
+    quizResult: progress.quizResult
+      ? (() => {
+        const result = { ...progress.quizResult } as typeof progress.quizResult & Record<string, unknown>;
+        delete result.manualEssayScore;
+        delete result.teacherNotes;
+        delete result.essayScore;
+        delete result.gradedBy;
+        delete result.gradedAt;
+        return result;
+      })()
+      : null,
+  };
+
   await setDoc(doc(firestore, 'studentProgress', student.id), {
-    progress: { ...progress, student },
+    progress: { ...sanitizedProgress, student },
     updatedAt: serverTimestamp(),
   });
 };
@@ -574,6 +681,12 @@ export const saveAccountQuizAttempt = async (
 
   const studentId = student.id;
   const quizId = submission.quizId ?? EVALUATION_QUIZ_ID;
+  const sanitizedSubmission = { ...submission } as QuizSubmission & Record<string, unknown>;
+  delete sanitizedSubmission.manualEssayScore;
+  delete sanitizedSubmission.teacherNotes;
+  delete sanitizedSubmission.essayScore;
+  delete sanitizedSubmission.gradedBy;
+  delete sanitizedSubmission.gradedAt;
   const attemptRef = getAccountQuizAttemptRef(firestore, studentId, submission.id);
   const counterRef = getAccountQuizAttemptCounterRef(firestore, studentId, quizId);
   const progressRef = doc(firestore, 'studentProgress', studentId);
@@ -591,7 +704,7 @@ export const saveAccountQuizAttempt = async (
         throw new Error('ID percobaan ini sudah digunakan untuk data kuis lain.');
       }
       const confirmedSubmission: QuizSubmission = {
-        ...submission,
+        ...sanitizedSubmission,
         id: submission.id,
         userId: studentId,
         quizId,
@@ -601,7 +714,7 @@ export const saveAccountQuizAttempt = async (
       };
       transaction.set(attemptRef, {
         ...confirmedSubmission,
-        clientSubmittedAt: submission.submittedAt,
+        clientSubmittedAt: sanitizedSubmission.submittedAt,
         submittedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -625,7 +738,7 @@ export const saveAccountQuizAttempt = async (
       submission.attemptNumber ?? 0,
     );
     const savedSubmission: QuizSubmission = {
-      ...submission,
+      ...sanitizedSubmission,
       userId: studentId,
       quizId,
       attemptNumber,
@@ -744,6 +857,7 @@ export const resetAllProgress = (student: StudentIdentity): LearningProgress => 
   try {
     localStorage.removeItem(getProgressKey(student));
     clearQuizDraft(student);
+    if (student.id) clearPendingProgressSync(student.id);
   } catch (e) {
     console.error('Error clearing storage:', e);
   }

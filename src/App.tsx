@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
+  getActiveStudent,
   DEFAULT_PROGRESS,
   getStoredProgress, 
   loadAccountProgress,
@@ -18,11 +19,13 @@ import {
   saveActiveStudent,
   saveAccountProgress,
   saveStoredProgress,
-  updateQuizSubmission,
   updateAccountQuizAttempt,
   loadTeacherQuizAttempts,
   deleteAccountQuizAttempts,
-  resetAllProgress 
+  resetAllProgress,
+  getPendingProgressSync,
+  markPendingProgressSync,
+  clearPendingProgressSync
 } from './utils/storage';
 import { firebaseAuth, firestore, isFirebaseConfigured } from './utils/firebase';
 import { Navbar } from './components/Navbar';
@@ -106,6 +109,7 @@ export function App() {
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressLoadError, setProgressLoadError] = useState('');
   const [progressSyncError, setProgressSyncError] = useState('');
+  const [progressSyncStatus, setProgressSyncStatus] = useState<'idle' | 'pending' | 'error' | 'sent'>('idle');
   const [teacherHistory, setTeacherHistory] = useState<{
     userId: string;
     attempts: QuizSubmission[];
@@ -143,18 +147,31 @@ export function App() {
       if (accountChanged && nextUser) {
         const identity = createAccountStudent(nextUser);
         const initialProgress = getStoredProgress(identity);
-        progressLoadRef.current = { userId: nextUser.uid, initial: initialProgress, hasLocalChanges: false };
+        const pendingSync = getPendingProgressSync(identity);
+        progressLoadRef.current = {
+          userId: nextUser.uid,
+          initial: initialProgress,
+          hasLocalChanges: Boolean(pendingSync),
+        };
         saveActiveStudent(identity);
         setStudent(identity);
-        setProgress(initialProgress);
+        setProgress(pendingSync?.pendingProgress ?? initialProgress);
         setIsProgressLoading(true);
         setCanSyncProgress(false);
         setProgressLoadError('');
         setProgressSyncError('');
-      } else if (accountChanged) {
+        setProgressSyncStatus(pendingSync ? pendingSync.syncStatus : 'idle');
+      } else if (!nextUser) {
         progressLoadRef.current = null;
-        setStudent(null);
-        setProgress(DEFAULT_PROGRESS);
+        const activeStudent = getActiveStudent();
+        if (activeStudent && !activeStudent.id) {
+          const guestProgress = getStoredProgress(activeStudent);
+          setStudent(activeStudent);
+          setProgress(guestProgress);
+        } else {
+          setStudent(null);
+          setProgress(DEFAULT_PROGRESS);
+        }
         setIsProgressLoading(false);
         setProgressLoadError('');
         setCanSyncProgress(false);
@@ -187,8 +204,13 @@ export function App() {
         const accountProgress = await loadAccountProgress(identity);
         if (!active) return;
         const pendingLoad = progressLoadRef.current;
+        const pendingSync = getPendingProgressSync(identity);
         const resolvedProgress = pendingLoad && pendingLoad.userId === authUser.uid && pendingLoad.hasLocalChanges
-          ? mergeProgressChanges(pendingLoad.initial, accountProgress, getStoredProgress(identity))
+          ? mergeProgressChanges(
+            pendingLoad.initial,
+            accountProgress,
+            pendingSync?.pendingProgress ?? getStoredProgress(identity),
+          )
           : accountProgress;
         progressLoadRef.current = null;
         saveStoredProgress(resolvedProgress, identity);
@@ -244,7 +266,38 @@ export function App() {
   const markProgressChanged = (identity: StudentIdentity) => {
     const pendingLoad = progressLoadRef.current;
     if (pendingLoad && pendingLoad.userId === identity.id) pendingLoad.hasLocalChanges = true;
+    if (identity.id) {
+      const latest = getStoredProgress(identity);
+      markPendingProgressSync(latest, identity);
+      setProgressSyncStatus('pending');
+    }
   };
+
+  const syncProgressNow = useCallback(async (
+    ownerId: string,
+    identity: StudentIdentity,
+    snapshot: LearningProgress,
+  ): Promise<boolean> => {
+    if (!authUserId.current || authUserId.current !== ownerId) return false;
+    try {
+      await saveAccountProgress(snapshot, identity);
+      if (authUserId.current !== ownerId) return false;
+      clearPendingProgressSync(ownerId);
+      setProgressSyncStatus('sent');
+      setProgressSyncError('');
+      return true;
+    } catch (error: unknown) {
+      if (authUserId.current !== ownerId) return false;
+      markPendingProgressSync(snapshot, identity, 'error');
+      setProgressSyncStatus('error');
+      setProgressSyncError(
+        error instanceof Error
+          ? `Progres tersimpan di perangkat, tetapi gagal disinkronkan: ${error.message}`
+          : 'Progres tersimpan di perangkat, tetapi gagal disinkronkan ke Firebase.',
+      );
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     if (!authUser || !student || !canSyncProgress) return;
@@ -258,20 +311,36 @@ export function App() {
       }
     }
 
+    const pendingSync = getPendingProgressSync(student);
+    if (!pendingSync) return;
+
     const timeoutId = window.setTimeout(() => {
-      saveAccountProgress(progress, student)
-        .then(() => setProgressSyncError(''))
-        .catch((error: unknown) => {
-          setProgressSyncError(
-            error instanceof Error
-              ? `Progres tersimpan di perangkat, tetapi gagal disinkronkan: ${error.message}`
-              : 'Progres tersimpan di perangkat, tetapi gagal disinkronkan ke Firebase.',
-          );
-        });
+      void syncProgressNow(authUser.uid, student, pendingSync.pendingProgress);
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [authUser, canSyncProgress, progress, student]);
+  }, [authUser, canSyncProgress, progress, student, syncProgressNow]);
+
+  const handleRetryProgressSync = async () => {
+    if (!authUser || !student || !student.id || authUserId.current !== student.id) return;
+    const latestProgress = getStoredProgress(student);
+    markPendingProgressSync(latestProgress, student, 'pending');
+    setProgressSyncStatus('pending');
+    setProgressSyncError('');
+    await syncProgressNow(student.id, student, latestProgress);
+  };
+
+  useEffect(() => {
+    if (!authUser || !student) return;
+    const handleOnline = () => {
+      if (!student.id || authUserId.current !== student.id) return;
+      const pendingSync = getPendingProgressSync(student);
+      if (!pendingSync) return;
+      void syncProgressNow(student.id, student, pendingSync.pendingProgress);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [authUser, student, syncProgressNow]);
 
   const handleLogout = async () => {
     if (!authUser || !firebaseAuth) {
@@ -331,18 +400,26 @@ export function App() {
 
     if (authUser) {
       void (async () => {
+        const ownerId = authUser.uid;
         try {
           const submission = nextProgress.quizSubmissions.find((item) => item.id === result.id);
           if (!submission) throw new Error('Data percobaan kuis tidak ditemukan setelah disimpan.');
           const savedAttempt = await saveAccountQuizAttempt(submission, student);
+          if (authUserId.current !== ownerId) return;
           if (savedAttempt.attemptNumber && savedAttempt.attemptNumber !== submission.attemptNumber) {
             updated = setQuizSubmissionAttemptNumber(savedAttempt.id, savedAttempt.attemptNumber, student);
             setProgress(updated);
           }
           await saveAccountProgress(updated, student);
+          if (authUserId.current !== ownerId) return;
+          clearPendingProgressSync(ownerId);
+          setProgressSyncStatus('sent');
           setProgressSyncError('');
         } catch (error) {
+          if (authUserId.current !== ownerId) return;
           const message = error instanceof Error ? error.message : 'Kesalahan Firebase tidak diketahui.';
+          markPendingProgressSync(getStoredProgress(student), student, 'error');
+          setProgressSyncStatus('error');
           setProgressSyncError(`Hasil kuis tersimpan di perangkat, tetapi belum sinkron ke akun: ${message}`);
         }
       })();
@@ -372,22 +449,18 @@ export function App() {
     submission: QuizSubmission,
     updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
   ): Promise<void> => {
-    if (authUser && isTeacher) {
-      await updateAccountQuizAttempt(submission, updates);
-      setTeacherHistory((current) => current?.userId === authUser.uid
-        ? {
-          ...current,
-          attempts: current.attempts.map((item) =>
-            item.id === submission.id && item.userId === submission.userId ? { ...item, ...updates } : item,
-          ),
-        }
-        : current);
-      return;
+    if (!authUser || !isTeacher || authUserId.current !== authUser.uid) {
+      throw new Error('Hanya guru yang sah dapat menyimpan nilai dan catatan.');
     }
-    if (!student) throw new Error('Identitas guru belum siap.');
-    const updated = updateQuizSubmission(submission.id, updates, student);
-    markProgressChanged(student);
-    setProgress(updated);
+    await updateAccountQuizAttempt(submission, updates);
+    setTeacherHistory((current) => current?.userId === authUser.uid
+      ? {
+        ...current,
+        attempts: current.attempts.map((item) =>
+          item.id === submission.id && item.userId === submission.userId ? { ...item, ...updates } : item,
+        ),
+      }
+      : current);
   };
 
   const handleResetProgress = async () => {
@@ -407,10 +480,11 @@ export function App() {
         }
       }
       const reset = resetAllProgress(student);
+      if (authUser) clearPendingProgressSync(authUser.uid);
       if (authUser) skipNextAccountSyncRef.current = { userId: authUser.uid, progress: reset };
-      markProgressChanged(student);
       setProgress(reset);
       setProgressSyncError('');
+      setProgressSyncStatus('sent');
       alert('Progres belajar telah berhasil diatur ulang.');
     }
   };
@@ -463,6 +537,19 @@ export function App() {
         {(roleProfileWarning || progressLoadError || progressSyncError) && (
           <div className="progress-sync-warning" role="alert">
             {roleProfileWarning || progressLoadError || progressSyncError}
+          </div>
+        )}
+        {authUser && (progressSyncStatus === 'pending' || progressSyncStatus === 'error') && (
+          <div className="progress-sync-status" role="status" aria-live="polite">
+            Tersimpan di perangkat, menunggu sinkronisasi.
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ marginLeft: '0.75rem' }}
+              onClick={() => void handleRetryProgressSync()}
+            >
+              Coba Kirim Lagi (Retry)
+            </button>
           </div>
         )}
         {isProgressLoading && (

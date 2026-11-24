@@ -3,8 +3,29 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isTeacher() {
       return request.auth != null
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        && (
+          (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher'
+          )
+          || (
+            exists(/databases/$(database)/documents/settings/classroom)
+            && (
+              (
+                'teacherUids' in get(/databases/$(database)/documents/settings/classroom).data
+                && get(/databases/$(database)/documents/settings/classroom).data.teacherUids is list
+                && request.auth.uid in get(/databases/$(database)/documents/settings/classroom).data.teacherUids
+              )
+              || (
+                'teacherIds' in get(/databases/$(database)/documents/settings/classroom).data
+                && get(/databases/$(database)/documents/settings/classroom).data.teacherIds is list
+                && request.auth.uid in get(/databases/$(database)/documents/settings/classroom).data.teacherIds
+              )
+              || get(/databases/$(database)/documents/settings/classroom).data.teacherUid == request.auth.uid
+              || get(/databases/$(database)/documents/settings/classroom).data.ownerUid == request.auth.uid
+            )
+          )
+        );
     }
 
     match /users/{userId} {
@@ -12,7 +33,28 @@ service cloud.firestore {
     }
 
     match /studentProgress/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow get, list: if request.auth != null
+        && (request.auth.uid == userId || isTeacher());
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['progress', 'updatedAt'])
+        && !request.resource.data.keys().hasAny([
+          'manualEssayScore',
+          'teacherNotes',
+          'essayScore',
+          'gradedBy',
+          'gradedAt'
+        ]);
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['progress', 'updatedAt'])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'manualEssayScore',
+          'teacherNotes',
+          'essayScore',
+          'gradedBy',
+          'gradedAt'
+        ]);
 
       match /quizAttempts/{attemptId} {
         allow get, list: if (request.auth != null && request.auth.uid == userId) || isTeacher();
@@ -33,10 +75,17 @@ service cloud.firestore {
           && request.resource.data.correctAnswers is int
           && request.resource.data.correctAnswers >= 0
           && request.resource.data.correctAnswers <= request.resource.data.totalQuestions
-          && request.resource.data.answers is list;
+          && request.resource.data.answers is list
+          && !request.resource.data.keys().hasAny([
+            'manualEssayScore',
+            'teacherNotes',
+            'essayScore',
+            'gradedBy',
+            'gradedAt'
+          ]);
         allow update: if isTeacher()
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['manualEssayScore', 'teacherNotes'])
+            .hasOnly(['manualEssayScore', 'teacherNotes', 'essayScore', 'gradedBy', 'gradedAt'])
           && (!('manualEssayScore' in request.resource.data)
             || request.resource.data.manualEssayScore is number
             && request.resource.data.manualEssayScore >= 0

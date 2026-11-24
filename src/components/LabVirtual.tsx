@@ -231,31 +231,6 @@ export const LabVirtual: React.FC<LabVirtualProps> = ({
   };
 
   const handleReset = () => {
-    if (recordFor(progress, experimentId, sample.id)) {
-      onSaveRecord({
-        solutionId: sample.id,
-        experimentId,
-        sampleType: 'prepared',
-        sampleName: sample.name,
-        sampleFormula: sample.formula,
-        sampleCondition: sample.condition,
-        studentName: progress.student?.name ?? '',
-        studentClass: progress.student?.className ?? '',
-        prediction: '',
-        predictionLocked: false,
-        lampObservation: '',
-        bubbleObservation: '',
-        conclusion: '',
-        referenceCategory: sample.category,
-        referenceLamp: sample.expectedLamp,
-        referenceBubbles: sample.expectedBubbles,
-        referenceEquation: sample.equation,
-        referenceExplanation: sample.explanation,
-        safetyNote: sample.safetyNote,
-        completed: false,
-      });
-    }
-
     setIsSwitchOn(false);
     setHasTested(false);
     setPrediction('');

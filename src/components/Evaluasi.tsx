@@ -38,7 +38,7 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 3,
     type: 'multiple-choice',
     category: 'Interpretasi Data',
-    context: 'Dalam suatu percobaan uji daya hantar listrik, seorang siswa menguji tiga larutan, yaitu larutan NaCl, larutan glukosa, dan larutan X. Ketiga larutan memiliki konsentrasi dan volume yang sama. Pengujian dilakukan menggunakan alat yang sama, dengan tegangan listrik, jenis elektroda, dan jarak antar-elektroda yang dikondisikan tetap. Hasil pengamatan ditunjukkan pada tabel berikut.',
+    context: 'Dalam suatu percobaan uji daya hantar listrik, seorang siswa menguji tiga larutan, yaitu larutan NaCl, larutan glukosa, dan larutan X. Ketiga larutan memiliki konsentrasi, volume, dan suhu yang sama. Pengujian dilakukan menggunakan alat yang sama, dengan tegangan listrik, jenis elektroda, dan jarak antar-elektroda yang dikondisikan tetap. Hasil pengamatan ditunjukkan pada tabel berikut.',
     comparisonTable: {
       headers: ['Larutan', 'Nyala lampu', 'Gelembung gas'],
       rows: [
