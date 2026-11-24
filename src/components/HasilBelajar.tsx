@@ -60,12 +60,7 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
   const quizScore = progress.quizResult?.score ?? null;
   const quizAttempts = [...(progress.quizSubmissions ?? [])]
     .filter((submission) => !submission.quizId || submission.quizId === 'electrolyte-evaluation-v1')
-    .sort((left, right) => left.submittedAt.localeCompare(right.submittedAt))
-    .map((submission, index) => ({
-      ...submission,
-      attemptNumber: submission.attemptNumber ?? index + 1,
-    }))
-    .reverse();
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
 
   const getExperimentSummary = (rows: ProgressRow[]) => {
     const completed = rows.filter((row) => row.record?.completed);

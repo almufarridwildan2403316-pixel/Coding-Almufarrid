@@ -103,6 +103,17 @@ Fitur yang meningkatkan pengalaman belajar.
 - Login siswa dan dashboard guru.
 - Penyimpanan nilai lintas perangkat.
 
+### Cakupan produk pada implementasi workspace
+
+PRD awal memprioritaskan pengalaman belajar lokal. Workspace saat ini memperluas cakupan tersebut dengan akun Firebase dan review guru, di samping alur belajar inti:
+
+- Materi konsep, dua percobaan virtual (sampel baku dan larutan sehari-hari), LKPD, evaluasi 10 pilihan ganda dan 2 esai, serta hasil belajar.
+- Simpan progres lokal per identitas tamu/UID dan sinkronisasi akun melalui Firebase Authentication serta Cloud Firestore.
+- Login Google dan email/kata sandi, pendaftaran, serta pemulihan kata sandi tersedia jika konfigurasi dan provider Firebase disiapkan.
+- Akses Guru dan penilaian/catatan esai menggunakan role `teacher` pada `users/{uid}` dan tetap bergantung pada Firestore Rules.
+
+Fitur akun, Firebase, dan panel guru merupakan perluasan scope terhadap P1/daftar pengecualian awal; keputusan tersebut dicatat pada bagian **Riwayat Keputusan Scope** di akhir dokumen. Kehadiran kode tidak menyatakan fitur telah lolos uji produksi.
+
 ## 6. Struktur halaman website
 
 Website menggunakan navigasi sederhana agar siswa dapat langsung menemukan laboratorium virtual.
@@ -325,7 +336,7 @@ Local storage untuk progres versi MVP
 | Penyimpanan | Local storage       | Menyimpan progres pada perangkat yang sama.       |
 | Hosting     | Vercel atau Netlify | Publikasi website.                                |
 
-Login, database online, dan dashboard guru tidak diperlukan untuk MVP. Jika kelak ditambahkan, data siswa dan hasil belajar perlu dikelola dengan kontrol akses yang sesuai.
+Catatan rancangan awal: login, database online, dan dashboard guru tidak diwajibkan untuk MVP. Pada workspace saat ini fitur-fitur tersebut telah ditambahkan sebagai perluasan scope; data siswa dan hasil belajar harus tetap dikelola dengan kontrol akses yang sesuai.
 
 ## 12. Model data yang diperlukan
 
@@ -387,7 +398,7 @@ Sebelum website dipublikasikan, developer harus menguji seluruh skenario utama.
 
 ## Checklist pengujian
 
-10/10 selesai
+Status hasil eksekusi checklist belum dicatat dalam PRD ini. Isi bukti dan status aktual pada [`TESTING.md`](./TESTING.md); daftar skenario bukan pernyataan bahwa pengujian sudah lulus.
 
 Navigasi
 
@@ -458,6 +469,8 @@ Untuk menjaga fokus pengembangan, versi pertama tidak mencakup:
 - Akun dan penyimpanan data siswa di server.
 
 Semua fitur tersebut dapat dipertimbangkan setelah simulasi inti berhasil digunakan dan diuji.
+
+Catatan cakupan saat ini: autentikasi akun, penyimpanan data di Firestore, dan dashboard guru yang tercantum sebagai pengecualian rancangan awal telah diimplementasikan sebagai perluasan scope. Hal itu tidak mengubah kebutuhan untuk validasi akses, privasi, dan pengujian sebelum rilis.
 
 ## 17. Definition of Done
 
@@ -545,3 +558,13 @@ Use a modern, clean science-laboratory aesthetic with teal, navy, white, and lig
 Implement the MVP end-to-end, test the main user flows, and ensure the project runs successfully before declaring it complete.
 
 Rekomendasi akhir: bangun terlebih dahulu laboratorium virtual yang benar-benar berfungsi, bukan hanya halaman yang terlihat menarik. Keunggulan utama KimiaLab adalah siswa dapat melakukan penyelidikan, mengamati bukti, dan menjelaskan mengapa larutan yang berbeda mempunyai kemampuan menghantarkan listrik yang berbeda.
+
+## 19. Riwayat Keputusan Scope
+
+| Keputusan | Posisi pada PRD awal | Implementasi workspace / catatan |
+|---|---|---|
+| Login Google | Login siswa diletakkan sebagai P1 dan tidak dibutuhkan untuk MVP. | Ditambahkan melalui Firebase Authentication bersama login email/kata sandi. Memerlukan konfigurasi proyek, provider, dan domain terotorisasi. |
+| Firebase Authentication dan Cloud Firestore | PRD awal menyebut tidak perlu backend/database online dan progres lokal cukup untuk MVP. | Ditambahkan untuk akun, progres lintas perangkat, riwayat percobaan kuis, dan peran guru. Akses produksi bergantung pada konfigurasi serta `firebase/firestore.rules`. |
+| Panel Akses Guru | Dashboard guru adalah fitur lanjutan/tidak termasuk MVP. | Ditambahkan untuk membaca hasil kuis dan menilai esai secara manual; peran disediakan melalui dokumen `users/{uid}`. Keamanan harus diuji terhadap UI dan Rules. |
+
+Penambahan tersebut adalah keputusan scope di luar MVP awal, bukan bukti bahwa seluruh alur sudah diuji atau diterima. Rincian status saat ini dan temuan audit dicatat pada [`BACKLOG.md`](./BACKLOG.md) dan [`TESTING.md`](./TESTING.md).
