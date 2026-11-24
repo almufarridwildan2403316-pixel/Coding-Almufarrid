@@ -398,7 +398,7 @@ Sebelum website dipublikasikan, developer harus menguji seluruh skenario utama.
 
 ## Checklist pengujian
 
-Status hasil eksekusi checklist belum dicatat dalam PRD ini. Isi bukti dan status aktual pada `TESTING.md`; daftar skenario bukan pernyataan bahwa pengujian sudah lulus.
+Status hasil eksekusi checklist belum dicatat dalam PRD ini. Isi bukti dan status aktual pada [`TESTING.md`](./TESTING.md); daftar skenario bukan pernyataan bahwa pengujian sudah lulus.
 
 Navigasi
 
@@ -567,4 +567,4 @@ Rekomendasi akhir: bangun terlebih dahulu laboratorium virtual yang benar-benar 
 | Firebase Authentication dan Cloud Firestore | PRD awal menyebut tidak perlu backend/database online dan progres lokal cukup untuk MVP. | Ditambahkan untuk akun, progres lintas perangkat, riwayat percobaan kuis, dan peran guru. Akses produksi bergantung pada konfigurasi serta `firebase/firestore.rules`. |
 | Panel Akses Guru | Dashboard guru adalah fitur lanjutan/tidak termasuk MVP. | Ditambahkan untuk membaca hasil kuis dan menilai esai secara manual; peran disediakan melalui dokumen `users/{uid}`. Keamanan harus diuji terhadap UI dan Rules. |
 
-Penambahan tersebut adalah keputusan scope di luar MVP awal, bukan bukti bahwa seluruh alur sudah diuji atau diterima. Rincian status saat ini dan temuan audit dicatat pada `docs/BACKLOG.md` dan `TESTING.md`.
+Penambahan tersebut adalah keputusan scope di luar MVP awal, bukan bukti bahwa seluruh alur sudah diuji atau diterima. Rincian status saat ini dan temuan audit dicatat pada [`BACKLOG.md`](./BACKLOG.md) dan [`TESTING.md`](./TESTING.md).

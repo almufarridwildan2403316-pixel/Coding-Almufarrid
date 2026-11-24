@@ -39,4 +39,4 @@ Pemetaan ini mengikuti state dan kontrol di antarmuka. Navigasi halaman berlangs
 
 ## 4. Catatan uji alur
 
-Belum ada hasil pengujian browser yang dicatat oleh dokumen ini. Isi bukti aktual, perangkat/browser, dan status per skenario pada [`../TESTING.md`](../TESTING.md); jangan mengubah status menjadi PASS sebelum langkah benar-benar dijalankan.
+Belum ada hasil pengujian browser yang dicatat oleh dokumen ini. Isi bukti aktual, perangkat/browser, dan status per skenario pada [`TESTING.md`](./TESTING.md); jangan mengubah status menjadi PASS sebelum langkah benar-benar dijalankan.

@@ -37,7 +37,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` menjalankan pemeriksaan TypeScript (`tsc -b`) lalu membangun aset produksi ke folder `dist/`. `npm run preview` menyajikan hasil build secara lokal. Hasil uji aktual harus dicatat terpisah di [`TESTING.md`](./TESTING.md).
+`npm run build` menjalankan pemeriksaan TypeScript (`tsc -b`) lalu membangun aset produksi ke folder `dist/`. `npm run preview` menyajikan hasil build secara lokal. Hasil uji aktual harus dicatat terpisah di [`docs/TESTING.md`](./docs/TESTING.md).
 
 ## Variabel lingkungan Firebase
 

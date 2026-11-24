@@ -1,6 +1,6 @@
 # Backlog dan Catatan Audit KimiaLab
 
-Catatan audit yang menjadi acuan adalah untuk commit `8a2111f`; daftar AD10 di bawah dicatat sesuai temuan audit yang diberikan. Status implementasi merujuk pada pembacaan kode di workspace. **Status pengujian belum dicatat** kecuali ada bukti di [`../TESTING.md`](../TESTING.md). Perbedaan terhadap kode sekarang diberi catatan dan menunggu uji ulang.
+Catatan audit yang menjadi acuan adalah untuk commit `8a2111f`; daftar AD10 di bawah dicatat sesuai temuan audit yang diberikan. Status implementasi merujuk pada pembacaan kode di workspace. **Status pengujian belum dicatat** kecuali ada bukti di [`TESTING.md`](./TESTING.md). Perbedaan terhadap kode sekarang diberi catatan dan menunggu uji ulang.
 
 ## 1. Prioritas MVP
 
@@ -37,7 +37,7 @@ Semua status berikut dicatat sebagai **TERBUKA / BELUM DIPERBAIKI** berdasarkan 
 
 ### Kebijakan status audit
 
-Status di atas tidak sama dengan hasil uji browser saat ini. Sebelum menandai selesai, catat langkah reproduksi, lingkungan, bukti, dan commit perbaikan di [`../TESTING.md`](../TESTING.md), lalu perbarui status backlog berdasarkan bukti tersebut.
+Status di atas tidak sama dengan hasil uji browser saat ini. Sebelum menandai selesai, catat langkah reproduksi, lingkungan, bukti, dan commit perbaikan di [`TESTING.md`](./TESTING.md), lalu perbarui status backlog berdasarkan bukti tersebut.
 
 ## 4. Riwayat keputusan scope
 
