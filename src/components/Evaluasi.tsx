@@ -195,6 +195,8 @@ const createQuizAttemptId = (): string =>
     ? `attempt-${crypto.randomUUID()}`
     : `attempt-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
+const QUIZ_QUESTION_VERSION = 'v1';
+
 const createInitialQuizState = (savedResult: QuizResult | null, student: StudentIdentity) => {
   try {
     const draft = getQuizDraft(student, EVALUATION_QUIZ_ID);
@@ -211,7 +213,7 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
   } catch (error) {
     return {
       submissionData: buildSubmissionMap(savedResult),
-      attemptId: savedResult?.id ?? createQuizAttemptId(),
+      attemptId: createQuizAttemptId(),
       lastQuestionId: null,
       submitted: savedResult !== null,
       currentScore: savedResult?.score ?? 0,
@@ -223,7 +225,7 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
 
   return {
     submissionData: buildSubmissionMap(savedResult),
-    attemptId: savedResult?.id ?? createQuizAttemptId(),
+    attemptId: createQuizAttemptId(),
     lastQuestionId: null,
     submitted: savedResult !== null,
     currentScore: savedResult?.score ?? 0,
@@ -375,6 +377,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
     const result: QuizResult = {
       id: attemptId,
       quizId: EVALUATION_QUIZ_ID,
+      questionVersion: QUIZ_QUESTION_VERSION,
       studentName: student.name,
       studentClass: student.className,
       score,

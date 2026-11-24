@@ -101,6 +101,7 @@ export interface QuizQuestion {
 export interface QuizResult {
   id?: string;
   quizId?: string;
+  questionVersion?: string;
   attemptNumber?: number;
   studentName?: string;
   studentClass?: string;
@@ -118,6 +119,7 @@ export interface QuizSubmission {
   id: string;
   userId?: string;
   quizId?: string;
+  questionVersion?: string;
   attemptNumber?: number;
   status?: 'submitted';
   studentName: string;

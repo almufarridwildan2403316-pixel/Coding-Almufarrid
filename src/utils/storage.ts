@@ -108,6 +108,9 @@ const parseQuizSubmission = (value: unknown, documentId: string, userId?: string
     id: documentId,
     userId: typeof normalized.userId === 'string' ? normalized.userId : userId,
     quizId: typeof normalized.quizId === 'string' ? normalized.quizId : EVALUATION_QUIZ_ID,
+    questionVersion: typeof normalized.questionVersion === 'string'
+      ? normalized.questionVersion
+      : 'v1',
     attemptNumber: Number.isSafeInteger(normalized.attemptNumber) && Number(normalized.attemptNumber) > 0
       ? Number(normalized.attemptNumber)
       : undefined,
@@ -133,6 +136,7 @@ const getLatestQuizResult = (
   return {
     id: latestSubmission.id,
     quizId: latestSubmission.quizId,
+    questionVersion: latestSubmission.questionVersion ?? 'v1',
     attemptNumber: latestSubmission.attemptNumber,
     studentName: latestSubmission.studentName,
     studentClass: latestSubmission.studentClass,
@@ -586,7 +590,22 @@ export const saveAccountQuizAttempt = async (
       if (saved.userId !== studentId || saved.quizId !== quizId) {
         throw new Error('ID percobaan ini sudah digunakan untuk data kuis lain.');
       }
-      return saved;
+      const confirmedSubmission: QuizSubmission = {
+        ...submission,
+        id: submission.id,
+        userId: studentId,
+        quizId,
+        questionVersion: submission.questionVersion ?? saved.questionVersion ?? 'v1',
+        attemptNumber: saved.attemptNumber ?? submission.attemptNumber,
+        status: 'submitted',
+      };
+      transaction.set(attemptRef, {
+        ...confirmedSubmission,
+        clientSubmittedAt: submission.submittedAt,
+        submittedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return confirmedSubmission;
     }
 
     const embeddedAttempts: unknown = progressSnapshot.exists()
@@ -600,7 +619,11 @@ export const saveAccountQuizAttempt = async (
     const currentCount = counter.exists() && Number.isSafeInteger(counter.data().attemptCount)
       ? Number(counter.data().attemptCount)
       : 0;
-    const attemptNumber = Math.max(currentCount, legacyAttemptCount) + 1;
+    const attemptNumber = Math.max(
+      currentCount,
+      legacyAttemptCount,
+      submission.attemptNumber ?? 0,
+    );
     const savedSubmission: QuizSubmission = {
       ...submission,
       userId: studentId,
@@ -665,12 +688,14 @@ export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity)
     ...quizResult,
     id: submissionId,
     quizId,
+    questionVersion: quizResult.questionVersion ?? 'v1',
     attemptNumber,
   };
   const submission: QuizSubmission = {
     id: submissionId,
     userId: student.id ?? 'guest',
     quizId,
+    questionVersion: resultWithAttempt.questionVersion ?? 'v1',
     attemptNumber,
     status: 'submitted',
     studentName: student.name,
