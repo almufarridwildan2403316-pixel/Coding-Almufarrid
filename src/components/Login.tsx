@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import {
   confirmPasswordReset,
@@ -7,6 +7,8 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   updateProfile,
 } from 'firebase/auth';
 import {
@@ -51,9 +53,11 @@ const getAuthErrorMessage = (error: unknown): string => {
       case 'auth/network-request-failed':
         return 'Tidak dapat terhubung ke Firebase. Periksa koneksi internet lalu coba lagi.';
       case 'auth/popup-blocked':
-        return 'Popup login Google diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.';
+        return 'Popup login Google diblokir browser. Coba izinkan popup atau gunakan login dengan redirect.';
       case 'auth/popup-closed-by-user':
         return 'Jendela login Google ditutup sebelum proses selesai.';
+      case 'auth/account-exists-with-different-credential':
+        return 'Email ini sudah terdaftar dengan metode login lain. Masuk menggunakan metode sebelumnya, lalu hubungkan Google dari pengaturan akun.';
       case 'auth/invalid-action-code':
         return 'Tautan pemulihan tidak valid atau sudah kedaluwarsa. Minta tautan baru.';
       default:
@@ -79,6 +83,23 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!firebaseAuth) return;
+
+    let active = true;
+    void getRedirectResult(firebaseAuth)
+      .catch((caughtError) => {
+        if (active) setError(getAuthErrorMessage(caughtError));
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const changeMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -144,7 +165,21 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
     try {
       await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
     } catch (caughtError) {
-      setError(getAuthErrorMessage(caughtError));
+      if (typeof caughtError === 'object' && caughtError !== null && 'code' in caughtError) {
+        const code = caughtError.code;
+        if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') {
+          try {
+            await signInWithRedirect(firebaseAuth, new GoogleAuthProvider());
+            return;
+          } catch (redirectError) {
+            setError(getAuthErrorMessage(redirectError));
+          }
+        } else {
+          setError(getAuthErrorMessage(caughtError));
+        }
+      } else {
+        setError(getAuthErrorMessage(caughtError));
+      }
       setBusy(false);
     }
   };
