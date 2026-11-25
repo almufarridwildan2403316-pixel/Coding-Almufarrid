@@ -22,25 +22,53 @@ const firebaseApp = isFirebaseConfigured
 
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 export const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
+export const firebaseProjectId = firebaseApp?.options.projectId ?? null;
 
-export const isVerifiedTeacherUid = async (uid: string): Promise<boolean> => {
-  if (!uid || !firestore) return false;
+export const loadAccountRole = async (
+  uid: string,
+): Promise<{ role: 'teacher' | 'student'; roleValue: unknown; profileExists: boolean }> => {
+  if (!uid) throw new Error('UID Firebase tidak tersedia untuk memeriksa role.');
+  if (!firestore) throw new Error('Firestore belum dikonfigurasi untuk memeriksa role akun.');
 
   try {
     const userSnapshot = await getDoc(doc(firestore, 'users', uid));
-    if (userSnapshot.exists() && userSnapshot.data()?.role === 'teacher') return true;
+    const roleValue = userSnapshot.data()?.role;
+    const role = roleValue === 'teacher' ? 'teacher' : 'student';
+    const profileExists = userSnapshot.exists();
+    const diagnosticRoleValue = typeof roleValue === 'string'
+      ? roleValue
+      : roleValue == null
+        ? null
+        : `[${typeof roleValue}]`;
 
-    const settingsSnapshot = await getDoc(doc(firestore, 'settings', 'classroom'));
-    if (!settingsSnapshot.exists()) return false;
-    const settings = settingsSnapshot.data();
-    return (
-      (Array.isArray(settings.teacherUids) && settings.teacherUids.includes(uid))
-      || (Array.isArray(settings.teacherIds) && settings.teacherIds.includes(uid))
-      || settings.teacherUid === uid
-      || settings.ownerUid === uid
-    );
-  } catch (error) {
-    console.error('Gagal memverifikasi role guru:', error);
-    return false;
+    console.info('[KimiaLab Auth] Verifikasi role Firestore', {
+      projectId: firebaseProjectId,
+      documentPath: `users/${uid}`,
+      uid,
+      profileExists,
+      roleValue: diagnosticRoleValue,
+      verifiedTeacher: role === 'teacher',
+    });
+
+    return { role, roleValue, profileExists };
+  } catch (error: unknown) {
+    const errorCode = typeof error === 'object' && error !== null && 'code' in error
+      ? String(error.code)
+      : null;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[KimiaLab Auth] Gagal membaca profil role Firestore', {
+      projectId: firebaseProjectId,
+      documentPath: `users/${uid}`,
+      uid,
+      errorCode,
+      errorMessage,
+    });
+    throw error;
   }
+};
+
+export const isVerifiedTeacherUid = async (uid: string): Promise<boolean> => {
+  if (!uid) return false;
+  const account = await loadAccountRole(uid);
+  return account.role === 'teacher';
 };

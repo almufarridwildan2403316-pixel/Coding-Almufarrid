@@ -29,6 +29,14 @@ import './Login.css';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'recovery';
 
+const logAuthError = (action: string, error: unknown) => {
+  const errorCode = typeof error === 'object' && error !== null && 'code' in error
+    ? String(error.code)
+    : null;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[KimiaLab Auth] ${action} gagal`, { errorCode, errorMessage });
+};
+
 const getAuthErrorMessage = (error: unknown): string => {
   if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
     switch (error.code) {
@@ -90,7 +98,10 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
     let active = true;
     void getRedirectResult(firebaseAuth)
       .catch((caughtError) => {
-        if (active) setError(getAuthErrorMessage(caughtError));
+        if (active) {
+          logAuthError('Login Google melalui redirect', caughtError);
+          setError(getAuthErrorMessage(caughtError));
+        }
       })
       .finally(() => {
         if (active) setBusy(false);
@@ -126,13 +137,14 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
     setBusy(true);
     try {
       const activeMode = isPasswordRecovery ? 'recovery' : mode;
+      const normalizedEmail = email.trim().toLowerCase();
       if (activeMode === 'login') {
-        await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+        await signInWithEmailAndPassword(firebaseAuth, normalizedEmail, password);
       } else if (activeMode === 'register') {
-        const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, normalizedEmail, password);
         await updateProfile(credential.user, { displayName: name.trim() });
       } else if (activeMode === 'forgot') {
-        await sendPasswordResetEmail(firebaseAuth, email.trim(), {
+        await sendPasswordResetEmail(firebaseAuth, normalizedEmail, {
           url: window.location.origin,
         });
         setMessage('Jika alamat email terdaftar, tautan untuk mengatur ulang kata sandi akan dikirim ke email tersebut.');
@@ -147,6 +159,7 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
         onPasswordUpdated();
       }
     } catch (caughtError) {
+      logAuthError('Aksi autentikasi email', caughtError);
       setError(getAuthErrorMessage(caughtError));
     } finally {
       setBusy(false);
@@ -172,12 +185,15 @@ export const Login = ({ isPasswordRecovery, onPasswordUpdated, onContinueAsGuest
             await signInWithRedirect(firebaseAuth, new GoogleAuthProvider());
             return;
           } catch (redirectError) {
+            logAuthError('Login Google melalui redirect', redirectError);
             setError(getAuthErrorMessage(redirectError));
           }
         } else {
+          logAuthError('Login Google', caughtError);
           setError(getAuthErrorMessage(caughtError));
         }
       } else {
+        logAuthError('Login Google', caughtError);
         setError(getAuthErrorMessage(caughtError));
       }
       setBusy(false);

@@ -6,10 +6,12 @@ import {
   type Firestore,
   getDoc,
   getDocs,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
   setDoc,
   Timestamp,
+  type Unsubscribe,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -305,17 +307,26 @@ const migrateLegacyQuizAttempts = async (
   });
 };
 
-export const loadTeacherQuizAttempts = async (): Promise<QuizSubmission[]> => {
+export const subscribeTeacherQuizAttempts = async (
+  onAttempts: (attempts: QuizSubmission[]) => void,
+  onError: (error: unknown) => void,
+): Promise<Unsubscribe> => {
   if (!firestore) throw new Error('Firestore belum dikonfigurasi untuk memuat riwayat kuis guru.');
   const uid = firebaseAuth?.currentUser?.uid;
   if (!uid || !(await isVerifiedTeacherUid(uid))) {
     throw new Error('Akses rekap siswa hanya tersedia untuk guru yang sah.');
   }
-  const snapshot = await getDocs(collectionGroup(firestore, QUIZ_ATTEMPTS_COLLECTION));
-  return snapshot.docs.map((attempt) => {
-    const userId = attempt.ref.parent.parent?.id;
-    return parseQuizSubmission(attempt.data(), attempt.data().id ?? attempt.id, userId);
-  }).sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+  return onSnapshot(
+    collectionGroup(firestore, QUIZ_ATTEMPTS_COLLECTION),
+    (snapshot) => {
+      const attempts = snapshot.docs.map((attempt) => {
+        const userId = attempt.ref.parent.parent?.id;
+        return parseQuizSubmission(attempt.data(), attempt.data().id ?? attempt.id, userId);
+      }).sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+      onAttempts(attempts);
+    },
+    onError,
+  );
 };
 
 export const updateAccountQuizAttempt = async (

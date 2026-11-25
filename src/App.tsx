@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
@@ -20,14 +19,14 @@ import {
   saveAccountProgress,
   saveStoredProgress,
   updateAccountQuizAttempt,
-  loadTeacherQuizAttempts,
+  subscribeTeacherQuizAttempts,
   deleteAccountQuizAttempts,
   resetAllProgress,
   getPendingProgressSync,
   markPendingProgressSync,
   clearPendingProgressSync
 } from './utils/storage';
-import { firebaseAuth, firestore, isFirebaseConfigured } from './utils/firebase';
+import { firebaseAuth, firebaseProjectId, isFirebaseConfigured, loadAccountRole } from './utils/firebase';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Beranda } from './components/Beranda';
@@ -134,6 +133,12 @@ export function App() {
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       const nextUserId = nextUser?.uid ?? null;
+      console.info('[KimiaLab Auth] Perubahan status autentikasi', {
+        signedIn: Boolean(nextUser),
+        email: nextUser?.email ?? null,
+        uid: nextUserId,
+        projectId: firebaseProjectId,
+      });
       const accountChanged = authUserId.current !== nextUserId;
       authUserId.current = nextUserId;
 
@@ -191,16 +196,49 @@ export function App() {
 
     const loadUserData = async () => {
       try {
-        if (!firestore) throw new Error('Firestore belum dikonfigurasi.');
-        const userSnapshot = await getDoc(doc(firestore, 'users', authUser.uid));
+        const account = await loadAccountRole(authUser.uid);
         if (!active) return;
         setRoleProfileWarning(
-          userSnapshot.exists()
+          account.profileExists
             ? ''
-            : `Profil Firestore users/${authUser.uid} belum ada. Jika akun ini perlu akses guru, buat dokumen tersebut dan isi field role dengan string "teacher".`,
+            : `Profil Firestore users/${authUser.uid} belum ditemukan. Akses guru tidak diberikan. Jika akun ini perlu akses guru, administrator harus membuat dokumen tersebut dan mengisi field role dengan string "teacher".`,
         );
-        identity.role = userSnapshot.data()?.role === 'teacher' ? 'teacher' : 'student';
+        if (account.profileExists && account.roleValue !== 'teacher') {
+          console.warn('[KimiaLab Auth] Profil ditemukan, tetapi role bukan "teacher"', {
+            uid: authUser.uid,
+            projectId: firebaseProjectId,
+            documentPath: `users/${authUser.uid}`,
+            roleValue: typeof account.roleValue === 'string'
+              ? account.roleValue
+              : account.roleValue == null
+                ? null
+                : `[${typeof account.roleValue}]`,
+          });
+        }
+        identity.role = account.role;
         setStudent(identity);
+      } catch (error: unknown) {
+        if (!active) return;
+        identity.role = 'student';
+        setStudent(identity);
+        const errorCode = typeof error === 'object' && error !== null && 'code' in error
+          ? String(error.code)
+          : null;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('[KimiaLab Auth] Role gagal diverifikasi; akses guru dinonaktifkan', {
+          email: authUser.email,
+          uid: authUser.uid,
+          projectId: firebaseProjectId,
+          documentPath: `users/${authUser.uid}`,
+          errorCode,
+          errorMessage,
+        });
+        setRoleProfileWarning(
+          `Role akun tidak dapat diverifikasi dari Firestore; akses guru dinonaktifkan: ${errorMessage}`,
+        );
+      }
+
+      try {
         const accountProgress = await loadAccountProgress(identity);
         if (!active) return;
         const pendingLoad = progressLoadRef.current;
@@ -243,23 +281,33 @@ export function App() {
     }
 
     let active = true;
-    loadTeacherQuizAttempts()
-      .then((attempts) => {
-        if (active) setTeacherHistory({ userId: authUser.uid, attempts, error: '' });
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        setTeacherHistory({
-          userId: authUser.uid,
-          attempts: [],
-          error: error instanceof Error
-            ? `Riwayat kuis siswa gagal dimuat: ${error.message}`
-            : 'Riwayat kuis siswa gagal dimuat.',
-        });
+    let stopListening: (() => void) | null = null;
+    const handleLoadError = (error: unknown) => {
+      if (!active) return;
+      setTeacherHistory({
+        userId: authUser.uid,
+        attempts: [],
+        error: error instanceof Error
+          ? `Riwayat kuis siswa gagal dimuat: ${error.message}`
+          : 'Riwayat kuis siswa gagal dimuat.',
       });
+    };
+
+    void subscribeTeacherQuizAttempts(
+      (attempts) => {
+        if (active) setTeacherHistory({ userId: authUser.uid, attempts, error: '' });
+      },
+      handleLoadError,
+    )
+      .then((unsubscribe) => {
+        if (active) stopListening = unsubscribe;
+        else unsubscribe();
+      })
+      .catch(handleLoadError);
 
     return () => {
       active = false;
+      stopListening?.();
     };
   }, [authUser, isTeacher]);
 
