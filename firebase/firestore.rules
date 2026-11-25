@@ -7,6 +7,50 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
+    function isV4MultipleChoiceAnswer(answer, questionId) {
+      return answer.questionId == questionId
+        && answer.questionType == 'multiple-choice'
+        && answer.selectedOption is int
+        && answer.selectedOption >= 0
+        && answer.selectedOption <= 4;
+    }
+
+    function isV4EssayAnswer(answer, questionId) {
+      return answer.questionId == questionId
+        && answer.questionType == 'essay'
+        && answer.essayText is string
+        && answer.essayText.size() > 0;
+    }
+
+    function hasOfficialV4Answers() {
+      let answers = request.resource.data.answers;
+      return answers.size() == 12
+        && isV4MultipleChoiceAnswer(answers[0], 1)
+        && isV4MultipleChoiceAnswer(answers[1], 2)
+        && isV4MultipleChoiceAnswer(answers[2], 3)
+        && isV4MultipleChoiceAnswer(answers[3], 4)
+        && isV4MultipleChoiceAnswer(answers[4], 5)
+        && isV4MultipleChoiceAnswer(answers[5], 6)
+        && isV4MultipleChoiceAnswer(answers[6], 7)
+        && isV4MultipleChoiceAnswer(answers[7], 8)
+        && isV4MultipleChoiceAnswer(answers[8], 9)
+        && isV4MultipleChoiceAnswer(answers[9], 10)
+        && isV4EssayAnswer(answers[10], 11)
+        && isV4EssayAnswer(answers[11], 12)
+        // Keep this v4 server-side answer key aligned with evaluationQuiz.ts.
+        && request.resource.data.correctAnswers
+          == (answers[0].selectedOption == 0 ? 1 : 0)
+            + (answers[1].selectedOption == 1 ? 1 : 0)
+            + (answers[2].selectedOption == 2 ? 1 : 0)
+            + (answers[3].selectedOption == 3 ? 1 : 0)
+            + (answers[4].selectedOption == 4 ? 1 : 0)
+            + (answers[5].selectedOption == 0 ? 1 : 0)
+            + (answers[6].selectedOption == 1 ? 1 : 0)
+            + (answers[7].selectedOption == 2 ? 1 : 0)
+            + (answers[8].selectedOption == 3 ? 1 : 0)
+            + (answers[9].selectedOption == 4 ? 1 : 0);
+    }
+
     match /users/{userId} {
       allow get: if request.auth != null && request.auth.uid == userId;
     }
@@ -59,22 +103,107 @@ service cloud.firestore {
           && request.resource.data.correctAnswers >= 0
           && request.resource.data.correctAnswers <= request.resource.data.totalQuestions
           && request.resource.data.answers is list
+          && (!('questionVersion' in request.resource.data)
+            || request.resource.data.questionVersion != 'v4'
+            || request.resource.data.quizId == 'electrolyte-evaluation-v1'
+            && request.resource.data.score <= 50
+            && request.resource.data.score == request.resource.data.correctAnswers * 5
+            && request.resource.data.totalQuestions == 12
+            && request.resource.data.multipleChoiceQuestions == 10
+            && request.resource.data.correctAnswers <= 10
+            && request.resource.data.wrongAnswers == 10 - request.resource.data.correctAnswers
+            && request.resource.data.gradingStatus == 'PENDING_ESSAY_GRADING'
+            && hasOfficialV4Answers())
           && !request.resource.data.keys().hasAny([
             'manualEssayScore',
             'teacherNotes',
             'essayScore',
+            'essay1Assessment',
+            'essay2Assessment',
+            'totalEssayScore',
+            'finalScore',
             'gradedBy',
             'gradedAt'
           ]);
         allow update: if isTeacher()
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['manualEssayScore', 'teacherNotes', 'essayScore', 'gradedBy', 'gradedAt'])
-          && (!('manualEssayScore' in request.resource.data)
-            || request.resource.data.manualEssayScore is number
-            && request.resource.data.manualEssayScore >= 0
-            && request.resource.data.manualEssayScore <= 100)
-          && (!('teacherNotes' in request.resource.data)
-            || request.resource.data.teacherNotes is string);
+          && ((resource.data.questionVersion == 'v4'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'gradingStatus',
+              'essay1Assessment',
+              'essay2Assessment',
+              'totalEssayScore',
+              'finalScore',
+              'manualEssayScore',
+              'teacherNotes',
+              'gradedBy',
+              'gradedAt'
+            ])
+            && request.resource.data.gradingStatus == 'COMPLETED'
+            && request.resource.data.essay1Assessment.score is number
+            && request.resource.data.essay1Assessment.score >= 0
+            && request.resource.data.essay1Assessment.score <= 25
+            && request.resource.data.essay1Assessment.rubricScores.keys().hasOnly([
+              'classification', 'ionFormation', 'conductivity', 'equationArgument'
+            ])
+            && request.resource.data.essay1Assessment.rubricScores.keys().size() == 4
+            && request.resource.data.essay1Assessment.rubricScores.classification is int
+            && request.resource.data.essay1Assessment.rubricScores.classification >= 0
+            && request.resource.data.essay1Assessment.rubricScores.classification <= 5
+            && request.resource.data.essay1Assessment.rubricScores.ionFormation is int
+            && request.resource.data.essay1Assessment.rubricScores.ionFormation >= 0
+            && request.resource.data.essay1Assessment.rubricScores.ionFormation <= 7
+            && request.resource.data.essay1Assessment.rubricScores.conductivity is int
+            && request.resource.data.essay1Assessment.rubricScores.conductivity >= 0
+            && request.resource.data.essay1Assessment.rubricScores.conductivity <= 7
+            && request.resource.data.essay1Assessment.rubricScores.equationArgument is int
+            && request.resource.data.essay1Assessment.rubricScores.equationArgument >= 0
+            && request.resource.data.essay1Assessment.rubricScores.equationArgument <= 6
+            && request.resource.data.essay1Assessment.score == request.resource.data.essay1Assessment.rubricScores.classification
+              + request.resource.data.essay1Assessment.rubricScores.ionFormation
+              + request.resource.data.essay1Assessment.rubricScores.conductivity
+              + request.resource.data.essay1Assessment.rubricScores.equationArgument
+            && request.resource.data.essay1Assessment.feedback is string
+            && request.resource.data.essay2Assessment.score is number
+            && request.resource.data.essay2Assessment.score >= 0
+            && request.resource.data.essay2Assessment.score <= 25
+            && request.resource.data.essay2Assessment.rubricScores.keys().hasOnly([
+              'conclusionEvaluation', 'variables', 'experimentDesign', 'scientificArgument'
+            ])
+            && request.resource.data.essay2Assessment.rubricScores.keys().size() == 4
+            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation is int
+            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation >= 0
+            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation <= 5
+            && request.resource.data.essay2Assessment.rubricScores.variables is int
+            && request.resource.data.essay2Assessment.rubricScores.variables >= 0
+            && request.resource.data.essay2Assessment.rubricScores.variables <= 6
+            && request.resource.data.essay2Assessment.rubricScores.experimentDesign is int
+            && request.resource.data.essay2Assessment.rubricScores.experimentDesign >= 0
+            && request.resource.data.essay2Assessment.rubricScores.experimentDesign <= 8
+            && request.resource.data.essay2Assessment.rubricScores.scientificArgument is int
+            && request.resource.data.essay2Assessment.rubricScores.scientificArgument >= 0
+            && request.resource.data.essay2Assessment.rubricScores.scientificArgument <= 6
+            && request.resource.data.essay2Assessment.score == request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation
+              + request.resource.data.essay2Assessment.rubricScores.variables
+              + request.resource.data.essay2Assessment.rubricScores.experimentDesign
+              + request.resource.data.essay2Assessment.rubricScores.scientificArgument
+            && request.resource.data.essay2Assessment.feedback is string
+            && request.resource.data.totalEssayScore == request.resource.data.essay1Assessment.score
+              + request.resource.data.essay2Assessment.score
+            && request.resource.data.finalScore == resource.data.score + request.resource.data.totalEssayScore
+            && request.resource.data.finalScore <= 100
+            && request.resource.data.manualEssayScore == request.resource.data.totalEssayScore
+            && request.resource.data.teacherNotes is string
+            && request.resource.data.gradedBy == request.auth.uid
+            && request.resource.data.gradedAt is timestamp)
+            || (resource.data.questionVersion != 'v4'
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['manualEssayScore', 'teacherNotes', 'essayScore', 'gradedBy', 'gradedAt'])
+              && (!('manualEssayScore' in request.resource.data)
+                || request.resource.data.manualEssayScore is number
+                && request.resource.data.manualEssayScore >= 0
+                && request.resource.data.manualEssayScore <= 100)
+              && (!('teacherNotes' in request.resource.data)
+                || request.resource.data.teacherNotes is string)));
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 

@@ -99,11 +99,27 @@ export interface QuizQuestion {
   category: string;
   explanation: string;
   answerGuide?: string;
-  rubric?: Array<{ criterion: string; points: number }>;
+  rubric?: Array<{ id: string; criterion: string; points: number }>;
+}
+
+export type QuizGradingStatus = 'PENDING_ESSAY_GRADING' | 'COMPLETED';
+
+export interface QuizEssayAssessment {
+  rubricScores: Record<string, number>;
+  score: number;
+  feedback: string;
+}
+
+export interface QuizGradingInput {
+  essay1RubricScores: Record<string, number>;
+  essay2RubricScores: Record<string, number>;
+  essay1Feedback: string;
+  essay2Feedback: string;
 }
 
 export interface QuizResult {
   id?: string;
+  userId?: string;
   quizId?: string;
   questionVersion?: string;
   attemptNumber?: number;
@@ -115,6 +131,15 @@ export interface QuizResult {
   completedAt: string;
   submissionData: QuizAnswer[];
   essayAnswers: Record<number, string>;
+  multipleChoiceQuestions?: number;
+  wrongAnswers?: number;
+  gradingStatus?: QuizGradingStatus;
+  essay1Assessment?: QuizEssayAssessment;
+  essay2Assessment?: QuizEssayAssessment;
+  totalEssayScore?: number;
+  finalScore?: number;
+  gradedBy?: string;
+  gradedAt?: string;
   manualEssayScore?: number;
   teacherNotes?: string;
 }
@@ -133,6 +158,15 @@ export interface QuizSubmission {
   score: number;
   totalQuestions: number;
   correctAnswers: number;
+  multipleChoiceQuestions?: number;
+  wrongAnswers?: number;
+  gradingStatus?: QuizGradingStatus;
+  essay1Assessment?: QuizEssayAssessment;
+  essay2Assessment?: QuizEssayAssessment;
+  totalEssayScore?: number;
+  finalScore?: number;
+  gradedBy?: string;
+  gradedAt?: string;
   manualEssayScore?: number;
   teacherNotes?: string;
 }

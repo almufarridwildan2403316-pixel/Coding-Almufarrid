@@ -3,6 +3,7 @@ import type { ActivePage, ExperimentId, LearningProgress } from '../types/chemis
 import { EXPERIMENT_SAMPLES, type LabSample } from '../data/larutanData';
 import { getExperimentRecordKey } from '../utils/experimentRecords';
 import { ArrowRight, BarChart3, RotateCcw } from 'lucide-react';
+import { getEssayMaximumForVersion, getMultipleChoiceMaximumForVersion, getQuestionsForVersion } from '../utils/quizGrading';
 
 interface HasilBelajarProps {
   progress: LearningProgress;
@@ -62,6 +63,15 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
   const completedRows = allRows.filter((row) => row.record?.completed);
   const unfinishedCount = allRows.length - completedRows.length;
   const quizScore = progress.quizResult?.score ?? null;
+  const quizResult = progress.quizResult;
+  const quizQuestionSet = getQuestionsForVersion(quizResult?.questionVersion);
+  const multipleChoiceQuestions = quizQuestionSet.filter((question) => question.type === 'multiple-choice');
+  const isQuizGraded = quizResult?.gradingStatus === 'COMPLETED';
+  const isLegacyQuizGraded = Boolean(
+    quizResult
+    && quizResult.questionVersion !== 'v4'
+    && quizResult.manualEssayScore !== undefined,
+  );
   const quizAttempts = [...(progress.quizSubmissions ?? [])]
     .filter((submission) => !submission.quizId || submission.quizId === 'electrolyte-evaluation-v1')
     .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
@@ -157,7 +167,7 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
           {[
             { label: 'Sampel selesai', value: `${completedRows.length}/${allRows.length}`, note: `${unfinishedCount} belum dikerjakan` },
             { label: 'Kesimpulan umum', value: progress.worksheetConclusion ? 'Tersimpan' : 'Belum ada', note: 'Isian Lembar Kerja' },
-            { label: 'Nilai evaluasi', value: quizScore === null ? '—' : `${quizScore}`, note: quizScore === null ? 'Evaluasi belum dikerjakan' : quizScore >= 80 ? 'Tuntas (kompeten)' : 'Perlu pengayaan' },
+            { label: 'Nilai PG', value: quizScore === null ? '—' : `${quizScore}/${getMultipleChoiceMaximumForVersion(quizResult?.questionVersion)}`, note: quizScore === null ? 'Evaluasi belum dikerjakan' : `${quizResult?.correctAnswers ?? 0} jawaban benar` },
           ].map((item) => (
             <div key={item.label} className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>
               <div style={{ color: 'var(--slate-500)', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase' }}>{item.label}</div>
@@ -165,6 +175,92 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
               <p style={{ color: 'var(--slate-600)', fontSize: '0.75rem' }}>{item.note}</p>
             </div>
           ))}
+        </section>
+
+        <section aria-label="Hasil evaluasi terintegrasi" style={{ marginBottom: '2rem' }}>
+          <h2 style={{ color: 'var(--navy-900)', fontSize: '1.15rem', fontWeight: 800, margin: '1.4rem 0 0.75rem' }}>
+            Hasil Evaluasi Terintegrasi
+          </h2>
+          {!quizResult ? (
+            <div className="card" style={{ padding: '1.25rem', color: 'var(--slate-600)' }}>
+              Evaluasi belum dikerjakan.
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '1.25rem' }}>
+              <div className="grid-3" style={{ marginBottom: '1.25rem' }}>
+                {[
+                  { label: 'Pilihan Ganda', value: `${quizResult.score}/${getMultipleChoiceMaximumForVersion(quizResult.questionVersion)}` },
+                  { label: 'Jawaban benar / salah', value: `${quizResult.correctAnswers}/${quizResult.wrongAnswers ?? Math.max(0, 10 - quizResult.correctAnswers)}` },
+                  { label: 'Status', value: isQuizGraded ? 'Selesai Dinilai' : isLegacyQuizGraded ? 'Dinilai · skema lama' : 'Menunggu Penilaian Guru' },
+                  { label: 'Esai 1', value: isQuizGraded ? `${quizResult.essay1Assessment?.score ?? '—'}/25` : isLegacyQuizGraded ? 'Rincian tidak tersedia' : 'Menunggu penilaian' },
+                  { label: 'Esai 2', value: isQuizGraded ? `${quizResult.essay2Assessment?.score ?? '—'}/25` : isLegacyQuizGraded ? 'Rincian tidak tersedia' : 'Menunggu penilaian' },
+                  { label: 'Total Esai', value: isQuizGraded ? `${quizResult.totalEssayScore ?? '—'}/50` : isLegacyQuizGraded ? `${quizResult.manualEssayScore}/${getEssayMaximumForVersion(quizResult.questionVersion)}` : 'Menunggu penilaian' },
+                ].map((item) => (
+                  <div key={item.label} style={{ borderRadius: '10px', padding: '0.85rem', background: 'var(--slate-50)' }}>
+                    <div style={{ color: 'var(--slate-500)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>{item.label}</div>
+                    <div style={{ color: 'var(--navy-900)', fontWeight: 800, marginTop: '0.25rem' }}>{item.value}</div>
+                  </div>
+                ))}
+                <div style={{ borderRadius: '10px', padding: '0.85rem', background: isQuizGraded ? 'var(--teal-50)' : '#fffbeb', border: `1px solid ${isQuizGraded ? 'var(--teal-200)' : '#fde68a'}` }}>
+                  <div style={{ color: 'var(--slate-500)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase' }}>Nilai Akhir</div>
+                  <div style={{ color: 'var(--navy-900)', fontWeight: 900, fontSize: '1.25rem', marginTop: '0.25rem' }}>
+                    {isQuizGraded ? `${quizResult.finalScore ?? '—'}/100` : isLegacyQuizGraded ? 'Tidak dihitung · skema lama' : 'Menunggu penilaian'}
+                  </div>
+                </div>
+              </div>
+
+              <h3 style={{ color: 'var(--navy-900)', fontSize: '1rem', fontWeight: 800, marginBottom: '0.75rem' }}>
+                Feedback Pilihan Ganda
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginBottom: '1.5rem' }}>
+                {multipleChoiceQuestions.map((question) => {
+                  const answer = quizResult.submissionData.find((item) => item.questionId === question.id);
+                  const selectedOption = answer?.selectedOption;
+                  const correct = selectedOption === question.correctIndex;
+                  return (
+                    <article key={question.id} style={{ border: `1px solid ${correct ? 'var(--teal-200)' : '#fecdd3'}`, borderRadius: '10px', padding: '0.85rem', background: correct ? 'var(--teal-50)' : '#fff1f2' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--navy-900)', marginBottom: '0.35rem' }}>Soal {question.id} · {correct ? 'Benar · 5/5' : 'Salah · 0/5'}</div>
+                      <div style={{ color: 'var(--slate-700)', fontSize: '0.87rem', lineHeight: 1.5 }}>
+                        Jawaban Anda: {typeof selectedOption === 'number' ? `${String.fromCharCode(65 + selectedOption)}. ${question.options?.[selectedOption] ?? '—'}` : 'Tidak dijawab'}.
+                        {' '}Kunci: {typeof question.correctIndex === 'number' ? `${String.fromCharCode(65 + question.correctIndex)}. ${question.options?.[question.correctIndex] ?? '—'}` : '—'}.
+                      </div>
+                      <div style={{ color: 'var(--slate-700)', fontSize: '0.85rem', lineHeight: 1.55, marginTop: '0.4rem' }}>
+                        <strong>Pembahasan:</strong> {question.explanation}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              {isQuizGraded && (
+                <div className="grid-2">
+                  {[quizResult.essay1Assessment, quizResult.essay2Assessment].map((assessment, index) => (
+                    <section key={index} style={{ border: '1px solid var(--slate-200)', borderRadius: '10px', padding: '1rem' }}>
+                      <h3 style={{ color: 'var(--navy-900)', fontSize: '0.95rem', fontWeight: 800 }}>Feedback Esai {index + 1}</h3>
+                      <div style={{ fontWeight: 800, margin: '0.4rem 0' }}>Nilai: {assessment?.score ?? 0}/25</div>
+                      {assessment && (
+                        <ul style={{ paddingLeft: '1.2rem', color: 'var(--slate-700)', fontSize: '0.84rem' }}>
+                          {Object.entries(assessment.rubricScores).map(([indicator, score]) => (
+                            <li key={indicator}>
+                              {quizQuestionSet.find((question) => question.id === 11 + index)?.rubric?.find((criterion) => criterion.id === indicator)?.criterion ?? indicator}: {score}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p style={{ whiteSpace: 'pre-wrap', color: 'var(--slate-700)', fontSize: '0.87rem', lineHeight: 1.55 }}>
+                        {assessment?.feedback || 'Tidak ada catatan guru.'}
+                      </p>
+                    </section>
+                  ))}
+                </div>
+              )}
+              {isLegacyQuizGraded && quizResult.teacherNotes && (
+                <p style={{ whiteSpace: 'pre-wrap', color: 'var(--slate-700)', fontSize: '0.87rem', lineHeight: 1.55, marginTop: '1rem' }}>
+                  <strong>Catatan guru historis:</strong> {quizResult.teacherNotes}
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         <section aria-label="Riwayat percobaan kuis" style={{ marginBottom: '2rem' }}>
@@ -180,7 +276,7 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '680px' }}>
                 <thead>
                   <tr style={{ background: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
-                    {['Percobaan', 'Waktu dikirim', 'Nilai pilihan ganda', 'Jawaban benar', 'Nilai uraian manual'].map((heading) => (
+                    {['Percobaan', 'Waktu dikirim', 'Nilai pilihan ganda', 'Jawaban benar / salah', 'Status / nilai esai'].map((heading) => (
                       <th key={heading} style={{ padding: '0.75rem', color: 'var(--navy-900)', fontSize: '0.76rem', fontWeight: 800 }}>{heading}</th>
                     ))}
                   </tr>
@@ -197,14 +293,18 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
                       <td style={{ padding: '0.75rem', color: 'var(--slate-600)', whiteSpace: 'nowrap' }}>
                         {new Date(attempt.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                       </td>
-                      <td style={{ padding: '0.75rem', color: 'var(--teal-700)', fontWeight: 800 }}>{attempt.score}</td>
-                      <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
-                        {attempt.correctAnswers}/{attempt.totalQuestions}
+                      <td style={{ padding: '0.75rem', color: 'var(--teal-700)', fontWeight: 800 }}>
+                        {attempt.score}/{getMultipleChoiceMaximumForVersion(attempt.questionVersion)}
                       </td>
                       <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
-                        {attempt.manualEssayScore === undefined
-                          ? 'Belum dinilai'
-                          : `${attempt.manualEssayScore}/${attempt.questionVersion === 'v2' || attempt.questionVersion === 'v3' ? 40 : 100}`}
+                        {attempt.correctAnswers}/{attempt.wrongAnswers ?? Math.max(0, 10 - attempt.correctAnswers)}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
+                        {attempt.gradingStatus === 'COMPLETED'
+                          ? `Selesai · ${attempt.totalEssayScore ?? attempt.manualEssayScore ?? 0}/${getEssayMaximumForVersion(attempt.questionVersion)}`
+                          : attempt.manualEssayScore !== undefined
+                            ? `Dinilai · skema lama (${attempt.manualEssayScore}/${getEssayMaximumForVersion(attempt.questionVersion)})`
+                            : 'Menunggu penilaian guru'}
                       </td>
                     </tr>
                   ))}
