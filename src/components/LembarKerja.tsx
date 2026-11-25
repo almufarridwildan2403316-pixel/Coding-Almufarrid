@@ -43,6 +43,9 @@ const formatFormula = (formula: string) => formula.split(/(\d+)/).map((part, ind
   /^\d+$/.test(part) ? <sub key={index}>{part}</sub> : part
 ));
 
+const displayedFormula = (sample: LabSample) =>
+  sample.id === 'H09' ? sample.equation : sample.formula;
+
 const makeRows = (
   experimentId: ExperimentId,
   samples: LabSample[],
@@ -78,7 +81,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '830px' }}>
         <thead>
           <tr style={{ background: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
-            {['No.', 'Sampel', 'Rumus/komposisi', experimentId === 'percobaan_1' ? 'Kesimpulan siswa' : 'Prediksi awal', 'Lampu', 'Gelembung', 'Skor', 'Detail'].map((heading) => (
+            {['No.', 'Sampel', experimentId === 'percobaan_2' ? 'Rumus/komposisi atau reaksi' : 'Rumus/komposisi', experimentId === 'percobaan_1' ? 'Kesimpulan siswa' : 'Prediksi awal', 'Lampu', 'Gelembung', 'Skor', 'Detail'].map((heading) => (
               <th key={heading} style={{ padding: '0.75rem', color: 'var(--navy-900)', fontSize: '0.76rem', fontWeight: 800, whiteSpace: 'nowrap' }}>{heading}</th>
             ))}
           </tr>
@@ -94,7 +97,9 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
                   {row.sample.name}
                   {completed && <CheckCircle2 size={14} color="var(--teal-600)" style={{ verticalAlign: 'middle', marginLeft: '0.35rem' }} />}
                 </td>
-                <td className="worksheet-formula" style={{ padding: '0.7rem 0.75rem' }}>{formatFormula(row.sample.formula)}</td>
+                <td className="worksheet-formula" style={{ padding: '0.7rem 0.75rem' }}>
+                  {formatFormula(displayedFormula(row.sample))}
+                </td>
                 <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem' }}>
                   {experimentId === 'percobaan_1'
                     ? categoryLabel(record?.conclusion)
@@ -180,7 +185,7 @@ export const LembarKerja: React.FC<LembarKerjaProps> = ({
                   {selectedRow.experimentId === 'percobaan_1' ? 'Percobaan 1' : 'Percobaan 2'}
                 </div>
                 <h2 style={{ color: 'var(--navy-900)', fontSize: '1.2rem', fontWeight: 800, marginTop: '0.15rem' }}>
-                  {selectedRow.sample.name} <span className="worksheet-formula">{formatFormula(selectedRow.sample.formula)}</span>
+                  {selectedRow.sample.name} <span className="worksheet-formula">{formatFormula(displayedFormula(selectedRow.sample))}</span>
                 </h2>
               </div>
               <button type="button" className="btn btn-secondary" aria-label="Tutup detail" onClick={() => setSelectedRow(null)} style={{ padding: '0.45rem' }}><X size={16} /></button>
