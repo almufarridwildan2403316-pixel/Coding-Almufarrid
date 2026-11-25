@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { QuizSubmission } from '../types/chemistry';
 import { BookOpenCheck, CheckCircle2, FileText, Save, UserRound } from 'lucide-react';
+import { QUIZ_QUESTIONS, QUIZ_QUESTIONS_V2_ESSAYS, QUIZ_QUESTION_VERSION } from '../data/evaluationQuiz';
 
 interface TeacherDashboardProps {
   submissions: QuizSubmission[];
@@ -127,6 +128,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               const essayAnswers = submission.answers.filter(
                 (answer) => answer.questionType === 'essay' && (answer.essayText ?? '').trim().length > 0
               );
+              const multipleChoiceAnswers = submission.answers.filter(
+                (answer) => answer.questionType === 'multiple-choice'
+              );
+              const questionSet = submission.questionVersion === QUIZ_QUESTION_VERSION
+                ? QUIZ_QUESTIONS
+                : submission.questionVersion === 'v2'
+                  ? [...QUIZ_QUESTIONS.filter((question) => question.type === 'multiple-choice'), ...QUIZ_QUESTIONS_V2_ESSAYS]
+                  : [];
+              const maximumEssayScore = submission.questionVersion === 'v2' || submission.questionVersion === QUIZ_QUESTION_VERSION
+                ? 40
+                : 100;
 
               return (
                 <div key={submissionKey(submission)} className="card" style={{ padding: '1.5rem' }}>
@@ -139,6 +151,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--navy-900)' }}>{submission.studentName}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
                           Kelas {submission.studentClass} · Percobaan #{submission.attemptNumber ?? '—'} · {formatDate(submission.submittedAt)}
+                          {' · '}Versi {submission.questionVersion ?? 'v1'} · {submission.status ?? 'Terkirim'}
                         </div>
                       </div>
                     </div>
@@ -167,6 +180,39 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                     <div style={{ border: '1px solid #dbeafe', borderRadius: '12px', backgroundColor: '#eff6ff', padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', fontWeight: 800, color: '#1d4ed8' }}>
+                        <CheckCircle2 size={16} />
+                        Jawaban Pilihan Ganda
+                      </div>
+                      {multipleChoiceAnswers.length === 0 ? (
+                        <div style={{ color: 'var(--slate-600)', fontSize: '0.9rem' }}>Tidak ada jawaban pilihan ganda.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                          {multipleChoiceAnswers.map((answer) => {
+                            const question = questionSet.find((item) => item.id === answer.questionId);
+                            const selectedOption = answer.selectedOption;
+                            const answerText = question?.options && typeof selectedOption === 'number'
+                              ? question.options[selectedOption]
+                              : `Opsi ${typeof selectedOption === 'number' ? String.fromCharCode(65 + selectedOption) : '—'}`;
+                            return (
+                              <div key={answer.questionId} style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '0.75rem', border: '1px solid #dbeafe' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', marginBottom: '0.35rem' }}>
+                                  Soal #{answer.questionId}{question ? ` · ${question.cognitiveLevel}` : ''}
+                                </div>
+                                {question && (
+                                  <div style={{ fontSize: '0.86rem', lineHeight: 1.5, color: 'var(--slate-700)', marginBottom: '0.35rem' }}>
+                                    {question.question}
+                                  </div>
+                                )}
+                                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--slate-700)' }}>{answerText}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ border: '1px solid #dbeafe', borderRadius: '12px', backgroundColor: '#eff6ff', padding: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', fontWeight: 800, color: '#1d4ed8' }}>
                         <FileText size={16} />
                         Jawaban Esai Siswa
                       </div>
@@ -177,9 +223,63 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                           {essayAnswers.map((answer) => (
                             <div key={answer.questionId} style={{ backgroundColor: '#ffffff', borderRadius: '10px', padding: '0.75rem', border: '1px solid #dbeafe' }}>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', marginBottom: '0.35rem' }}>
-                                Soal Esai #{answer.questionId}
-                              </div>
+                              {(() => {
+                                const question = questionSet.find((item) => item.id === answer.questionId);
+                                return question ? (
+                                  <div style={{ marginBottom: '0.6rem', paddingBottom: '0.6rem', borderBottom: '1px solid #dbeafe' }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', marginBottom: '0.35rem' }}>
+                                      {question.id > 10 ? `Esai ${question.id - 10}` : `Soal ${question.id}`} · {question.cognitiveLevel} · {question.category}
+                                    </div>
+                                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--slate-700)' }}>{question.question}</div>
+                                    {question.context && (
+                                      <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.35rem', lineHeight: 1.55, color: 'var(--slate-600)', fontSize: '0.84rem' }}>
+                                        {question.context}
+                                      </div>
+                                    )}
+                                    {question.comparisonTable && (
+                                      <div style={{ overflowX: 'auto', marginTop: '0.4rem' }}>
+                                        <table style={{ width: '100%', minWidth: '420px', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                                          <thead>
+                                            <tr>
+                                              {question.comparisonTable.headers.map((header) => (
+                                                <th key={header} style={{ textAlign: 'left', padding: '0.35rem', border: '1px solid #dbeafe' }}>{header}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {question.comparisonTable.rows.map((row, rowIndex) => (
+                                              <tr key={`${row[0]}-${rowIndex}`}>
+                                                {row.map((cell, cellIndex) => (
+                                                  <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '0.35rem', border: '1px solid #dbeafe' }}>{cell}</td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                    {question.answerGuide && (
+                                      <div style={{ marginTop: '0.5rem', color: 'var(--slate-700)', fontSize: '0.85rem' }}>
+                                        <strong>Pedoman jawaban:</strong> {question.answerGuide}
+                                      </div>
+                                    )}
+                                    {question.rubric && (
+                                      <div style={{ marginTop: '0.5rem', color: 'var(--slate-700)', fontSize: '0.85rem' }}>
+                                        <strong>Rubrik penilaian (maks. 20 poin):</strong>
+                                        <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem' }}>
+                                          {question.rubric.map((criterion) => (
+                                            <li key={criterion.criterion}>{criterion.criterion}: {criterion.points} poin</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', marginBottom: '0.35rem' }}>
+                                    Esai {answer.questionId - 10} · versi {submission.questionVersion ?? 'v1'}
+                                  </div>
+                                );
+                              })()}
                               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--slate-700)' }}>
                                 {answer.essayText || 'Tidak ada isi jawaban.'}
                               </div>
@@ -197,11 +297,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
-                          Nilai Esai Manual
+                          Nilai Uraian Manual (0–{maximumEssayScore})
                           <input
                             type="number"
                             min={0}
-                            max={100}
+                            max={maximumEssayScore}
                             value={draftScores[submissionKey(submission)] ?? submission.manualEssayScore ?? 0}
                             onChange={(event) => {
                               const nextValue = Number(event.target.value) || 0;
