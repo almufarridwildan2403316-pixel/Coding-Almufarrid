@@ -3,33 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isTeacher() {
       return request.auth != null
-        && (
-          (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher'
-          )
-          || (
-            exists(/databases/$(database)/documents/settings/classroom)
-            && (
-              (
-                'teacherUids' in get(/databases/$(database)/documents/settings/classroom).data
-                && get(/databases/$(database)/documents/settings/classroom).data.teacherUids is list
-                && request.auth.uid in get(/databases/$(database)/documents/settings/classroom).data.teacherUids
-              )
-              || (
-                'teacherIds' in get(/databases/$(database)/documents/settings/classroom).data
-                && get(/databases/$(database)/documents/settings/classroom).data.teacherIds is list
-                && request.auth.uid in get(/databases/$(database)/documents/settings/classroom).data.teacherIds
-              )
-              || get(/databases/$(database)/documents/settings/classroom).data.teacherUid == request.auth.uid
-              || get(/databases/$(database)/documents/settings/classroom).data.ownerUid == request.auth.uid
-            )
-          )
-        );
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
     match /users/{userId} {
       allow get: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /{path=**}/quizAttempts/{attemptId} {
+      allow get, list: if isTeacher();
     }
 
     match /studentProgress/{userId} {
