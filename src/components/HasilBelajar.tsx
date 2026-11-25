@@ -177,10 +177,10 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
             </div>
           ) : (
             <div className="card" style={{ padding: '1rem', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '520px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '680px' }}>
                 <thead>
                   <tr style={{ background: 'var(--slate-50)', borderBottom: '2px solid var(--slate-200)' }}>
-                    {['Percobaan', 'Waktu dikirim', 'Nilai', 'Jawaban benar'].map((heading) => (
+                    {['Percobaan', 'Waktu dikirim', 'Nilai pilihan ganda', 'Jawaban benar', 'Nilai uraian manual'].map((heading) => (
                       <th key={heading} style={{ padding: '0.75rem', color: 'var(--navy-900)', fontSize: '0.76rem', fontWeight: 800 }}>{heading}</th>
                     ))}
                   </tr>
@@ -200,6 +200,11 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
                       <td style={{ padding: '0.75rem', color: 'var(--teal-700)', fontWeight: 800 }}>{attempt.score}</td>
                       <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
                         {attempt.correctAnswers}/{attempt.totalQuestions}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--slate-700)' }}>
+                        {attempt.manualEssayScore === undefined
+                          ? 'Belum dinilai'
+                          : `${attempt.manualEssayScore}/${attempt.questionVersion === 'v2' || attempt.questionVersion === 'v3' ? 40 : 100}`}
                       </td>
                     </tr>
                   ))}

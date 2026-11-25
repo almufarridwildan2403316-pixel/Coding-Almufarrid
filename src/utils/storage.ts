@@ -118,7 +118,7 @@ const parseQuizSubmission = (value: unknown, documentId: string, userId?: string
       ? Number(normalized.attemptNumber)
       : undefined,
     status: 'submitted',
-    manualEssayScore: Number.isFinite(normalized.manualEssayScore) ? Number(normalized.manualEssayScore) : 0,
+    manualEssayScore: Number.isFinite(normalized.manualEssayScore) ? Number(normalized.manualEssayScore) : undefined,
     teacherNotes: typeof normalized.teacherNotes === 'string' ? normalized.teacherNotes : '',
   };
 };
@@ -340,10 +340,11 @@ export const updateAccountQuizAttempt = async (
   if (!uid || !(await isVerifiedTeacherUid(uid))) {
     throw new Error('Hanya guru yang sah dapat menyimpan nilai dan catatan.');
   }
+  const maximumEssayScore = submission.questionVersion === 'v2' || submission.questionVersion === 'v3' ? 40 : 100;
   if (updates.manualEssayScore === undefined ||
     !Number.isFinite(updates.manualEssayScore) ||
     updates.manualEssayScore < 0 ||
-    updates.manualEssayScore > 100 ||
+    updates.manualEssayScore > maximumEssayScore ||
     typeof updates.teacherNotes !== 'string') {
     throw new Error('Nilai atau catatan guru tidak valid.');
   }
@@ -582,6 +583,7 @@ export const getQuizDraft = (student: StudentIdentity, quizId = EVALUATION_QUIZ_
       userId: parsed.userId,
       quizId: parsed.quizId,
       attemptId: parsed.attemptId,
+      questionVersion: typeof parsed.questionVersion === 'string' ? parsed.questionVersion : undefined,
       answers,
       lastQuestionId: parsed.lastQuestionId,
       status: 'draft',
@@ -629,7 +631,21 @@ export const saveQuizDraft = (student: StudentIdentity, draft: QuizDraft): void 
   ) {
     throw new Error('Draf kuis tidak cocok dengan pengguna atau statusnya.');
   }
-  localStorage.setItem(getQuizDraftKey(student, draft.quizId), JSON.stringify(draft));
+  const storageKey = getQuizDraftKey(student, draft.quizId);
+  const existingRaw = localStorage.getItem(storageKey);
+  if (existingRaw) {
+    const existing: unknown = JSON.parse(existingRaw);
+    if (
+      isRecord(existing)
+      && typeof existing.attemptId === 'string'
+      && existing.attemptId !== draft.attemptId
+      && existing.questionVersion !== draft.questionVersion
+    ) {
+      const archiveKey = `${storageKey}:archived:${encodeURIComponent(existing.attemptId)}`;
+      if (!localStorage.getItem(archiveKey)) localStorage.setItem(archiveKey, existingRaw);
+    }
+  }
+  localStorage.setItem(storageKey, JSON.stringify(draft));
 };
 
 export const clearQuizDraft = (student: StudentIdentity, quizId = EVALUATION_QUIZ_ID): void => {
@@ -829,7 +845,7 @@ export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity)
     score: resultWithAttempt.score,
     totalQuestions: resultWithAttempt.totalQuestions,
     correctAnswers: resultWithAttempt.correctAnswers,
-    manualEssayScore: resultWithAttempt.manualEssayScore ?? 0,
+    manualEssayScore: resultWithAttempt.manualEssayScore,
     teacherNotes: resultWithAttempt.teacherNotes ?? '',
   };
 

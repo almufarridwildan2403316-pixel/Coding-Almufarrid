@@ -77,6 +77,7 @@ export interface QuizDraft {
   userId: string;
   quizId: string;
   attemptId: string;
+  questionVersion?: string;
   answers: Record<number, QuizAnswer>;
   lastQuestionId: number | null;
   status: 'draft';
@@ -87,15 +88,18 @@ export interface QuizQuestion {
   id: number;
   type: QuizQuestionType;
   question: string;
+  cognitiveLevel: 'C3' | 'C4' | 'C5';
   context?: string;
   comparisonTable?: {
-    headers: [string, string, string];
-    rows: Array<[string, string, string]>;
+    headers: string[];
+    rows: string[][];
   };
   options?: string[];
   correctIndex?: number;
-  category: 'Konsep' | 'Klasifikasi' | 'Interpretasi Data' | 'Persamaan Reaksi' | 'Penalaran';
+  category: string;
   explanation: string;
+  answerGuide?: string;
+  rubric?: Array<{ criterion: string; points: number }>;
 }
 
 export interface QuizResult {
