@@ -365,36 +365,50 @@ const ApplicationVisual = () => (
   </div>
 );
 
-const ObservationCards = () => {
-  const samples = [
-    { name: 'Air suling', clue: 'Apa yang dapat disimpulkan?' },
-    { name: 'Air keran', clue: 'Ion terlarut apa yang mungkin ada?' },
-    { name: 'Larutan garam', clue: 'Partikel apa yang bergerak?' },
-    { name: 'Larutan gula', clue: 'Apakah gula membentuk ion?' },
-    { name: 'Cuka encer', clue: 'Mengapa hasilnya dapat berbeda dari garam?' },
-  ];
-  const fields = [
-    ['Prediksi', 'Isi sebelum uji'],
-    ['Indikator alat', 'Catat saat praktikum'],
-    ['Gelembung', 'Catat jika terlihat'],
+const MiniLabWorksheet = () => {
+  const samples = ['Air suling', 'Air keran', 'Larutan garam', 'Larutan gula', 'Cuka encer'];
+  const prompts = [
+    { title: '1. Prediksi sebelum uji', detail: 'Menghantarkan atau tidak? Apa alasanmu?' },
+    { title: '2. Hasil pengamatan', detail: 'Bagaimana indikator lampu dan gelembung?' },
+    { title: '3. Bandingkan', detail: 'Sesuai atau berbeda dari prediksi? Mengapa?' },
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(205px, 1fr))', gap: '0.75rem', margin: '1rem 0' }}>
-      {samples.map((sample) => (
-        <article key={sample.name} style={{ border: '1px solid var(--slate-200)', borderTop: '3px solid var(--teal-500)', borderRadius: '6px', padding: '0.9rem', background: '#ffffff' }}>
-          <h4 style={{ color: 'var(--navy-900)', marginBottom: '0.65rem', fontSize: '0.98rem' }}>{sample.name}</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            {fields.map(([label, hint]) => (
-              <div key={label} style={{ minWidth: 0, background: 'var(--slate-50)', borderRadius: '4px', padding: '0.5rem' }}>
-                <span style={{ display: 'block', color: 'var(--slate-600)', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>{label}</span>
-                <span style={{ display: 'block', color: 'var(--slate-500)', fontSize: '0.76rem', lineHeight: 1.4 }}>{hint}</span>
-              </div>
-            ))}
-          </div>
-          <p style={{ color: 'var(--teal-800)', fontSize: '0.78rem', lineHeight: 1.5, margin: '0.65rem 0 0' }}>{sample.clue}</p>
-        </article>
-      ))}
+    <div style={{ margin: '1rem 0 1.5rem' }}>
+      <h4 style={{ color: 'var(--navy-900)', fontSize: '0.98rem', marginBottom: '0.75rem' }}>
+        Format catatan — salin ke lembar kerja atau buku
+      </h4>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: '0.8rem' }}>
+        {samples.map((sample, index) => (
+          <article
+            key={sample}
+            style={{
+              padding: '1rem',
+              border: '1px solid var(--slate-200)',
+              borderTop: '3px solid var(--teal-600)',
+              borderRadius: '8px',
+              background: '#ffffff',
+            }}
+          >
+            <h5 style={{ color: 'var(--navy-900)', fontSize: '0.96rem', margin: '0 0 0.75rem' }}>
+              Sampel {index + 1}: {sample}
+            </h5>
+            <div style={{ display: 'grid', gap: '0.65rem' }}>
+              {prompts.map((prompt) => (
+                <div key={prompt.title} style={{ padding: '0.6rem', background: 'var(--slate-50)', borderRadius: '6px' }}>
+                  <strong style={{ display: 'block', color: 'var(--teal-800)', fontSize: '0.78rem', marginBottom: '0.2rem' }}>
+                    {prompt.title}
+                  </strong>
+                  <span style={{ color: 'var(--slate-600)', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    {prompt.detail}
+                  </span>
+                  <div aria-hidden="true" style={{ height: '0.65rem', borderBottom: '1px dashed var(--slate-300)' }} />
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 };
@@ -571,6 +585,15 @@ const modules: ModuleItem[] = [
         <CircuitVisual />
         <MiniLabCheck />
 
+        <h3 style={subTitle}>Tugas dan catatan siswa</h3>
+        <InfoBox title="Kerjakan di lembar kerja atau buku catatan">
+          Untuk setiap sampel, isi catatan secara berurutan: tulis prediksi dan alasannya sebelum uji, catat hasil pengamatan setelah uji, lalu bandingkan apakah hasilnya sesuai atau berbeda dari prediksi. Salin format kartu berikut ke lembar kerja atau buku catatan. Tombol “Cek prediksi” hanya latihan awal dan tidak menggantikan catatan tertulis.
+        </InfoBox>
+        <MiniLabWorksheet />
+        <InfoBox title="Contoh dan kesimpulan">
+          Contoh prediksi: “Saya memperkirakan larutan garam menghantarkan listrik karena garam terurai menjadi ion yang dapat bergerak.” Setelah semua sampel diuji, tulis kesimpulan singkat: “Sampel yang paling baik menghantarkan listrik adalah …, ditunjukkan oleh …, karena ….” Kesimpulan harus berdasarkan hasil pengamatan, bukan hanya prediksi.
+        </InfoBox>
+
         <h3 style={subTitle}>Alat dan sampel</h3>
         <ul style={listStyle}>
           <li>Kit uji daya hantar bertegangan rendah yang disiapkan atau diperiksa oleh guru.</li>
@@ -579,14 +602,22 @@ const modules: ModuleItem[] = [
         </ul>
         <h3 style={subTitle}>Langkah pengamatan</h3>
         <ol style={listStyle}>
-          <li>Catat prediksi untuk setiap sampel sebelum pengujian.</li>
-          <li>Uji satu sampel pada satu waktu sesuai petunjuk kit dan arahan guru.</li>
-          <li>Amati nyala atau indikator alat, lalu catat gelembung jika terlihat.</li>
+          <li>Siapkan lembar kerja atau buku catatan, lalu isi kolom prediksi dan alasan untuk semua sampel sebelum mulai menguji.</li>
+          <li>Dengan arahan guru, uji satu sampel pada satu waktu menggunakan kit yang sudah disiapkan.</li>
+          <li>Catat hasil lampu/indikator dan ada atau tidaknya gelembung pada tabel segera setelah mengamati.</li>
           <li>Bilas elektroda dengan air suling dan keringkan sebelum berpindah sampel.</li>
-          <li>Bandingkan hasil dengan prediksi dan jelaskan menggunakan model ion.</li>
+          <li>Setelah semua sampel diuji, bandingkan prediksi dengan hasil pengamatan pada baris yang sama. Tulis “sesuai” atau “berbeda” di kolom perbandingan dan berikan alasan berdasarkan indikator lampu/gelembung yang dicatat.</li>
+          <li>Tulis kesimpulan akhir di bawah tabel dengan menghubungkan hasil pengamatan dan keberadaan ion bergerak.</li>
         </ol>
 
-        <ObservationCards />
+        <InfoBox title="Setelah langkah ke-6: lengkapi catatan di kertas">
+          Bagian ini bukan formulir baru yang harus diisi di layar. Gunakan lembar kerja dari guru atau buku catatan, lalu pastikan:
+          <ol style={{ ...listStyle, marginTop: '0.5rem' }}>
+            <li>Untuk setiap sampel, sudah ada prediksi, hasil pengamatan lampu/gelembung, dan keterangan apakah hasilnya sesuai atau berbeda dari prediksi.</li>
+            <li>Di bawah catatan sampel, tulis kesimpulan singkat dengan alasan berdasarkan hasil pengamatan dan keberadaan ion.</li>
+          </ol>
+          Siapkan catatan tersebut untuk dibahas atau diperiksa sesuai arahan guru.
+        </InfoBox>
 
         <InfoBox title="Variabel yang perlu dijaga" color="green">
           Gunakan prosedur, volume sampel, kedalaman elektroda, dan alat yang sama. Konsentrasi memengaruhi hasil, jadi perbandingan hanya adil jika sampelnya disiapkan dengan ketentuan yang setara.
