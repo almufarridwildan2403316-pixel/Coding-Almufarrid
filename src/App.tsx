@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
+import type { ActivePage, ExperimentId, LearningProgress, ExperimentRecord, HomePromptResponse, QuizGradingInput, QuizResult, QuizSubmission, StudentIdentity } from './types/chemistry';
 import { 
   clearActiveStudent,
   getActiveStudent,
@@ -20,6 +20,8 @@ import {
   saveStoredProgress,
   updateAccountQuizAttempt,
   subscribeTeacherQuizAttempts,
+  subscribeStudentQuizAttempts,
+  applyQuizAttemptSnapshot,
   deleteAccountQuizAttempts,
   resetAllProgress,
   getPendingProgressSync,
@@ -357,6 +359,38 @@ export function App() {
     };
   }, [authUser, isTeacher]);
 
+  useEffect(() => {
+    if (!authUser || !student?.id || student.id !== authUser.uid || isTeacher || !canSyncProgress || isProgressLoading) return;
+
+    let active = true;
+    let stopListening: (() => void) | null = null;
+    const handleLoadError = (error: unknown) => {
+      if (!active) return;
+      setProgressLoadError(error instanceof Error
+        ? `Pembaruan hasil evaluasi gagal dimuat: ${error.message}`
+        : 'Pembaruan hasil evaluasi gagal dimuat.');
+    };
+
+    void subscribeStudentQuizAttempts(
+      student.id,
+      (attempts) => {
+        if (!active) return;
+        setProgress((current) => applyQuizAttemptSnapshot(current, attempts));
+      },
+      handleLoadError,
+    )
+      .then((unsubscribe) => {
+        if (active) stopListening = unsubscribe;
+        else unsubscribe();
+      })
+      .catch(handleLoadError);
+
+    return () => {
+      active = false;
+      stopListening?.();
+    };
+  }, [authUser, canSyncProgress, isProgressLoading, isTeacher, student]);
+
   const markProgressChanged = (identity: StudentIdentity) => {
     const pendingLoad = progressLoadRef.current;
     if (pendingLoad && pendingLoad.userId === identity.id) pendingLoad.hasLocalChanges = true;
@@ -483,6 +517,8 @@ export function App() {
   };
 
   const handleSaveQuizResult = async (result: QuizResult): Promise<void> => {
+    if (!student) throw new Error('Identitas siswa belum siap. Jawaban belum dikirim.');
+
     let updated = saveQuizResult({ ...result, studentName: student.name, studentClass: student.className }, student);
     const storedProgress = getStoredProgress(student);
     const nextProgress = storedProgress.quizResult?.id === result.id ? storedProgress : updated;
@@ -493,30 +529,31 @@ export function App() {
     setProgress(nextProgress);
 
     if (authUser) {
-      void (async () => {
-        const ownerId = authUser.uid;
-        try {
-          const submission = nextProgress.quizSubmissions.find((item) => item.id === result.id);
-          if (!submission) throw new Error('Data percobaan kuis tidak ditemukan setelah disimpan.');
-          const savedAttempt = await saveAccountQuizAttempt(submission, student);
-          if (authUserId.current !== ownerId) return;
-          if (savedAttempt.attemptNumber && savedAttempt.attemptNumber !== submission.attemptNumber) {
-            updated = setQuizSubmissionAttemptNumber(savedAttempt.id, savedAttempt.attemptNumber, student);
-            setProgress(updated);
-          }
-          await saveAccountProgress(updated, student);
-          if (authUserId.current !== ownerId) return;
-          clearPendingProgressSync(ownerId);
-          setProgressSyncStatus('sent');
-          setProgressSyncError('');
-        } catch (error) {
-          if (authUserId.current !== ownerId) return;
-          const message = error instanceof Error ? error.message : 'Kesalahan Firebase tidak diketahui.';
-          markPendingProgressSync(getStoredProgress(student), student, 'error');
-          setProgressSyncStatus('error');
-          setProgressSyncError(`Hasil kuis tersimpan di perangkat, tetapi belum sinkron ke akun: ${message}`);
+      const ownerId = authUser.uid;
+      try {
+        const submission = nextProgress.quizSubmissions.find((item) => item.id === result.id);
+        if (!submission) throw new Error('Data percobaan kuis tidak ditemukan setelah disimpan.');
+        const savedAttempt = await saveAccountQuizAttempt(submission, student);
+        if (authUserId.current !== ownerId) throw new Error('Akun berubah sebelum jawaban selesai disinkronkan.');
+        if (savedAttempt.attemptNumber && savedAttempt.attemptNumber !== submission.attemptNumber) {
+          const withAttemptNumber = setQuizSubmissionAttemptNumber(savedAttempt.id, savedAttempt.attemptNumber, student);
+          setProgress(withAttemptNumber);
+          await saveAccountProgress(withAttemptNumber, student);
+        } else {
+          await saveAccountProgress(nextProgress, student);
         }
-      })();
+        if (authUserId.current !== ownerId) throw new Error('Akun berubah sebelum jawaban selesai disinkronkan.');
+        clearPendingProgressSync(ownerId);
+        setProgressSyncStatus('sent');
+        setProgressSyncError('');
+      } catch (error) {
+        if (authUserId.current !== ownerId) throw error;
+        const message = error instanceof Error ? error.message : 'Kesalahan Firebase tidak diketahui.';
+        markPendingProgressSync(getStoredProgress(student), student, 'error');
+        setProgressSyncStatus('error');
+        setProgressSyncError(`Hasil kuis tersimpan di perangkat, tetapi belum sinkron ke akun: ${message}`);
+        throw new Error(`Jawaban belum tersinkron ke Firebase: ${message}`);
+      }
     }
   };
 
@@ -539,17 +576,17 @@ export function App() {
 
   const handleSaveTeacherReview = async (
     submission: QuizSubmission,
-    updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
+    updates: QuizGradingInput,
   ): Promise<void> => {
     if (!authUser || !isTeacher || authUserId.current !== authUser.uid) {
       throw new Error('Hanya guru yang sah dapat menyimpan nilai dan catatan.');
     }
-    await updateAccountQuizAttempt(submission, updates);
+    const gradedSubmission = await updateAccountQuizAttempt(submission, updates);
     setTeacherHistory((current) => current?.userId === authUser.uid
       ? {
         ...current,
         attempts: current.attempts.map((item) =>
-          item.id === submission.id && item.userId === submission.userId ? { ...item, ...updates } : item,
+          item.id === submission.id && item.userId === submission.userId ? gradedSubmission : item,
         ),
       }
       : current);

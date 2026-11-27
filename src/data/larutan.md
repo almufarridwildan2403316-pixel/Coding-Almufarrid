@@ -527,13 +527,13 @@ Komposisi larutan sehari-hari berubah menurut sumber, merek, pengenceran, dan ca
     {
       "id": "H09",
       "nama": "Air berkarbonasi",
-      "rumus": "CO₂(aq) ⇌ H₂CO₃",
+      "rumus": "CO₂(aq) terlarut dalam H₂O(l)",
       "kategori_acuan": "elektrolit_lemah",
-      "kondisi_acuan": "Model: CO₂(aq) ⇌ H₂CO₃; 0.010 mol/L; 25 °C",
+      "kondisi_acuan": "Model: CO₂(aq) + H₂O(l) ⇌ H₂CO₃(aq); 0.010 mol/L; 25 °C",
       "nyala_lampu_benar": "redup",
       "gelembung_benar": "sedikit",
-      "persamaan_reaksi": "H₂CO₃(aq) + H₂O(l) ⇌ H₃O⁺(aq) + HCO₃⁻(aq)",
-      "alasan": "CO₂ terlarut membentuk sistem asam karbonat lemah yang menghasilkan ion dalam jumlah terbatas.",
+      "persamaan_reaksi": "CO₂(aq) + H₂O(l) ⇌ H₂CO₃(aq)",
+      "alasan": "Hanya sebagian kecil CO₂ terlarut membentuk H₂CO₃, yang kemudian terionisasi sebagian menghasilkan H₃O⁺ dan HCO₃⁻.",
       "catatan_keselamatan_batasan": "Minuman berkarbonasi dapat mengandung asam dan garam tambahan; model hanya mengisolasi pengaruh CO₂."
     },
     {

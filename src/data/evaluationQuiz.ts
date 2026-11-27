@@ -1,6 +1,6 @@
 import type { QuizQuestion } from '../types/chemistry';
 
-export const QUIZ_QUESTION_VERSION = 'v3';
+export const QUIZ_QUESTION_VERSION = 'v4';
 
 export const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
@@ -200,13 +200,13 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       ],
     },
     question: 'Berdasarkan data percobaan tersebut, analisislah hubungan antara proses pembentukan ion dalam masing-masing larutan dengan perbedaan kemampuan ketiganya dalam menghantarkan arus listrik, serta dukung analisis Anda menggunakan klasifikasi elektrolit dan persamaan reaksi yang sesuai.',
-    explanation: 'NaCl merupakan elektrolit kuat yang terdisosiasi menjadi ion Na⁺ dan Cl⁻; CH₃COOH merupakan elektrolit lemah yang terionisasi sebagian menjadi H⁺ dan CH₃COO⁻; sukrosa merupakan nonelektrolit yang tetap sebagai molekul netral. Semakin banyak ion bergerak, semakin baik daya hantar listriknya.',
-    answerGuide: 'NaCl: elektrolit kuat, NaCl(s) → Na⁺(aq) + Cl⁻(aq). CH₃COOH: elektrolit lemah, CH₃COOH(aq) ⇌ H⁺(aq) + CH₃COO⁻(aq). Sukrosa: nonelektrolit dan tidak membentuk ion. Jumlah ion bebas menjelaskan perbedaan nyala lampu dan gelembung pada kondisi uji yang sama.',
+    explanation: 'NaCl merupakan elektrolit kuat yang terdisosiasi menjadi ion Na⁺ dan Cl⁻; CH₃COOH merupakan elektrolit lemah yang terionisasi sebagian menjadi H₃O⁺ dan CH₃COO⁻; sukrosa merupakan nonelektrolit yang tetap sebagai molekul netral. Semakin banyak ion bergerak, semakin baik daya hantar listriknya.',
+    answerGuide: 'NaCl: elektrolit kuat, NaCl(aq) → Na⁺(aq) + Cl⁻(aq). CH₃COOH: elektrolit lemah, CH₃COOH(aq) + H₂O(l) ⇌ H₃O⁺(aq) + CH₃COO⁻(aq). Sukrosa larut sebagai molekul dan tidak terionisasi dalam air. Jumlah ion bebas menjelaskan perbedaan nyala lampu dan gelembung pada kondisi uji yang sama.',
     rubric: [
-      { criterion: 'Ketepatan klasifikasi NaCl, CH₃COOH, dan sukrosa', points: 5 },
-      { criterion: 'Analisis proses disosiasi atau ionisasi', points: 5 },
-      { criterion: 'Analisis hubungan ion bergerak dengan daya hantar listrik', points: 5 },
-      { criterion: 'Ketepatan persamaan reaksi dan argumentasi ilmiah', points: 5 },
+      { id: 'classification', criterion: 'Klasifikasi larutan', points: 5 },
+      { id: 'ionFormation', criterion: 'Analisis pembentukan ion', points: 7 },
+      { id: 'conductivity', criterion: 'Hubungan ion dengan daya hantar listrik', points: 7 },
+      { id: 'equationArgument', criterion: 'Persamaan reaksi dan argumentasi ilmiah', points: 6 },
     ],
   },
   {
@@ -228,10 +228,10 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     explanation: 'Kesimpulan tidak dapat diambil hanya dari nyala lampu karena konsentrasi, suhu, dan jarak elektroda berbeda. Perbandingan yang valid mengendalikan kondisi tersebut serta volume, jenis dan luas elektroda, dan tegangan. Pada kondisi setara, HCl yang terionisasi hampir sempurna secara teoritis menyediakan lebih banyak ion daripada CH₃COOH yang terionisasi sebagian.',
     answerGuide: 'Kesimpulan belum valid karena konsentrasi, suhu, dan jarak elektroda menjadi variabel pengganggu. Samakan konsentrasi, suhu, volume, jenis/luas/jarak elektroda, dan tegangan; gunakan alat yang sama dan ulangi pengukuran. HCl secara teoritis menghasilkan lebih banyak ion bebas karena elektrolit kuat, sedangkan CH₃COOH merupakan elektrolit lemah.',
     rubric: [
-      { criterion: 'Ketepatan mengevaluasi kesimpulan siswa', points: 5 },
-      { criterion: 'Identifikasi variabel yang belum dikendalikan', points: 5 },
-      { criterion: 'Kualitas rancangan eksperimen yang diusulkan', points: 5 },
-      { criterion: 'Ketepatan penjelasan ilmiah dan argumentasi', points: 5 },
+      { id: 'conclusionEvaluation', criterion: 'Evaluasi kesimpulan', points: 5 },
+      { id: 'variables', criterion: 'Identifikasi variabel', points: 6 },
+      { id: 'experimentDesign', criterion: 'Rancangan eksperimen', points: 8 },
+      { id: 'scientificArgument', criterion: 'Argumentasi ilmiah', points: 6 },
     ],
   },
 ];
@@ -256,10 +256,10 @@ export const QUIZ_QUESTIONS_V2_ESSAYS: QuizQuestion[] = [
     explanation: 'NaCl terdisosiasi hampir sempurna; CH₃COOH terionisasi sebagian; sukrosa larut sebagai molekul netral. Jumlah ion bebas yang lebih besar umumnya meningkatkan daya hantar, dengan mempertimbangkan konsentrasi dan mobilitas ion.',
     answerGuide: 'A elektrolit kuat: NaCl(s) → Na⁺(aq) + Cl⁻(aq). B elektrolit lemah: CH₃COOH(aq) ⇌ H⁺(aq) + CH₃COO⁻(aq). C nonelektrolit karena sukrosa tetap berupa molekul netral.',
     rubric: [
-      { criterion: 'Ketepatan klasifikasi larutan A, B, dan C', points: 5 },
-      { criterion: 'Analisis hubungan jumlah ion dan daya hantar', points: 5 },
-      { criterion: 'Ketepatan persamaan reaksi', points: 5 },
-      { criterion: 'Penjelasan sifat nonelektrolit sukrosa', points: 5 },
+      { id: 'classification', criterion: 'Ketepatan klasifikasi larutan A, B, dan C', points: 5 },
+      { id: 'ionConductivity', criterion: 'Analisis hubungan jumlah ion dan daya hantar', points: 5 },
+      { id: 'equation', criterion: 'Ketepatan persamaan reaksi', points: 5 },
+      { id: 'nonelectrolyte', criterion: 'Penjelasan sifat nonelektrolit sukrosa', points: 5 },
     ],
   },
   {
@@ -272,10 +272,62 @@ export const QUIZ_QUESTIONS_V2_ESSAYS: QuizQuestion[] = [
     explanation: 'Kesimpulan belum sepenuhnya valid karena konsentrasi dan suhu berbeda. Kendalikan konsentrasi, suhu, volume, jenis dan luas elektroda, jarak elektroda, serta tegangan. HCl kuat terionisasi hampir sempurna, sedangkan CH₃COOH lemah terionisasi sebagian; mobilitas dan konsentrasi ion juga memengaruhi hasil.',
     answerGuide: 'Terima kesimpulan hanya sebagai dugaan, bukan bukti sebab-akibat, karena ada variabel pengganggu. Samakan kondisi pengukuran dan ulangi pengukuran. Dalam kondisi setara, HCl secara teoritis menghasilkan lebih banyak ion bebas daripada CH₃COOH; arus aktual juga dipengaruhi konsentrasi ion dan mobilitas.',
     rubric: [
-      { criterion: 'Evaluasi validitas kesimpulan', points: 5 },
-      { criterion: 'Identifikasi variabel kontrol', points: 5 },
-      { criterion: 'Rancangan eksperimen yang adil', points: 5 },
-      { criterion: 'Argumentasi dan prediksi ilmiah', points: 5 },
+      { id: 'evaluation', criterion: 'Evaluasi validitas kesimpulan', points: 5 },
+      { id: 'variables', criterion: 'Identifikasi variabel kontrol', points: 5 },
+      { id: 'experiment', criterion: 'Rancangan eksperimen yang adil', points: 5 },
+      { id: 'argument', criterion: 'Argumentasi dan prediksi ilmiah', points: 5 },
+    ],
+  },
+];
+
+export const QUIZ_QUESTIONS_V3_ESSAYS: QuizQuestion[] = [
+  {
+    id: 11,
+    type: 'essay',
+    cognitiveLevel: 'C4',
+    category: 'Analisis Fenomena Kimia',
+    context: 'Seorang siswa melakukan pengujian daya hantar listrik terhadap tiga larutan dengan konsentrasi dan kondisi pengujian yang sama. Hasil pengamatan disajikan berikut.',
+    comparisonTable: {
+      headers: ['Larutan', 'Nyala lampu', 'Gelembung pada elektroda'],
+      rows: [
+        ['NaCl', 'Terang', 'Banyak'],
+        ['CH₃COOH', 'Redup', 'Sedikit'],
+        ['Sukrosa (C₁₂H₂₂O₁₁)', 'Tidak menyala', 'Tidak ada'],
+      ],
+    },
+    question: 'Berdasarkan data percobaan tersebut, analisislah hubungan antara proses pembentukan ion dalam masing-masing larutan dengan perbedaan kemampuan ketiganya dalam menghantarkan arus listrik, serta dukung analisis Anda menggunakan klasifikasi elektrolit dan persamaan reaksi yang sesuai.',
+    explanation: 'NaCl merupakan elektrolit kuat yang terdisosiasi menjadi ion Na⁺ dan Cl⁻; CH₃COOH merupakan elektrolit lemah yang terionisasi sebagian menjadi H⁺ dan CH₃COO⁻; sukrosa merupakan nonelektrolit yang tetap sebagai molekul netral. Semakin banyak ion bergerak, semakin baik daya hantar listriknya.',
+    answerGuide: 'NaCl: elektrolit kuat, NaCl(aq) → Na⁺(aq) + Cl⁻(aq). CH₃COOH: elektrolit lemah, CH₃COOH(aq) ⇌ H⁺(aq) + CH₃COO⁻(aq). Sukrosa: nonelektrolit dan tidak membentuk ion. Jumlah ion bebas menjelaskan perbedaan nyala lampu dan gelembung pada kondisi uji yang sama.',
+    rubric: [
+      { id: 'classification', criterion: 'Ketepatan klasifikasi larutan A, B, dan C', points: 5 },
+      { id: 'ionConductivity', criterion: 'Analisis hubungan jumlah ion dan daya hantar', points: 5 },
+      { id: 'equation', criterion: 'Ketepatan persamaan reaksi', points: 5 },
+      { id: 'nonelectrolyte', criterion: 'Penjelasan sifat nonelektrolit sukrosa', points: 5 },
+    ],
+  },
+  {
+    id: 12,
+    type: 'essay',
+    cognitiveLevel: 'C5',
+    category: 'Evaluasi Eksperimen dan Argumentasi Ilmiah',
+    context: 'Dua kelompok siswa melakukan percobaan untuk membandingkan daya hantar listrik larutan HCl dan CH₃COOH. Berdasarkan hasil tersebut, seorang siswa menyimpulkan bahwa HCl merupakan elektrolit yang lebih kuat daripada CH₃COOH karena lampunya menyala lebih terang.',
+    comparisonTable: {
+      headers: ['Parameter', 'Larutan HCl', 'Larutan CH₃COOH'],
+      rows: [
+        ['Konsentrasi', '0,1 M', '0,5 M'],
+        ['Suhu larutan', '25°C', '35°C'],
+        ['Jarak antar elektroda', '2 cm', '3 cm'],
+        ['Hasil pengamatan', 'Lampu terang', 'Lampu redup'],
+      ],
+    },
+    question: 'Evaluasilah ketepatan kesimpulan siswa tersebut berdasarkan prinsip pengujian daya hantar listrik dan kemurnian perbandingan eksperimen, kemudian rumuskan rancangan percobaan yang lebih valid untuk membandingkan kekuatan elektrolit kedua larutan tersebut.',
+    explanation: 'Kesimpulan tidak dapat diambil hanya dari nyala lampu karena konsentrasi, suhu, dan jarak elektroda berbeda. Perbandingan yang valid mengendalikan kondisi tersebut serta volume, jenis dan luas elektroda, dan tegangan. Pada kondisi setara, HCl yang terionisasi hampir sempurna secara teoritis menyediakan lebih banyak ion daripada CH₃COOH yang terionisasi sebagian.',
+    answerGuide: 'Kesimpulan belum valid karena konsentrasi, suhu, dan jarak elektroda menjadi variabel pengganggu. Samakan konsentrasi, suhu, volume, jenis/luas/jarak elektroda, dan tegangan; gunakan alat yang sama dan ulangi pengukuran. HCl secara teoritis menghasilkan lebih banyak ion bebas karena elektrolit kuat, sedangkan CH₃COOH merupakan elektrolit lemah.',
+    rubric: [
+      { id: 'evaluation', criterion: 'Evaluasi validitas kesimpulan', points: 5 },
+      { id: 'variables', criterion: 'Identifikasi variabel kontrol', points: 5 },
+      { id: 'experiment', criterion: 'Rancangan eksperimen yang adil', points: 5 },
+      { id: 'argument', criterion: 'Argumentasi dan prediksi ilmiah', points: 5 },
     ],
   },
 ];

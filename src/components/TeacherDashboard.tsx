@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { QuizSubmission } from '../types/chemistry';
+import type { QuizGradingInput, QuizSubmission } from '../types/chemistry';
 import { BookOpenCheck, CheckCircle2, FileText, Save, UserRound } from 'lucide-react';
-import { QUIZ_QUESTIONS, QUIZ_QUESTIONS_V2_ESSAYS, QUIZ_QUESTION_VERSION } from '../data/evaluationQuiz';
+import { getEssayMaximumForVersion, getQuestionsForVersion } from '../utils/quizGrading';
 
 interface TeacherDashboardProps {
   submissions: QuizSubmission[];
@@ -9,7 +9,7 @@ interface TeacherDashboardProps {
   loadError: string;
   onSaveReview: (
     submission: QuizSubmission,
-    updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
+    updates: QuizGradingInput,
   ) => Promise<void>;
 }
 
@@ -27,14 +27,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   onSaveReview,
 }) => {
   const submissions = accountSubmissions;
-  const [draftScores, setDraftScores] = useState<Record<string, number>>({});
-  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
+  const [draftScores, setDraftScores] = useState<Record<string, Record<string, string>>>({});
+  const [draftFeedback, setDraftFeedback] = useState<Record<string, Record<number, string>>>({});
   const [savingSubmissionId, setSavingSubmissionId] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState('');
 
-  const averageScore = submissions.length
-    ? Math.round(submissions.reduce((total, submission) => total + submission.score, 0) / submissions.length)
-    : 0;
+  const activeVersionSubmissions = submissions.filter((submission) => submission.questionVersion === 'v4');
+  const averageScore = activeVersionSubmissions.length
+    ? Math.round(activeVersionSubmissions.reduce((total, submission) => total + submission.score, 0) / activeVersionSubmissions.length)
+    : null;
 
   const totalEssayResponses = submissions.reduce((count, submission) => {
     return count + submission.answers.filter((answer) => answer.questionType === 'essay' && (answer.essayText ?? '').trim().length > 0).length;
@@ -45,11 +46,33 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     setSavingSubmissionId(key);
     setReviewMessage('');
     try {
+      const questions = getQuestionsForVersion(submission.questionVersion);
+      const scoreForEssay = (questionId: number) => {
+        const question = questions.find((item) => item.id === questionId);
+        if (question?.type !== 'essay' || !question.rubric?.length) {
+          throw new Error(`Rubrik Esai ${questionId - 10} tidak tersedia.`);
+        }
+        const assessment = questionId === 11
+          ? submission.essay1Assessment
+          : submission.essay2Assessment;
+        const rawScore = draftScores[key]?.[String(questionId)] ?? assessment?.score.toString() ?? '';
+        if (rawScore.trim() === '' || !/^\d+$/.test(rawScore)) {
+          throw new Error(`Nilai Esai ${questionId - 10} harus berupa bilangan bulat.`);
+        }
+        const score = Number(rawScore);
+        const maximumScore = question.rubric.reduce((total, criterion) => total + criterion.points, 0);
+        if (score > maximumScore) {
+          throw new Error(`Nilai Esai ${questionId - 10} maksimal ${maximumScore}.`);
+        }
+        return score;
+      };
       await onSaveReview(submission, {
-        manualEssayScore: draftScores[key] ?? 0,
-        teacherNotes: draftNotes[key] ?? '',
+        essay1Score: scoreForEssay(11),
+        essay2Score: scoreForEssay(12),
+        essay1Feedback: draftFeedback[key]?.[11] ?? submission.essay1Assessment?.feedback ?? '',
+        essay2Feedback: draftFeedback[key]?.[12] ?? submission.essay2Assessment?.feedback ?? '',
       });
-      setReviewMessage(`Review percobaan #${submission.attemptNumber ?? '—'} berhasil disimpan.`);
+      setReviewMessage(`Penilaian percobaan #${submission.attemptNumber ?? '—'} berhasil disimpan.`);
     } catch (error) {
       setReviewMessage(error instanceof Error
         ? `Review gagal disimpan: ${error.message}`
@@ -93,8 +116,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--navy-900)' }}>{submissions.length}</div>
           </div>
           <div className="card" style={{ padding: '1.25rem' }}>
-            <div style={{ color: 'var(--slate-500)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Rata-Rata Skor</div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--teal-700)' }}>{averageScore}</div>
+            <div style={{ color: 'var(--slate-500)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Rata-Rata PG v4</div>
+            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--teal-700)' }}>{averageScore === null ? '—' : `${averageScore}/50`}</div>
           </div>
           <div className="card" style={{ padding: '1.25rem' }}>
             <div style={{ color: 'var(--slate-500)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Jawaban Esai</div>
@@ -131,14 +154,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               const multipleChoiceAnswers = submission.answers.filter(
                 (answer) => answer.questionType === 'multiple-choice'
               );
-              const questionSet = submission.questionVersion === QUIZ_QUESTION_VERSION
-                ? QUIZ_QUESTIONS
-                : submission.questionVersion === 'v2'
-                  ? [...QUIZ_QUESTIONS.filter((question) => question.type === 'multiple-choice'), ...QUIZ_QUESTIONS_V2_ESSAYS]
-                  : [];
-              const maximumEssayScore = submission.questionVersion === 'v2' || submission.questionVersion === QUIZ_QUESTION_VERSION
-                ? 40
-                : 100;
+              const questionSet = getQuestionsForVersion(submission.questionVersion);
+              const maximumEssayScore = getEssayMaximumForVersion(submission.questionVersion);
+              const supportsCurrentRubric = submission.questionVersion === 'v4'
+                && questionSet.filter((question) => question.type === 'essay').length === 2;
 
               return (
                 <div key={submissionKey(submission)} className="card" style={{ padding: '1.5rem' }}>
@@ -157,7 +176,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                       <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>
-                        Skor Pilihan Ganda: {submission.score}/100
+                        Skor Pilihan Ganda: {submission.score}/{submission.questionVersion === 'v4' ? 50 : 100}
                       </span>
                     </div>
                   </div>
@@ -265,12 +284,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                     )}
                                     {question.rubric && (
                                       <div style={{ marginTop: '0.5rem', color: 'var(--slate-700)', fontSize: '0.85rem' }}>
-                                        <strong>Rubrik penilaian (maks. 20 poin):</strong>
+                                        <strong>Rubrik penilaian · pedoman guru (maks. {question.rubric.reduce((sum, criterion) => sum + criterion.points, 0)} poin)</strong>
                                         <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem' }}>
                                           {question.rubric.map((criterion) => (
-                                            <li key={criterion.criterion}>{criterion.criterion}: {criterion.points} poin</li>
+                                            <li key={criterion.id}>
+                                              {criterion.criterion}: maksimal {criterion.points} poin
+                                            </li>
                                           ))}
                                         </ul>
+                                        <div style={{ marginTop: '0.35rem' }}>
+                                          Masukkan satu nilai total untuk esai ini pada kolom penilaian.
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -295,66 +319,81 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         Nilai & Catatan Guru
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
-                          Nilai Uraian Manual (0–{maximumEssayScore})
-                          <input
-                            type="number"
-                            min={0}
-                            max={maximumEssayScore}
-                            value={draftScores[submissionKey(submission)] ?? submission.manualEssayScore ?? 0}
-                            onChange={(event) => {
-                              const nextValue = Number(event.target.value) || 0;
-                              setDraftScores((prev) => ({ ...prev, [submissionKey(submission)]: nextValue }));
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: '0.78rem 0.9rem',
-                              borderRadius: '10px',
-                              border: '1px solid var(--slate-200)',
-                              fontSize: '0.95rem',
-                              color: 'var(--navy-900)',
-                              backgroundColor: '#ffffff',
-                              boxSizing: 'border-box'
-                            }}
-                          />
-                        </label>
-
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
-                          Catatan Guru
-                          <textarea
-                            rows={4}
-                            value={draftNotes[submissionKey(submission)] ?? submission.teacherNotes ?? ''}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              setDraftNotes((prev) => ({ ...prev, [submissionKey(submission)]: nextValue }));
-                            }}
-                            placeholder="Tambahkan catatan atau penjelasan evaluasi..."
-                            style={{
-                              width: '100%',
-                              resize: 'vertical',
-                              borderRadius: '10px',
-                              border: '1px solid var(--slate-200)',
-                              padding: '0.8rem 0.9rem',
-                              fontSize: '0.95rem',
-                              lineHeight: 1.5,
-                              color: 'var(--navy-900)',
-                              backgroundColor: '#ffffff',
-                              boxSizing: 'border-box'
-                            }}
-                          />
-                        </label>
-
-                        <button
-                          onClick={() => void handleSaveReview(submission)}
-                          disabled={savingSubmissionId === submissionKey(submission)}
-                          className="btn btn-primary"
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: '0.3rem' }}
-                        >
-                          <Save size={16} />
-                          <span>{savingSubmissionId === submissionKey(submission) ? 'Menyimpan…' : 'Simpan Review'}</span>
-                        </button>
-                      </div>
+                      {supportsCurrentRubric ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {[11, 12].map((questionId) => {
+                            const assessment = questionId === 11
+                              ? submission.essay1Assessment
+                              : submission.essay2Assessment;
+                            return (
+                              <fieldset key={questionId} style={{ border: '1px solid var(--slate-200)', borderRadius: '10px', padding: '0.9rem' }}>
+                                <legend style={{ padding: '0 0.35rem', color: 'var(--navy-900)', fontWeight: 800 }}>
+                                  Esai {questionId - 10} · skor maks. 25
+                                </legend>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+                                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
+                                    Nilai Esai {questionId - 10} (0–25)
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={25}
+                                      step={1}
+                                      value={draftScores[submissionKey(submission)]?.[String(questionId)] ?? assessment?.score.toString() ?? ''}
+                                      onChange={(event) => {
+                                        const key = submissionKey(submission);
+                                        const nextValue = event.target.value;
+                                        setDraftScores((previous) => ({
+                                          ...previous,
+                                          [key]: { ...previous[key], [String(questionId)]: nextValue },
+                                        }));
+                                      }}
+                                      aria-label={`Nilai Esai ${questionId - 10}`}
+                                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--slate-200)', boxSizing: 'border-box' }}
+                                    />
+                                  </label>
+                                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
+                                    Feedback Esai {questionId - 10}
+                                    <textarea
+                                      rows={3}
+                                      value={draftFeedback[submissionKey(submission)]?.[questionId] ?? assessment?.feedback ?? ''}
+                                      onChange={(event) => {
+                                        const key = submissionKey(submission);
+                                        const nextValue = event.target.value;
+                                        setDraftFeedback((previous) => ({
+                                          ...previous,
+                                          [key]: { ...previous[key], [questionId]: nextValue },
+                                        }));
+                                      }}
+                                      placeholder={`Catatan guru untuk Esai ${questionId - 10}...`}
+                                      style={{ width: '100%', resize: 'vertical', borderRadius: '8px', border: '1px solid var(--slate-200)', padding: '0.65rem', boxSizing: 'border-box' }}
+                                    />
+                                  </label>
+                                </div>
+                              </fieldset>
+                            );
+                          })}
+                          <div style={{ color: 'var(--slate-600)', fontSize: '0.8rem' }}>
+                            Maksimum Esai 1: 25 · Esai 2: 25 · Total: 50 poin. Status: {submission.gradingStatus === 'COMPLETED' ? 'Selesai Dinilai' : 'Menunggu Penilaian Guru'}.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveReview(submission)}
+                            disabled={savingSubmissionId === submissionKey(submission)}
+                            className="btn btn-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                          >
+                            <Save size={16} />
+                            <span>{savingSubmissionId === submissionKey(submission) ? 'Menyimpan…' : 'Simpan Penilaian'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--slate-600)', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                          Percobaan versi lama dipertahankan sebagai data historis dan tidak dapat dinilai menggunakan rubrik v4.
+                          {submission.manualEssayScore !== undefined && (
+                            <div>Nilai historis: {submission.manualEssayScore}/{maximumEssayScore}. {submission.teacherNotes}</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

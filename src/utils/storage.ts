@@ -1,4 +1,4 @@
-import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizAnswer, QuizDraft, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
+import type { LearningProgress, ExperimentRecord, HomePromptResponse, QuizAnswer, QuizDraft, QuizEssayAssessment, QuizGradingInput, QuizResult, QuizSubmission, StudentIdentity, WorksheetConclusion } from '../types/chemistry';
 import {
   collection,
   collectionGroup,
@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { firebaseAuth, firestore, isVerifiedTeacherUid } from './firebase';
 import { getExperimentRecordKey } from './experimentRecords';
+import { buildQuizGrading, gradeMultipleChoiceAnswers } from './quizGrading';
 
 const STORAGE_KEY = 'kimialab_learning_progress_v2';
 const ACTIVE_STUDENT_KEY = 'kimialab_active_student_v1';
@@ -90,6 +91,25 @@ const isQuizSubmission = (value: unknown): value is QuizSubmission => {
     && value.answers.every(isQuizAnswer);
 };
 
+const parseEssayAssessment = (value: unknown): QuizEssayAssessment | undefined => {
+  if (!isRecord(value) || !Number.isFinite(value.score) || typeof value.feedback !== 'string') {
+    return undefined;
+  }
+  let rubricScores: Record<string, number> | undefined;
+  if (isRecord(value.rubricScores)) {
+    rubricScores = {};
+    for (const [key, score] of Object.entries(value.rubricScores)) {
+      if (!Number.isFinite(score)) return undefined;
+      rubricScores[key] = Number(score);
+    }
+  }
+  return {
+    ...(rubricScores ? { rubricScores } : {}),
+    score: Number(value.score),
+    feedback: value.feedback,
+  };
+};
+
 const parseQuizSubmission = (value: unknown, documentId: string, userId?: string): QuizSubmission => {
   if (!isRecord(value)) {
     throw new Error(`Format riwayat kuis ${documentId} tidak valid.`);
@@ -106,6 +126,7 @@ const parseQuizSubmission = (value: unknown, documentId: string, userId?: string
   if (!isQuizSubmission(normalized)) {
     throw new Error(`Format riwayat kuis ${documentId} tidak valid.`);
   }
+  const gradedAtValue: unknown = isRecord(value) ? value.gradedAt : undefined;
   return {
     ...normalized,
     id: documentId,
@@ -118,6 +139,25 @@ const parseQuizSubmission = (value: unknown, documentId: string, userId?: string
       ? Number(normalized.attemptNumber)
       : undefined,
     status: 'submitted',
+    multipleChoiceQuestions: Number.isSafeInteger(normalized.multipleChoiceQuestions)
+      ? Number(normalized.multipleChoiceQuestions)
+      : undefined,
+    wrongAnswers: Number.isSafeInteger(normalized.wrongAnswers)
+      ? Number(normalized.wrongAnswers)
+      : undefined,
+    gradingStatus: normalized.gradingStatus === 'COMPLETED' || normalized.gradingStatus === 'PENDING_ESSAY_GRADING'
+      ? normalized.gradingStatus
+      : undefined,
+    essay1Assessment: parseEssayAssessment(normalized.essay1Assessment),
+    essay2Assessment: parseEssayAssessment(normalized.essay2Assessment),
+    totalEssayScore: Number.isFinite(normalized.totalEssayScore) ? Number(normalized.totalEssayScore) : undefined,
+    finalScore: Number.isFinite(normalized.finalScore) ? Number(normalized.finalScore) : undefined,
+    gradedBy: typeof normalized.gradedBy === 'string' ? normalized.gradedBy : undefined,
+    gradedAt: gradedAtValue instanceof Timestamp
+      ? gradedAtValue.toDate().toISOString()
+      : typeof gradedAtValue === 'string'
+        ? gradedAtValue
+        : undefined,
     manualEssayScore: Number.isFinite(normalized.manualEssayScore) ? Number(normalized.manualEssayScore) : undefined,
     teacherNotes: typeof normalized.teacherNotes === 'string' ? normalized.teacherNotes : '',
   };
@@ -132,10 +172,7 @@ const getLatestQuizResult = (
   submissions: QuizSubmission[],
 ): QuizResult | null => {
   const latestSubmission = submissions.find((submission) => submission.quizId === EVALUATION_QUIZ_ID);
-  if (!latestSubmission) return currentResult;
-  if (currentResult && Date.parse(currentResult.completedAt) > Date.parse(latestSubmission.submittedAt)) {
-    return currentResult;
-  }
+  if (!latestSubmission) return currentResult?.questionVersion === 'v4' ? null : currentResult;
   return {
     id: latestSubmission.id,
     quizId: latestSubmission.quizId,
@@ -146,6 +183,15 @@ const getLatestQuizResult = (
     score: latestSubmission.score,
     totalQuestions: latestSubmission.totalQuestions,
     correctAnswers: latestSubmission.correctAnswers,
+    multipleChoiceQuestions: latestSubmission.multipleChoiceQuestions,
+    wrongAnswers: latestSubmission.wrongAnswers,
+    gradingStatus: latestSubmission.gradingStatus,
+    essay1Assessment: latestSubmission.essay1Assessment,
+    essay2Assessment: latestSubmission.essay2Assessment,
+    totalEssayScore: latestSubmission.totalEssayScore,
+    finalScore: latestSubmission.gradingStatus === 'COMPLETED' ? latestSubmission.finalScore : undefined,
+    gradedBy: latestSubmission.gradedBy,
+    gradedAt: latestSubmission.gradedAt,
     completedAt: latestSubmission.submittedAt,
     submissionData: latestSubmission.answers,
     essayAnswers: Object.fromEntries(
@@ -155,6 +201,18 @@ const getLatestQuizResult = (
     ),
     manualEssayScore: latestSubmission.manualEssayScore,
     teacherNotes: latestSubmission.teacherNotes,
+  };
+};
+
+export const applyQuizAttemptSnapshot = (
+  progress: LearningProgress,
+  attempts: QuizSubmission[],
+): LearningProgress => {
+  const quizSubmissions = mergeQuizSubmissions(progress.quizSubmissions, attempts);
+  return {
+    ...progress,
+    quizSubmissions,
+    quizResult: getLatestQuizResult(progress.quizResult, quizSubmissions),
   };
 };
 
@@ -329,10 +387,31 @@ export const subscribeTeacherQuizAttempts = async (
   );
 };
 
+export const subscribeStudentQuizAttempts = async (
+  studentId: string,
+  onAttempts: (attempts: QuizSubmission[]) => void,
+  onError: (error: unknown) => void,
+): Promise<Unsubscribe> => {
+  if (!firestore || !studentId) throw new Error('Firebase belum dikonfigurasi untuk memuat hasil kuis akun.');
+  if (firebaseAuth?.currentUser?.uid !== studentId) {
+    throw new Error('Akun hanya dapat memantau hasil evaluasinya sendiri.');
+  }
+  return onSnapshot(
+    getAccountQuizAttemptsRef(firestore, studentId),
+    (snapshot) => {
+      const attempts = snapshot.docs
+        .map((attempt) => parseQuizSubmission(attempt.data(), attempt.data().id ?? attempt.id, studentId))
+        .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt));
+      onAttempts(attempts);
+    },
+    onError,
+  );
+};
+
 export const updateAccountQuizAttempt = async (
   submission: QuizSubmission,
-  updates: Pick<QuizSubmission, 'manualEssayScore' | 'teacherNotes'>,
-): Promise<void> => {
+  updates: QuizGradingInput,
+): Promise<QuizSubmission> => {
   if (!firestore || !submission.userId) {
     throw new Error('Identitas akun pemilik hasil kuis tidak tersedia.');
   }
@@ -340,20 +419,36 @@ export const updateAccountQuizAttempt = async (
   if (!uid || !(await isVerifiedTeacherUid(uid))) {
     throw new Error('Hanya guru yang sah dapat menyimpan nilai dan catatan.');
   }
-  const maximumEssayScore = submission.questionVersion === 'v2' || submission.questionVersion === 'v3' ? 40 : 100;
-  if (updates.manualEssayScore === undefined ||
-    !Number.isFinite(updates.manualEssayScore) ||
-    updates.manualEssayScore < 0 ||
-    updates.manualEssayScore > maximumEssayScore ||
-    typeof updates.teacherNotes !== 'string') {
-    throw new Error('Nilai atau catatan guru tidak valid.');
+  if (submission.questionVersion !== 'v4' || submission.quizId !== EVALUATION_QUIZ_ID) {
+    throw new Error('Penilaian rubrik hanya tersedia untuk percobaan evaluasi versi aktif.');
   }
+  const grading = buildQuizGrading(updates, submission.score);
+  const teacherNotes = [grading.essay1Assessment.feedback, grading.essay2Assessment.feedback]
+    .filter(Boolean)
+    .join('\n\n');
   await updateDoc(getAccountQuizAttemptRef(firestore, submission.userId, submission.id), {
-    manualEssayScore: updates.manualEssayScore,
-    teacherNotes: updates.teacherNotes,
+    gradingStatus: 'COMPLETED',
+    essay1Assessment: grading.essay1Assessment,
+    essay2Assessment: grading.essay2Assessment,
+    totalEssayScore: grading.totalEssayScore,
+    finalScore: grading.finalScore,
+    manualEssayScore: grading.totalEssayScore,
+    teacherNotes,
     gradedBy: uid,
     gradedAt: serverTimestamp(),
   });
+  return {
+    ...submission,
+    gradingStatus: 'COMPLETED',
+    essay1Assessment: grading.essay1Assessment,
+    essay2Assessment: grading.essay2Assessment,
+    totalEssayScore: grading.totalEssayScore,
+    finalScore: grading.finalScore,
+    manualEssayScore: grading.totalEssayScore,
+    teacherNotes,
+    gradedBy: uid,
+    gradedAt: new Date().toISOString(),
+  };
 };
 
 export const deleteAccountQuizAttempts = async (student: StudentIdentity): Promise<void> => {
@@ -482,6 +577,10 @@ export const saveAccountProgress = async (
     delete answerOnly.manualEssayScore;
     delete answerOnly.teacherNotes;
     delete answerOnly.essayScore;
+    delete answerOnly.essay1Assessment;
+    delete answerOnly.essay2Assessment;
+    delete answerOnly.totalEssayScore;
+    delete answerOnly.finalScore;
     delete answerOnly.gradedBy;
     delete answerOnly.gradedAt;
     return answerOnly;
@@ -495,6 +594,10 @@ export const saveAccountProgress = async (
         delete result.manualEssayScore;
         delete result.teacherNotes;
         delete result.essayScore;
+        delete result.essay1Assessment;
+        delete result.essay2Assessment;
+        delete result.totalEssayScore;
+        delete result.finalScore;
         delete result.gradedBy;
         delete result.gradedAt;
         return result;
@@ -712,6 +815,10 @@ export const saveAccountQuizAttempt = async (
   delete sanitizedSubmission.manualEssayScore;
   delete sanitizedSubmission.teacherNotes;
   delete sanitizedSubmission.essayScore;
+  delete sanitizedSubmission.essay1Assessment;
+  delete sanitizedSubmission.essay2Assessment;
+  delete sanitizedSubmission.totalEssayScore;
+  delete sanitizedSubmission.finalScore;
   delete sanitizedSubmission.gradedBy;
   delete sanitizedSubmission.gradedAt;
   const attemptRef = getAccountQuizAttemptRef(firestore, studentId, submission.id);
@@ -730,22 +837,7 @@ export const saveAccountQuizAttempt = async (
       if (saved.userId !== studentId || saved.quizId !== quizId) {
         throw new Error('ID percobaan ini sudah digunakan untuk data kuis lain.');
       }
-      const confirmedSubmission: QuizSubmission = {
-        ...sanitizedSubmission,
-        id: submission.id,
-        userId: studentId,
-        quizId,
-        questionVersion: submission.questionVersion ?? saved.questionVersion ?? 'v1',
-        attemptNumber: saved.attemptNumber ?? submission.attemptNumber,
-        status: 'submitted',
-      };
-      transaction.set(attemptRef, {
-        ...confirmedSubmission,
-        clientSubmittedAt: sanitizedSubmission.submittedAt,
-        submittedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return confirmedSubmission;
+      return saved;
     }
 
     const embeddedAttempts: unknown = progressSnapshot.exists()
@@ -824,13 +916,39 @@ export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity)
     previousAttempts.length,
     ...previousAttempts.map((item) => item.attemptNumber ?? 0),
   ) + 1;
-  const resultWithAttempt: QuizResult = {
+  let resultWithAttempt: QuizResult = {
     ...quizResult,
     id: submissionId,
     quizId,
     questionVersion: quizResult.questionVersion ?? 'v1',
     attemptNumber,
   };
+  if (resultWithAttempt.questionVersion === 'v4') {
+    const grading = gradeMultipleChoiceAnswers(resultWithAttempt.submissionData, 'v4');
+    const essayAnswers = resultWithAttempt.submissionData.filter((answer) => answer.questionType === 'essay');
+    if (
+      resultWithAttempt.totalQuestions !== 12
+      || essayAnswers.length !== 2
+      || essayAnswers.some((answer) => !answer.essayText?.trim())
+      || resultWithAttempt.gradingStatus !== 'PENDING_ESSAY_GRADING'
+    ) {
+      throw new Error('Pengiriman evaluasi versi aktif harus memuat 10 jawaban PG dan 2 jawaban esai.');
+    }
+    resultWithAttempt = {
+      ...resultWithAttempt,
+      score: grading.score,
+      correctAnswers: grading.correctAnswers,
+      wrongAnswers: grading.wrongAnswers,
+      multipleChoiceQuestions: 10,
+      gradingStatus: 'PENDING_ESSAY_GRADING',
+      essay1Assessment: undefined,
+      essay2Assessment: undefined,
+      totalEssayScore: undefined,
+      finalScore: undefined,
+      gradedBy: undefined,
+      gradedAt: undefined,
+    };
+  }
   const submission: QuizSubmission = {
     id: submissionId,
     userId: student.id ?? 'guest',
@@ -845,6 +963,15 @@ export const saveQuizResult = (quizResult: QuizResult, student: StudentIdentity)
     score: resultWithAttempt.score,
     totalQuestions: resultWithAttempt.totalQuestions,
     correctAnswers: resultWithAttempt.correctAnswers,
+    multipleChoiceQuestions: resultWithAttempt.multipleChoiceQuestions,
+    wrongAnswers: resultWithAttempt.wrongAnswers,
+    gradingStatus: resultWithAttempt.gradingStatus,
+    essay1Assessment: resultWithAttempt.essay1Assessment,
+    essay2Assessment: resultWithAttempt.essay2Assessment,
+    totalEssayScore: resultWithAttempt.totalEssayScore,
+    finalScore: resultWithAttempt.finalScore,
+    gradedBy: resultWithAttempt.gradedBy,
+    gradedAt: resultWithAttempt.gradedAt,
     manualEssayScore: resultWithAttempt.manualEssayScore,
     teacherNotes: resultWithAttempt.teacherNotes ?? '',
   };

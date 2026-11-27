@@ -3,6 +3,7 @@ import type { QuizAnswer, QuizQuestion, QuizResult, StudentIdentity } from '../t
 import { Award, RotateCcw, ArrowRight, FileText } from 'lucide-react';
 import { clearQuizDraft, EVALUATION_QUIZ_ID, getQuizDraft, saveQuizDraft } from '../utils/storage';
 import { QUIZ_QUESTIONS as VERSIONED_QUIZ_QUESTIONS, QUIZ_QUESTION_VERSION } from '../data/evaluationQuiz';
+import { gradeMultipleChoiceAnswers, MULTIPLE_CHOICE_QUESTION_COUNT } from '../utils/quizGrading';
 
 const QUIZ_QUESTIONS: QuizQuestion[] = VERSIONED_QUIZ_QUESTIONS;
 
@@ -60,7 +61,9 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
   } catch (error) {
     return {
       submissionData: savedResult?.questionVersion === QUIZ_QUESTION_VERSION ? buildSubmissionMap(savedResult) : {},
-      attemptId: createQuizAttemptId(),
+      attemptId: savedResult?.questionVersion === QUIZ_QUESTION_VERSION && savedResult.id
+        ? savedResult.id
+        : createQuizAttemptId(),
       lastQuestionId: null,
       submitted: savedResult?.questionVersion === QUIZ_QUESTION_VERSION,
       currentScore: savedResult?.questionVersion === QUIZ_QUESTION_VERSION ? savedResult.score : 0,
@@ -72,7 +75,9 @@ const createInitialQuizState = (savedResult: QuizResult | null, student: Student
 
   return {
     submissionData: savedResult?.questionVersion === QUIZ_QUESTION_VERSION ? buildSubmissionMap(savedResult) : {},
-    attemptId: createQuizAttemptId(),
+    attemptId: savedResult?.questionVersion === QUIZ_QUESTION_VERSION && savedResult.id
+      ? savedResult.id
+      : createQuizAttemptId(),
     lastQuestionId: null,
     submitted: savedResult?.questionVersion === QUIZ_QUESTION_VERSION,
     currentScore: savedResult?.questionVersion === QUIZ_QUESTION_VERSION ? savedResult.score : 0,
@@ -198,18 +203,11 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
         : 'Gagal menyimpan draf lokal. Periksa penyimpanan browser.');
     }
 
-    let score = 0;
-    let correctCount = 0;
-
     const submissionList: QuizAnswer[] = QUIZ_QUESTIONS.map((q) => {
       const answer = submissionData[q.id];
 
       if (q.type === 'multiple-choice') {
         const selectedOption = answer?.selectedOption;
-        if (typeof selectedOption === 'number' && selectedOption === q.correctIndex) {
-          score += 10;
-          correctCount += 1;
-        }
 
         return {
           questionId: q.id,
@@ -224,6 +222,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
         essayText: answer?.essayText ?? '',
       };
     });
+    const grading = gradeMultipleChoiceAnswers(submissionList, QUIZ_QUESTION_VERSION);
 
     const result: QuizResult = {
       id: attemptId,
@@ -231,9 +230,12 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
       questionVersion: QUIZ_QUESTION_VERSION,
       studentName: student.name,
       studentClass: student.className,
-      score,
+      score: grading.score,
       totalQuestions: QUIZ_QUESTIONS.length,
-      correctAnswers: correctCount,
+      correctAnswers: grading.correctAnswers,
+      multipleChoiceQuestions: MULTIPLE_CHOICE_QUESTION_COUNT,
+      wrongAnswers: grading.wrongAnswers,
+      gradingStatus: 'PENDING_ESSAY_GRADING',
       completedAt: new Date().toISOString(),
       submissionData: submissionList,
       essayAnswers: Object.fromEntries(
@@ -263,7 +265,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
       setIsSubmitting(false);
     }
 
-    setCurrentScore(score);
+    setCurrentScore(grading.score);
     setSubmitted(true);
     setSubmitError('');
     try {
@@ -332,6 +334,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
 
   const answeredCount = QUIZ_QUESTIONS.filter((q) => isQuestionAnswered(q)).length;
   const hasDraftError = /gagal|tidak dapat|belum tersimpan/i.test(draftMessage);
+  const isEssayGradingComplete = savedResult?.id === attemptId && savedResult.gradingStatus === 'COMPLETED';
 
   return (
     <div className="lab-grid-pattern" style={{ minHeight: '100vh', padding: '2.5rem 0 4rem 0' }}>
@@ -381,19 +384,19 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
             padding: '2rem',
             marginBottom: '2.5rem',
             textAlign: 'center',
-            backgroundColor: currentScore >= 80 ? 'var(--teal-50)' : '#fffbeb',
-            border: `2px solid ${currentScore >= 80 ? 'var(--teal-400)' : '#fde68a'}`
+            backgroundColor: currentScore >= 40 ? 'var(--teal-50)' : '#fffbeb',
+            border: `2px solid ${currentScore >= 40 ? 'var(--teal-400)' : '#fde68a'}`
           }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: currentScore >= 80 ? 'var(--teal-800)' : '#92400e', marginBottom: '0.3rem' }}>
-              Hasil Evaluasi Anda
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: currentScore >= 40 ? 'var(--teal-800)' : '#92400e', marginBottom: '0.3rem' }}>
+              Hasil Pilihan Ganda
             </div>
-            <div style={{ fontSize: '3rem', fontWeight: 900, color: currentScore >= 80 ? 'var(--teal-700)' : '#d97706', lineHeight: 1, marginBottom: '0.5rem' }}>
-              {currentScore} <span style={{ fontSize: '1.25rem', color: 'var(--slate-500)' }}>/ 100</span>
+            <div style={{ fontSize: '3rem', fontWeight: 900, color: currentScore >= 40 ? 'var(--teal-700)' : '#d97706', lineHeight: 1, marginBottom: '0.5rem' }}>
+              {currentScore} <span style={{ fontSize: '1.25rem', color: 'var(--slate-500)' }}>/ 50</span>
             </div>
             <p style={{ fontSize: '1rem', color: 'var(--slate-700)', fontWeight: 600, marginBottom: '1.25rem' }}>
-              {currentScore >= 80
-                ? '🎉 Selamat! Anda telah menguasai konsep daya hantar listrik larutan dengan sangat baik!'
-                : 'Bagus! Pelajari kembali pembahasan di bawah ini dan ulangi kuis untuk meningkatkan nilai Anda.'}
+              {isEssayGradingComplete
+                ? `Esai telah dinilai. Nilai akhir: ${savedResult?.finalScore ?? '—'}/100.`
+                : 'Nilai PG sudah dikoreksi. Jawaban esai tersimpan dan menunggu penilaian guru; nilai akhir belum tersedia.'}
             </p>
             <button
               onClick={handleRetake}
@@ -431,7 +434,7 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
                     {questionLabel} · {q.cognitiveLevel} · {q.category} · {q.type === 'multiple-choice' ? 'Pilihan Ganda' : 'Uraian'}
                   </span>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--slate-500)' }}>
-                    {q.type === 'multiple-choice' ? '10 Poin' : 'Maks. 20 Poin · Nilai Manual'}
+                    {q.type === 'multiple-choice' ? '5 Poin' : 'Maks. 25 Poin · Nilai Manual'}
                   </span>
                 </div>
 
@@ -615,8 +618,13 @@ export const Evaluasi: React.FC<EvaluasiProps> = ({ onSaveQuizResult, savedResul
                     color: 'var(--slate-700)'
                   }}>
                     <strong style={{ color: isCorrect ? '#166534' : '#9f1239' }}>
-                      {isCorrect ? '✓ Jawaban Anda Benar!' : '✕ Jawaban Kurang Tepat.'} Pembahasan:{' '}
+                      {isCorrect ? '✓ Benar · 5/5 poin' : '✕ Belum tepat · 0/5 poin'}{' '}
                     </strong>
+                    <div style={{ marginBottom: '0.4rem' }}>
+                      Jawaban Anda: {typeof userAnswer === 'number' ? `${String.fromCharCode(65 + userAnswer)}. ${q.options?.[userAnswer] ?? ''}` : 'Tidak dijawab'}.
+                      {' '}Kunci: {typeof q.correctIndex === 'number' ? `${String.fromCharCode(65 + q.correctIndex)}. ${q.options?.[q.correctIndex] ?? ''}` : '—'}.
+                    </div>
+                    <strong>Pembahasan: </strong>
                     {q.explanation}
                   </div>
                 )}
