@@ -139,7 +139,6 @@ export function App() {
     attempts: QuizSubmission[];
     error: string;
   } | null>(null);
-  const [roleProfileWarning, setRoleProfileWarning] = useState('');
   const [canSyncProgress, setCanSyncProgress] = useState(false);
   const isTeacher = Boolean(authUser && student?.id === authUser.uid && student.role === 'teacher');
   const isLoadedTeacherHistory = Boolean(teacherHistory && teacherHistory.userId === authUser?.uid);
@@ -186,7 +185,6 @@ export function App() {
       if (accountChanged) {
         setAuthUser(nextUser);
         setTeacherHistory(null);
-        setRoleProfileWarning('');
       }
       if (nextUser) setIsLoginVisible(false);
       setIsAuthLoading(false);
@@ -240,11 +238,6 @@ export function App() {
       try {
         const account = await loadAccountRole(authUser.uid);
         if (!active) return;
-        setRoleProfileWarning(
-          account.profileExists
-            ? ''
-            : `Profil Firestore users/${authUser.uid} belum ditemukan. Akses guru tidak diberikan. Jika akun ini perlu akses guru, administrator harus membuat dokumen tersebut dan mengisi field role dengan string "teacher".`,
-        );
         if (account.profileExists && account.roleValue !== 'teacher') {
           console.warn('[KimiaLab Auth] Profil ditemukan, tetapi role bukan "teacher"', {
             uid: authUser.uid,
@@ -281,9 +274,6 @@ export function App() {
           errorCode,
           errorMessage,
         });
-        setRoleProfileWarning(
-          `Role akun tidak dapat diverifikasi dari Firestore; akses guru dinonaktifkan: ${errorMessage}`,
-        );
       }
 
       try {
@@ -649,9 +639,14 @@ export function App() {
         onLogin={() => setIsLoginVisible(true)}
       />
       <div className="app-content">
-        {(roleProfileWarning || progressLoadError || progressSyncError) && (
+        {progressLoadError && (
           <div className="progress-sync-warning" role="alert">
-            {roleProfileWarning || progressLoadError || progressSyncError}
+            {progressLoadError}
+          </div>
+        )}
+        {progressSyncError && (
+          <div className="progress-sync-warning" role="alert">
+            {progressSyncError}
           </div>
         )}
         {authUser && (progressSyncStatus === 'pending' || progressSyncStatus === 'error') && (
