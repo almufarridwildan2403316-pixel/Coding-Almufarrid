@@ -105,14 +105,14 @@ export interface QuizQuestion {
 export type QuizGradingStatus = 'PENDING_ESSAY_GRADING' | 'COMPLETED';
 
 export interface QuizEssayAssessment {
-  rubricScores: Record<string, number>;
+  rubricScores?: Record<string, number>;
   score: number;
   feedback: string;
 }
 
 export interface QuizGradingInput {
-  essay1RubricScores: Record<string, number>;
-  essay2RubricScores: Record<string, number>;
+  essay1Score: number;
+  essay2Score: number;
   essay1Feedback: string;
   essay2Feedback: string;
 }

@@ -92,15 +92,22 @@ const isQuizSubmission = (value: unknown): value is QuizSubmission => {
 };
 
 const parseEssayAssessment = (value: unknown): QuizEssayAssessment | undefined => {
-  if (!isRecord(value) || !isRecord(value.rubricScores) || !Number.isFinite(value.score) || typeof value.feedback !== 'string') {
+  if (!isRecord(value) || !Number.isFinite(value.score) || typeof value.feedback !== 'string') {
     return undefined;
   }
-  const rubricScores: Record<string, number> = {};
-  for (const [key, score] of Object.entries(value.rubricScores)) {
-    if (!Number.isFinite(score)) return undefined;
-    rubricScores[key] = Number(score);
+  let rubricScores: Record<string, number> | undefined;
+  if (isRecord(value.rubricScores)) {
+    rubricScores = {};
+    for (const [key, score] of Object.entries(value.rubricScores)) {
+      if (!Number.isFinite(score)) return undefined;
+      rubricScores[key] = Number(score);
+    }
   }
-  return { rubricScores, score: Number(value.score), feedback: value.feedback };
+  return {
+    ...(rubricScores ? { rubricScores } : {}),
+    score: Number(value.score),
+    feedback: value.feedback,
+  };
 };
 
 const parseQuizSubmission = (value: unknown, documentId: string, userId?: string): QuizSubmission => {

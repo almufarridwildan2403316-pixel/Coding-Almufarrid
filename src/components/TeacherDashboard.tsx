@@ -47,28 +47,28 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     setReviewMessage('');
     try {
       const questions = getQuestionsForVersion(submission.questionVersion);
-      const rubricForEssay = (questionId: number) => {
+      const scoreForEssay = (questionId: number) => {
         const question = questions.find((item) => item.id === questionId);
         if (question?.type !== 'essay' || !question.rubric?.length) {
           throw new Error(`Rubrik Esai ${questionId - 10} tidak tersedia.`);
         }
-        return Object.fromEntries(question.rubric.map((criterion) => {
-          const rawScore = draftScores[key]?.[`${questionId}:${criterion.id}`]
-            ?? submission[`essay${questionId - 10}Assessment` as 'essay1Assessment' | 'essay2Assessment']?.rubricScores[criterion.id]?.toString()
-            ?? '';
-          if (rawScore.trim() === '' || !/^\d+$/.test(rawScore)) {
-            throw new Error(`Skor indikator "${criterion.criterion}" harus berupa angka bulat.`);
-          }
-          const score = Number(rawScore);
-          if (score > criterion.points) {
-            throw new Error(`Skor indikator "${criterion.criterion}" maksimal ${criterion.points}.`);
-          }
-          return [criterion.id, score];
-        }));
+        const assessment = questionId === 11
+          ? submission.essay1Assessment
+          : submission.essay2Assessment;
+        const rawScore = draftScores[key]?.[String(questionId)] ?? assessment?.score.toString() ?? '';
+        if (rawScore.trim() === '' || !/^\d+$/.test(rawScore)) {
+          throw new Error(`Nilai Esai ${questionId - 10} harus berupa bilangan bulat.`);
+        }
+        const score = Number(rawScore);
+        const maximumScore = question.rubric.reduce((total, criterion) => total + criterion.points, 0);
+        if (score > maximumScore) {
+          throw new Error(`Nilai Esai ${questionId - 10} maksimal ${maximumScore}.`);
+        }
+        return score;
       };
       await onSaveReview(submission, {
-        essay1RubricScores: rubricForEssay(11),
-        essay2RubricScores: rubricForEssay(12),
+        essay1Score: scoreForEssay(11),
+        essay2Score: scoreForEssay(12),
         essay1Feedback: draftFeedback[key]?.[11] ?? submission.essay1Assessment?.feedback ?? '',
         essay2Feedback: draftFeedback[key]?.[12] ?? submission.essay2Assessment?.feedback ?? '',
       });
@@ -284,12 +284,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                     )}
                                     {question.rubric && (
                                       <div style={{ marginTop: '0.5rem', color: 'var(--slate-700)', fontSize: '0.85rem' }}>
-                                        <strong>Rubrik penilaian (maks. {question.rubric.reduce((sum, criterion) => sum + criterion.points, 0)} poin):</strong>
+                                        <strong>Rubrik penilaian · pedoman guru (maks. {question.rubric.reduce((sum, criterion) => sum + criterion.points, 0)} poin)</strong>
                                         <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem' }}>
                                           {question.rubric.map((criterion) => (
-                                            <li key={criterion.criterion}>{criterion.criterion}: {criterion.points} poin</li>
+                                            <li key={criterion.id}>
+                                              {criterion.criterion}: maksimal {criterion.points} poin
+                                            </li>
                                           ))}
                                         </ul>
+                                        <div style={{ marginTop: '0.35rem' }}>
+                                          Masukkan satu nilai total untuk esai ini pada kolom penilaian.
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -317,8 +322,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       {supportsCurrentRubric ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                           {[11, 12].map((questionId) => {
-                            const question = questionSet.find((item) => item.id === questionId);
-                            if (!question || question.type !== 'essay' || !question.rubric) return null;
                             const assessment = questionId === 11
                               ? submission.essay1Assessment
                               : submission.essay2Assessment;
@@ -328,33 +331,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                   Esai {questionId - 10} · skor maks. 25
                                 </legend>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                                  {question.rubric.map((criterion) => {
-                                    const scoreKey = `${questionId}:${criterion.id}`;
-                                    return (
-                                      <label key={criterion.id} style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem', color: 'var(--slate-700)' }}>
-                                        <span>{criterion.criterion} <strong>(maks. {criterion.points})</strong></span>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={criterion.points}
-                                          step={1}
-                                          value={draftScores[submissionKey(submission)]?.[scoreKey]
-                                            ?? assessment?.rubricScores[criterion.id]?.toString()
-                                            ?? ''}
-                                          onChange={(event) => {
-                                            const nextValue = event.target.value;
-                                            const key = submissionKey(submission);
-                                            setDraftScores((previous) => ({
-                                              ...previous,
-                                              [key]: { ...previous[key], [scoreKey]: nextValue },
-                                            }));
-                                          }}
-                                          aria-label={`Skor ${criterion.criterion}`}
-                                          style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--slate-200)', boxSizing: 'border-box' }}
-                                        />
-                                      </label>
-                                    );
-                                  })}
+                                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
+                                    Nilai Esai {questionId - 10} (0–25)
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={25}
+                                      step={1}
+                                      value={draftScores[submissionKey(submission)]?.[String(questionId)] ?? assessment?.score.toString() ?? ''}
+                                      onChange={(event) => {
+                                        const key = submissionKey(submission);
+                                        const nextValue = event.target.value;
+                                        setDraftScores((previous) => ({
+                                          ...previous,
+                                          [key]: { ...previous[key], [String(questionId)]: nextValue },
+                                        }));
+                                      }}
+                                      aria-label={`Nilai Esai ${questionId - 10}`}
+                                      style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--slate-200)', boxSizing: 'border-box' }}
+                                    />
+                                  </label>
                                   <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-700)' }}>
                                     Feedback Esai {questionId - 10}
                                     <textarea

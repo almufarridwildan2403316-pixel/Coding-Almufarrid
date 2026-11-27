@@ -65,32 +65,18 @@ export const getEssayMaximumForVersion = (version?: string): number => {
 
 const buildEssayAssessment = (
   question: QuizQuestion,
-  scores: Record<string, number>,
+  score: number,
   feedback: string,
 ): QuizEssayAssessment => {
   if (question.type !== 'essay' || !question.rubric?.length) {
     throw new Error(`Rubrik untuk soal ${question.id} tidak tersedia.`);
   }
   if (typeof feedback !== 'string') throw new Error(`Feedback soal ${question.id} tidak valid.`);
-
-  const expectedIds = question.rubric.map((criterion) => criterion.id);
-  const suppliedIds = Object.keys(scores);
-  if (suppliedIds.length !== expectedIds.length || expectedIds.some((id) => !suppliedIds.includes(id))) {
-    throw new Error(`Semua indikator rubrik soal ${question.id} harus dinilai tepat satu kali.`);
+  const maximumScore = question.rubric.reduce((total, criterion) => total + criterion.points, 0);
+  if (!Number.isSafeInteger(score) || score < 0 || score > maximumScore) {
+    throw new Error(`Nilai Esai ${question.id - 10} harus berupa bilangan bulat antara 0 dan ${maximumScore}.`);
   }
-
-  const normalizedScores: Record<string, number> = {};
-  let score = 0;
-  for (const criterion of question.rubric) {
-    const criterionScore = scores[criterion.id];
-    if (!Number.isSafeInteger(criterionScore) || criterionScore < 0 || criterionScore > criterion.points) {
-      throw new Error(`Skor indikator "${criterion.criterion}" harus antara 0 dan ${criterion.points}.`);
-    }
-    normalizedScores[criterion.id] = criterionScore;
-    score += criterionScore;
-  }
-
-  return { rubricScores: normalizedScores, score, feedback: feedback.trim() };
+  return { score, feedback: feedback.trim() };
 };
 
 export const buildQuizGrading = (
@@ -109,8 +95,8 @@ export const buildQuizGrading = (
   const essay2Question = QUIZ_QUESTIONS.find((question) => question.id === 12);
   if (!essay1Question || !essay2Question) throw new Error('Rubrik evaluasi versi aktif tidak lengkap.');
 
-  const essay1Assessment = buildEssayAssessment(essay1Question, input.essay1RubricScores, input.essay1Feedback);
-  const essay2Assessment = buildEssayAssessment(essay2Question, input.essay2RubricScores, input.essay2Feedback);
+  const essay1Assessment = buildEssayAssessment(essay1Question, input.essay1Score, input.essay1Feedback);
+  const essay2Assessment = buildEssayAssessment(essay2Question, input.essay2Score, input.essay2Feedback);
   const totalEssayScore = essay1Assessment.score + essay2Assessment.score;
   const finalScore = pgScore + totalEssayScore;
   if (totalEssayScore > ESSAY_MAX_SCORE * 2 || finalScore > 100) {

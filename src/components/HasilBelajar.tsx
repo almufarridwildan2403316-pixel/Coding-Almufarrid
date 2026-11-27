@@ -238,15 +238,6 @@ export const HasilBelajar: React.FC<HasilBelajarProps> = ({
                     <section key={index} style={{ border: '1px solid var(--slate-200)', borderRadius: '10px', padding: '1rem' }}>
                       <h3 style={{ color: 'var(--navy-900)', fontSize: '0.95rem', fontWeight: 800 }}>Feedback Esai {index + 1}</h3>
                       <div style={{ fontWeight: 800, margin: '0.4rem 0' }}>Nilai: {assessment?.score ?? 0}/25</div>
-                      {assessment && (
-                        <ul style={{ paddingLeft: '1.2rem', color: 'var(--slate-700)', fontSize: '0.84rem' }}>
-                          {Object.entries(assessment.rubricScores).map(([indicator, score]) => (
-                            <li key={indicator}>
-                              {quizQuestionSet.find((question) => question.id === 11 + index)?.rubric?.find((criterion) => criterion.id === indicator)?.criterion ?? indicator}: {score}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
                       <p style={{ whiteSpace: 'pre-wrap', color: 'var(--slate-700)', fontSize: '0.87rem', lineHeight: 1.55 }}>
                         {assessment?.feedback || 'Tidak ada catatan guru.'}
                       </p>

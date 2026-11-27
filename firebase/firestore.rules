@@ -139,53 +139,17 @@ service cloud.firestore {
               'gradedAt'
             ])
             && request.resource.data.gradingStatus == 'COMPLETED'
-            && request.resource.data.essay1Assessment.score is number
+            && request.resource.data.essay1Assessment.keys().hasOnly(['score', 'feedback'])
+            && request.resource.data.essay1Assessment.keys().size() == 2
+            && request.resource.data.essay1Assessment.score is int
             && request.resource.data.essay1Assessment.score >= 0
             && request.resource.data.essay1Assessment.score <= 25
-            && request.resource.data.essay1Assessment.rubricScores.keys().hasOnly([
-              'classification', 'ionFormation', 'conductivity', 'equationArgument'
-            ])
-            && request.resource.data.essay1Assessment.rubricScores.keys().size() == 4
-            && request.resource.data.essay1Assessment.rubricScores.classification is int
-            && request.resource.data.essay1Assessment.rubricScores.classification >= 0
-            && request.resource.data.essay1Assessment.rubricScores.classification <= 5
-            && request.resource.data.essay1Assessment.rubricScores.ionFormation is int
-            && request.resource.data.essay1Assessment.rubricScores.ionFormation >= 0
-            && request.resource.data.essay1Assessment.rubricScores.ionFormation <= 7
-            && request.resource.data.essay1Assessment.rubricScores.conductivity is int
-            && request.resource.data.essay1Assessment.rubricScores.conductivity >= 0
-            && request.resource.data.essay1Assessment.rubricScores.conductivity <= 7
-            && request.resource.data.essay1Assessment.rubricScores.equationArgument is int
-            && request.resource.data.essay1Assessment.rubricScores.equationArgument >= 0
-            && request.resource.data.essay1Assessment.rubricScores.equationArgument <= 6
-            && request.resource.data.essay1Assessment.score == request.resource.data.essay1Assessment.rubricScores.classification
-              + request.resource.data.essay1Assessment.rubricScores.ionFormation
-              + request.resource.data.essay1Assessment.rubricScores.conductivity
-              + request.resource.data.essay1Assessment.rubricScores.equationArgument
             && request.resource.data.essay1Assessment.feedback is string
-            && request.resource.data.essay2Assessment.score is number
+            && request.resource.data.essay2Assessment.keys().hasOnly(['score', 'feedback'])
+            && request.resource.data.essay2Assessment.keys().size() == 2
+            && request.resource.data.essay2Assessment.score is int
             && request.resource.data.essay2Assessment.score >= 0
             && request.resource.data.essay2Assessment.score <= 25
-            && request.resource.data.essay2Assessment.rubricScores.keys().hasOnly([
-              'conclusionEvaluation', 'variables', 'experimentDesign', 'scientificArgument'
-            ])
-            && request.resource.data.essay2Assessment.rubricScores.keys().size() == 4
-            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation is int
-            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation >= 0
-            && request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation <= 5
-            && request.resource.data.essay2Assessment.rubricScores.variables is int
-            && request.resource.data.essay2Assessment.rubricScores.variables >= 0
-            && request.resource.data.essay2Assessment.rubricScores.variables <= 6
-            && request.resource.data.essay2Assessment.rubricScores.experimentDesign is int
-            && request.resource.data.essay2Assessment.rubricScores.experimentDesign >= 0
-            && request.resource.data.essay2Assessment.rubricScores.experimentDesign <= 8
-            && request.resource.data.essay2Assessment.rubricScores.scientificArgument is int
-            && request.resource.data.essay2Assessment.rubricScores.scientificArgument >= 0
-            && request.resource.data.essay2Assessment.rubricScores.scientificArgument <= 6
-            && request.resource.data.essay2Assessment.score == request.resource.data.essay2Assessment.rubricScores.conclusionEvaluation
-              + request.resource.data.essay2Assessment.rubricScores.variables
-              + request.resource.data.essay2Assessment.rubricScores.experimentDesign
-              + request.resource.data.essay2Assessment.rubricScores.scientificArgument
             && request.resource.data.essay2Assessment.feedback is string
             && request.resource.data.totalEssayScore == request.resource.data.essay1Assessment.score
               + request.resource.data.essay2Assessment.score
