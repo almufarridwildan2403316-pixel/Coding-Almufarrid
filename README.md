@@ -10,7 +10,8 @@ Hasil laboratorium adalah **simulasi kualitatif**, bukan pengukuran eksperimen n
 
 ## Status produk saat ini
 
-- Navigasi state-based mencakup Beranda, Materi Konsep, Laboratorium Virtual, Lembar Kerja, Evaluasi, Akses Guru, dan Hasil Belajar.
+- Beranda dan materi pembelajaran dapat diakses tanpa login. Login Firebase tersedia secara opsional untuk fitur akun; Akses Guru tetap memerlukan role `teacher` yang diverifikasi dari `users/{UID}`.
+- Navigasi mencakup Beranda, Materi Konsep, Laboratorium Virtual, Lembar Kerja, Evaluasi, Akses Guru, dan Hasil Belajar, dengan URL langsung `/`, `/materi`, `/lab`, `/lembar-kerja`, `/evaluasi`, `/guru`, dan `/hasil`.
 - Laboratorium memiliki Percobaan 1 (sampel baku) dan Percobaan 2 (larutan sehari-hari). Dataset memuat 30 sampel dan 10 sampel; prediksi Percobaan 2 dikunci sebelum saklar dapat dinyalakan.
 - Evaluasi berisi 10 soal pilihan ganda dan 2 esai. Nilai otomatis adalah 10 × 10 poin untuk PG; esai memerlukan penilaian manual.
 - Kiriman kuis akun siswa disimpan di Firestore; Akses Guru menampilkan kiriman tersebut dan menyimpan nilai/catatan guru. Pengiriman sebagai tamu atau saat sinkronisasi gagal tidak masuk ke rekap guru.
@@ -59,7 +60,7 @@ Untuk memberi akses guru, administrator harus menggunakan Firebase project yang 
 
 ## Deploy hosting SPA
 
-Navigasi internal memakai state React, bukan URL router. Hosting harus mengarahkan request halaman aplikasi kembali ke `index.html` agar SPA dapat dimuat pada akses langsung. Untuk Vercel, atur rewrite semua path aplikasi ke `/`; untuk Netlify, aturan yang umum adalah `/* /index.html 200`. Pastikan konfigurasi ini dan akses URL produksi benar-benar diuji sebelum rilis.
+Navigasi internal memakai state React yang disinkronkan dengan URL. Hosting harus mengarahkan request halaman aplikasi kembali ke `index.html` agar URL seperti `/materi` dapat dimuat langsung dan di-refresh. Untuk Vercel, atur rewrite semua path aplikasi ke `/`; untuk Netlify, aturan yang umum adalah `/* /index.html 200`. Pastikan konfigurasi ini dan akses URL produksi benar-benar diuji sebelum rilis.
 
 ## Keterbatasan yang masih terbuka
 

@@ -6,14 +6,14 @@ Dokumen ini menggambarkan implementasi yang ada di workspace, bukan rancangan fi
 
 - React 19 dan TypeScript, dibangun dengan Vite 8; ikon menggunakan `lucide-react`.
 - `src/main.tsx` memasang `App` di elemen `#root` dalam `StrictMode` dan memuat stylesheet global.
-- `src/App.tsx` mengelola navigasi, identitas, progres, autentikasi, pemuatan/simpan Firebase, serta memilih komponen halaman.
+- `src/App.tsx` mengelola navigasi URL/state, identitas, progres, autentikasi, pemuatan/simpan Firebase, serta memilih komponen halaman.
 - Firebase diinisialisasi secara kondisional dari variabel `VITE_FIREBASE_*` melalui `src/utils/firebase.ts`. Tanpa konfigurasi wajib, mode tamu tetap tersedia.
 
 ## 2. Pemetaan struktur berkas
 
 | Lokasi | Tanggung jawab |
 |---|---|
-| `src/components/Navbar.tsx` | Menu halaman, progres ringkas, identitas aktif, keluar akun, menu responsif, serta tautan Akses Guru yang ditampilkan untuk role guru. |
+| `src/components/Navbar.tsx` | Menu halaman, progres ringkas, identitas aktif, Login/keluar akun, menu responsif, serta tautan Akses Guru yang ditampilkan untuk role guru. |
 | `src/components/Beranda.tsx` | Pertanyaan pemantik yang dapat disimpan dan video YouTube pengantar dengan tautan untuk membuka YouTube langsung. |
 | `src/components/Materi.tsx` | Materi konsep dan tautan untuk memulai laboratorium virtual. |
 | `src/components/LabVirtual.tsx` | Dua alur percobaan, pilihan sampel, prediksi percobaan 2, saklar dan SVG alat, pengamatan, skor per percobaan, reset. |
@@ -34,7 +34,7 @@ Dokumen ini menggambarkan implementasi yang ada di workspace, bukan rancangan fi
 
 ## 3. Navigasi halaman
 
-Navigasi adalah **state-based navigation**, bukan router berbasis URL. `activePage` di `App.tsx` memilih satu dari tujuh halaman:
+Navigasi menggunakan state React yang disinkronkan dengan pathname. `activePage` di `App.tsx` memilih satu dari tujuh halaman:
 
 1. `beranda` — Beranda
 2. `materi` — Materi Konsep
@@ -44,7 +44,9 @@ Navigasi adalah **state-based navigation**, bukan router berbasis URL. `activePa
 6. `guru` — Akses Guru
 7. `hasil` — Hasil Belajar
 
-Pilihan halaman tidak membentuk path/riwayat URL tersendiri. Halaman Guru dibatasi oleh role pada UI; `App` merender Beranda jika state halaman Guru dipilih oleh pengguna non-guru. Karena itu hosting harus mengirimkan `index.html` untuk route aplikasi (SPA fallback/rewrite), khususnya bila konfigurasi hosting lain kelak menambahkan URL dalam aplikasi. Contoh konfigurasi yang umum: Vercel rewrite seluruh path ke `/`, Netlify `_redirects` berisi `/* /index.html 200`. Uji URL produksi aktual tetap diperlukan.
+Path halaman adalah `/`, `/materi`, `/lab`, `/lembar-kerja`, `/evaluasi`, `/guru`, dan `/hasil`. Halaman publik tetap dirender tanpa menunggu Firebase Auth atau Firestore. Halaman Guru hanya dirender setelah pengguna terautentikasi dan role `teacher` terverifikasi dari `users/{UID}`; pengguna tanpa sesi diminta login, sedangkan siswa atau kegagalan verifikasi dikembalikan ke Beranda. Firestore Rules tetap menjadi pengaman operasi dan data di server.
+
+Hosting harus mengirimkan `index.html` untuk path aplikasi (SPA fallback/rewrite), agar path dapat dibuka dan di-refresh langsung. Contoh konfigurasi yang umum: Vercel rewrite seluruh path ke `/`, Netlify `_redirects` berisi `/* /index.html 200`. Uji URL produksi aktual tetap diperlukan.
 
 ## 4. Alur data dan penyimpanan
 

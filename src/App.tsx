@@ -39,6 +39,21 @@ import { HasilBelajar } from './components/HasilBelajar';
 import { Login } from './components/Login';
 
 const createGuestStudent = (): StudentIdentity => ({ name: 'Tamu', className: '' });
+const pagePaths: Record<ActivePage, string> = {
+  beranda: '/',
+  materi: '/materi',
+  lab: '/lab',
+  'lembar-kerja': '/lembar-kerja',
+  evaluasi: '/evaluasi',
+  guru: '/guru',
+  hasil: '/hasil',
+};
+
+const getPageFromPathname = (): ActivePage => {
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  return (Object.keys(pagePaths) as ActivePage[]).find((page) => pagePaths[page] === pathname) ?? 'beranda';
+};
+
 const createAccountStudent = (user: User): StudentIdentity => {
   const email = user.email ?? '';
   return {
@@ -87,20 +102,28 @@ const mergeProgressChanges = (
 };
 
 export function App() {
-  const [activePage, setActivePage] = useState<ActivePage>('beranda');
+  const [activePage, setActivePage] = useState<ActivePage>(getPageFromPathname);
   const [selectedSampleId, setSelectedSampleId] = useState<string>('K01');
   const [selectedExperimentId, setSelectedExperimentId] = useState<ExperimentId>('percobaan_1');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const authUserId = useRef<string | null>(null);
   const progressLoadRef = useRef<{ userId: string; initial: LearningProgress; hasLocalChanges: boolean } | null>(null);
   const skipNextAccountSyncRef = useRef<{ userId: string; progress: LearningProgress } | null>(null);
-  const [student, setStudent] = useState<StudentIdentity | null>(
-    () => isFirebaseConfigured ? null : createGuestStudent(),
+  const [student, setStudent] = useState<StudentIdentity>(
+    () => {
+      const activeStudent = getActiveStudent();
+      return activeStudent && !activeStudent.id ? activeStudent : createGuestStudent();
+    },
   );
   const [progress, setProgress] = useState<LearningProgress>(
-    () => isFirebaseConfigured ? DEFAULT_PROGRESS : getStoredProgress(createGuestStudent()),
+    () => {
+      const activeStudent = getActiveStudent();
+      const guest = activeStudent && !activeStudent.id ? activeStudent : createGuestStudent();
+      return getStoredProgress(guest);
+    },
   );
   const [isAuthLoading, setIsAuthLoading] = useState(isFirebaseConfigured);
+  const [isLoginVisible, setIsLoginVisible] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(
     () => new URLSearchParams(window.location.search).get('mode') === 'resetPassword'
       && new URLSearchParams(window.location.search).has('oobCode'),
@@ -116,7 +139,7 @@ export function App() {
   } | null>(null);
   const [roleProfileWarning, setRoleProfileWarning] = useState('');
   const [canSyncProgress, setCanSyncProgress] = useState(false);
-  const isTeacher = student?.role === 'teacher';
+  const isTeacher = Boolean(authUser && student?.id === authUser.uid && student.role === 'teacher');
   const isLoadedTeacherHistory = Boolean(teacherHistory && teacherHistory.userId === authUser?.uid);
   const teacherQuizAttempts = isLoadedTeacherHistory ? teacherHistory?.attempts ?? [] : [];
   const teacherHistoryLoading = Boolean(isTeacher && authUser && teacherHistory?.userId !== authUser.uid);
@@ -124,9 +147,25 @@ export function App() {
   const renderedPage = activePage === 'guru' && !isTeacher ? 'beranda' : activePage;
 
   const handleSetActivePage = (page: ActivePage) => {
-    if (page === 'guru' && !isTeacher) return;
+    if (page === 'guru' && !isTeacher) {
+      if (!authUser && !isAuthLoading) setIsLoginVisible(true);
+      return;
+    }
     setActivePage(page);
   };
+
+  useEffect(() => {
+    const path = pagePaths[activePage];
+    if (window.location.pathname !== path) {
+      window.history.pushState({ page: activePage }, '', path);
+    }
+  }, [activePage]);
+
+  useEffect(() => {
+    const handlePopState = () => setActivePage(getPageFromPathname());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (!firebaseAuth) return;
@@ -147,6 +186,7 @@ export function App() {
         setTeacherHistory(null);
         setRoleProfileWarning('');
       }
+      if (nextUser) setIsLoginVisible(false);
       setIsAuthLoading(false);
 
       if (accountChanged && nextUser) {
@@ -169,18 +209,18 @@ export function App() {
       } else if (!nextUser) {
         progressLoadRef.current = null;
         const activeStudent = getActiveStudent();
-        if (activeStudent && !activeStudent.id) {
-          const guestProgress = getStoredProgress(activeStudent);
-          setStudent(activeStudent);
-          setProgress(guestProgress);
-        } else {
-          setStudent(null);
-          setProgress(DEFAULT_PROGRESS);
-        }
+        const guest = activeStudent && !activeStudent.id ? activeStudent : createGuestStudent();
+        const guestProgress = getStoredProgress(guest);
+        setStudent(guest);
+        setProgress(guestProgress);
         setIsProgressLoading(false);
         setProgressLoadError('');
         setCanSyncProgress(false);
         clearActiveStudent();
+        if (window.location.pathname.replace(/\/+$/, '') === '/guru') {
+          setActivePage('beranda');
+          setIsLoginVisible(true);
+        }
       }
 
     });
@@ -217,10 +257,16 @@ export function App() {
         }
         identity.role = account.role;
         setStudent(identity);
+        if (account.role !== 'teacher' && window.location.pathname.replace(/\/+$/, '') === '/guru') {
+          setActivePage('beranda');
+        }
       } catch (error: unknown) {
         if (!active) return;
         identity.role = 'student';
         setStudent(identity);
+        if (window.location.pathname.replace(/\/+$/, '') === '/guru') {
+          setActivePage('beranda');
+        }
         const errorCode = typeof error === 'object' && error !== null && 'code' in error
           ? String(error.code)
           : null;
@@ -392,9 +438,11 @@ export function App() {
 
   const handleLogout = async () => {
     if (!authUser || !firebaseAuth) {
-      setStudent(null);
-      setProgress(DEFAULT_PROGRESS);
+      const guest = createGuestStudent();
+      setStudent(guest);
+      setProgress(getStoredProgress(guest));
       setCanSyncProgress(false);
+      setIsLoginVisible(false);
       return;
     }
 
@@ -418,11 +466,11 @@ export function App() {
     setCanSyncProgress(false);
     setProgressLoadError('');
     setProgressSyncError('');
+    setIsLoginVisible(false);
     setActivePage('beranda');
   };
 
   const handleSaveExperimentRecord = (record: ExperimentRecord) => {
-    if (!student) return;
     if (record.sampleType !== 'mystery') {
       markSolutionTested(
         record.experimentId ? `${record.experimentId}:${record.solutionId}` : record.solutionId,
@@ -435,8 +483,6 @@ export function App() {
   };
 
   const handleSaveQuizResult = async (result: QuizResult): Promise<void> => {
-    if (!student) throw new Error('Identitas siswa belum siap. Jawaban belum dikirim.');
-
     let updated = saveQuizResult({ ...result, studentName: student.name, studentClass: student.className }, student);
     const storedProgress = getStoredProgress(student);
     const nextProgress = storedProgress.quizResult?.id === result.id ? storedProgress : updated;
@@ -475,7 +521,6 @@ export function App() {
   };
 
   const handleSaveWorksheetConclusion = (text: string) => {
-    if (!student) return;
     const updated = saveWorksheetConclusion({
       text,
       studentName: student.name,
@@ -487,7 +532,6 @@ export function App() {
   };
 
   const handleSaveHomePromptResponse = (response: HomePromptResponse) => {
-    if (!student) return;
     const updated = saveHomePromptResponse(response, student);
     markProgressChanged(student);
     setProgress(updated);
@@ -512,7 +556,6 @@ export function App() {
   };
 
   const handleResetProgress = async () => {
-    if (!student) return;
     if (window.confirm('Apakah Anda yakin ingin menghapus seluruh progres belajar, termasuk jawaban pemantik? Progres akan dimulai ulang dari awal.')) {
       const emptyProgress = { ...DEFAULT_PROGRESS, student };
       if (authUser) {
@@ -544,32 +587,17 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (isAuthLoading) {
-    return <main className="auth-loading" role="status">Memeriksa sesi akun…</main>;
-  }
-
-  if (isPasswordRecovery) {
+  if (isPasswordRecovery || isLoginVisible) {
     return (
       <Login
-        isPasswordRecovery
-        onPasswordUpdated={() => setIsPasswordRecovery(false)}
+        isPasswordRecovery={isPasswordRecovery}
+        onPasswordUpdated={() => {
+          setIsPasswordRecovery(false);
+          setIsLoginVisible(false);
+        }}
         onContinueAsGuest={handleContinueAsGuest}
       />
     );
-  }
-
-  if (!authUser && !student) {
-    return (
-      <Login
-        isPasswordRecovery={false}
-        onPasswordUpdated={() => setIsPasswordRecovery(false)}
-        onContinueAsGuest={handleContinueAsGuest}
-      />
-    );
-  }
-
-  if (!student) {
-    return <main className="auth-loading" role="status">Memuat progres belajar akun…</main>;
   }
 
   return (
@@ -580,6 +608,8 @@ export function App() {
         progress={progress}
         student={student}
         onLogout={handleLogout}
+        isAuthenticated={Boolean(authUser)}
+        onLogin={() => setIsLoginVisible(true)}
       />
       <div className="app-content">
         {(roleProfileWarning || progressLoadError || progressSyncError) && (

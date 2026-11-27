@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardList,
   FlaskConical,
+  LogIn,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -25,6 +26,8 @@ interface NavbarProps {
   progress: LearningProgress;
   student: StudentIdentity;
   onLogout: () => void;
+  isAuthenticated: boolean;
+  onLogin: () => void;
 }
 
 const navItems: { id: ActivePage; label: string; icon: typeof FlaskConical }[] = [
@@ -37,7 +40,15 @@ const navItems: { id: ActivePage; label: string; icon: typeof FlaskConical }[] =
   { id: 'hasil', label: 'Hasil Belajar', icon: BarChart3 },
 ];
 
-export const Navbar = ({ activePage, setActivePage, progress, student, onLogout }: NavbarProps) => {
+export const Navbar = ({
+  activePage,
+  setActivePage,
+  progress,
+  student,
+  onLogout,
+  isAuthenticated,
+  onLogin,
+}: NavbarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const allSamples = [
@@ -107,15 +118,30 @@ export const Navbar = ({ activePage, setActivePage, progress, student, onLogout 
             <span className="sidebar-progress-caption">Sampel telah diuji</span>
           </button>
 
+          {!isAuthenticated && (
+            <button
+              type="button"
+              className="sidebar-link"
+              onClick={onLogin}
+              title={collapsed ? 'Login' : undefined}
+              aria-label={collapsed ? 'Login' : undefined}
+            >
+              <LogIn size={19} aria-hidden="true" />
+              <span>Login</span>
+            </button>
+          )}
+
           <div className="sidebar-profile">
             <span className="sidebar-avatar" aria-hidden="true">{student.name.charAt(0).toUpperCase()}</span>
             <span className="sidebar-profile-copy">
               <strong>{student.name}</strong>
               <span>{student.className ? `Kelas ${student.className}` : student.email ?? 'Siswa'}</span>
             </span>
-            <button type="button" className="sidebar-logout" onClick={onLogout} aria-label="Keluar dari akun" title="Keluar">
-              <LogOut size={17} />
-            </button>
+            {isAuthenticated && (
+              <button type="button" className="sidebar-logout" onClick={onLogout} aria-label="Keluar dari akun" title="Keluar">
+                <LogOut size={17} />
+              </button>
+            )}
           </div>
 
           <button
@@ -157,9 +183,15 @@ export const Navbar = ({ activePage, setActivePage, progress, student, onLogout 
             {menu(true)}
             <div className="mobile-sidebar-bottom">
               <span className="mobile-student-name">{student.name}</span>
-              <button type="button" className="mobile-logout" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>
-                <LogOut size={17} /> Keluar dari akun
-              </button>
+              {isAuthenticated ? (
+                <button type="button" className="mobile-logout" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>
+                  <LogOut size={17} /> Keluar dari akun
+                </button>
+              ) : (
+                <button type="button" className="mobile-logout" onClick={() => { setMobileMenuOpen(false); onLogin(); }}>
+                  <LogIn size={17} /> Login
+                </button>
+              )}
             </div>
           </aside>
         </>
